@@ -1,0 +1,1 @@
+arm-none-eabi-gdb -x ~/CC3200_SDK/cc3200-sdk/tools/gcc_scripts/gdbinit $1

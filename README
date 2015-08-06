@@ -1,0 +1,5 @@
+This file needs future improvement.
+
+WirelessDebugger depends on the TI CC3200 SDK, which can be installed in Windows and copied to whatever OS, or installed in linux using wine.
+
+Current build system is a makefile, future plans to switch to MTbuild.
