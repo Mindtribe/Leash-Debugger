@@ -1,4 +1,4 @@
-src/gpio_if.o: src/gpio_if.c /usr/include/newlib/stdio.h \
+src/vendor/gpio_if.o: src/vendor/gpio_if.c /usr/include/newlib/stdio.h \
  /usr/include/newlib/_ansi.h /usr/include/newlib/newlib.h \
  /usr/include/newlib/sys/config.h /usr/include/newlib/machine/ieeefp.h \
  /usr/include/newlib/sys/features.h \
@@ -20,4 +20,4 @@ src/gpio_if.o: src/gpio_if.c /usr/include/newlib/stdio.h \
  /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/rom.h \
  /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/rom_map.h \
  /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/rom_patch.h \
- inc/gpio_if.h
+ inc/vendor/gpio_if.h

@@ -6,13 +6,13 @@ EXE := ./exe
 
 #project parameters
 program_NAME := WirelessDebugger
-program_C_SRCS := $(wildcard ./src/*.c)
-program_CXX_SRCS := $(wildcard ./src/*.cpp)
+program_C_SRCS := $(wildcard ./src/*.c) $(wildcard ./src/vendor/*.c)
+program_CXX_SRCS := $(wildcard ./src/*.cpp) $(wildcard ./src/vendor/*.cpp)
 program_C_OBJS := ${program_C_SRCS:.c=.o}
 program_CXX_OBJS := ${program_CXX_SRCS:.cpp=.o}
 program_OBJS := $(program_C_OBJS) $(program_CXX_OBJS)
-program_INCLUDE_DIRS := ./inc $(SDK_DIR)/inc $(SDK_DIR)/driverlib $(SDK_DIR)
-program_LIBRARY_DIRS := ./lib $(SDK_DIR)/driverlib/gcc/exe
+program_INCLUDE_DIRS := ./inc ./inc/vendor $(SDK_DIR)/inc $(SDK_DIR)/driverlib $(SDK_DIR)
+program_LIBRARY_DIRS := ./lib ./lib/vendor $(SDK_DIR)/driverlib/gcc/exe
 program_LIBRARIES :=
 program_STATIC_LIBS := $(SDK_DIR)/driverlib/gcc/exe/libdriver.a
 

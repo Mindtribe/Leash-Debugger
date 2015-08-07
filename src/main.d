@@ -20,5 +20,7 @@ src/main.o: src/main.c /usr/include/newlib/stdio.h \
  /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/rom_map.h \
  /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/rom_patch.h \
  /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/gpio.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/utils.h inc/gpio_if.h \
- inc/pinmux.h
+ /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/utils.h \
+ inc/vendor/gpio_if.h inc/vendor/pin_mux_config.h inc/jtag_pinctl.h \
+ /usr/lib/gcc/arm-none-eabi/4.8.2/include/stdint.h \
+ /usr/include/newlib/stdint.h inc/common.h

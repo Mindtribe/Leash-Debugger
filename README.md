@@ -8,7 +8,6 @@ Depends on the TI CC3200 SDK, which can be installed in Windows and copied to wh
 
 Current build system is a makefile, future plans to switch to MTbuild.
 
-
 Some notes about the set-up:
 - This was done on Ubuntu.
 - Rough set-up instructions for the toolchain found here: 
@@ -16,3 +15,4 @@ Some notes about the set-up:
 ...But using the OpenOCD instructions (using libusb instead of ft2232 driver) from here: 
 	https://hackpad.com/Using-the-CC3200-Launchpad-Under-Linux-Rrol11xo7NQ
 
+This is a work in progress, and not yet functional. Check commit notes for the latest status.

@@ -1,7 +1,7 @@
 //*****************************************************************************
-// pinmux.c
+// rom_pin_mux_config.c
 //
-// configure the device pins for different peripheral signals
+// configure the device pins for different signals
 //
 // Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
 // 
@@ -36,45 +36,77 @@
 //
 //*****************************************************************************
 
-// This file was automatically generated on 7/21/2014 at 3:06:20 PM
-// by TI PinMux version 3.0.334
+// This file was automatically generated on 8/7/2015 at 9:37:10 AM
+// by TI PinMux version 4.0.787 
 //
 //*****************************************************************************
 
-#include "pinmux.h"
+#include "pin_mux_config.h" 
 #include "hw_types.h"
 #include "hw_memmap.h"
 #include "hw_gpio.h"
 #include "pin.h"
-#include "rom.h"
-#include "rom_map.h"
 #include "gpio.h"
 #include "prcm.h"
+#include "rom.h"
+#include "rom_map.h"
 
 //*****************************************************************************
-void
-PinMuxConfig(void)
+void PinMuxConfig(void)
 {
     //
     // Enable Peripheral Clocks 
     //
+    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA0, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_GPIOA1, PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA2, PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA3, PRCM_RUN_MODE_CLK);
 
     //
-    // Configure PIN_64 for GPIOOutput
+    // Configure PIN_55 for GPIO Input
+    //
+    MAP_PinTypeGPIO(PIN_55, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA0_BASE, 0x2, GPIO_DIR_MODE_IN);
+
+    //
+    // Configure PIN_64 for GPIO Output
     //
     MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
 
     //
-    // Configure PIN_01 for GPIOOutput
+    // Configure PIN_01 for GPIO Output
     //
     MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 
     //
-    // Configure PIN_02 for GPIOOutput
+    // Configure PIN_02 for GPIO Output
     //
     MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA1_BASE, 0x8, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_06 for GPIO Output
+    //
+    MAP_PinTypeGPIO(PIN_06, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x80, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_07 for GPIO Output
+    //
+    MAP_PinTypeGPIO(PIN_07, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x1, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_08 for GPIO Output
+    //
+    MAP_PinTypeGPIO(PIN_08, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x2, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_18 for GPIO Output
+    //
+    MAP_PinTypeGPIO(PIN_18, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA3_BASE, 0x10, GPIO_DIR_MODE_OUT);
 }
