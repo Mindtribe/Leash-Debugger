@@ -1,5 +1,5 @@
 #SDK stuff
-SDK_DIR=/home/parallels/CC3200_SDK/cc3200-sdk
+SDK_DIR=./lib/cc3200-sdk
 
 #output folder
 EXE := ./exe

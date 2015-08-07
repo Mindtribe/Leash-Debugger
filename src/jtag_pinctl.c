@@ -23,10 +23,12 @@
 //state struct
 struct jtag_pinctl_state_t{
     unsigned char initialized;
+    unsigned char lastTDO;
 };
 //instatiated state struct
 static struct jtag_pinctl_state_t jtag_pinctl_state = {
-    .initialized = 0
+    .initialized = 0,
+    .lastTDO = 0
 };
 
 //GPIO pin assignments for JTAG lines
@@ -151,6 +153,11 @@ int jtag_pinctl_doClock(uint8_t active_pins)
     //TODO: delay check
     MAP_UtilsDelay(2*UNIT_DELAY);
 
+    //read TDO just before falling edge and store
+    jtag_pinctl_state.lastTDO = GPIO_IF_Get(TDOLocation.ucPin,
+            TDOLocation.uiGPIOPort,
+            TDOLocation.ucGPIOPin);
+
     //clock LOW
     GPIO_IF_Set(TCKLocation.ucPin,
             TCKLocation.uiGPIOPort,
@@ -163,6 +170,11 @@ int jtag_pinctl_doClock(uint8_t active_pins)
     MAP_UtilsDelay(UNIT_DELAY);
 
     return RET_SUCCESS;
+}
+
+unsigned char jtag_pinctl_getLastTDO(void)
+{
+    return jtag_pinctl_state.lastTDO;
 }
 
 

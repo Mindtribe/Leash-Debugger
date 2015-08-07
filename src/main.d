@@ -9,18 +9,12 @@ src/main.o: src/main.c /usr/include/newlib/stdio.h \
  /usr/include/newlib/machine/_default_types.h \
  /usr/include/newlib/sys/lock.h /usr/include/newlib/sys/types.h \
  /usr/include/newlib/machine/types.h /usr/include/newlib/sys/stdio.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/inc/hw_types.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/inc/hw_ints.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/inc/hw_memmap.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/inc/hw_common_reg.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/interrupt.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/inc/hw_apps_rcm.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/prcm.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/rom.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/rom_map.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/rom_patch.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/gpio.h \
- /home/parallels/CC3200_SDK/cc3200-sdk/driverlib/utils.h \
+ lib/cc3200-sdk/inc/hw_types.h lib/cc3200-sdk/inc/hw_ints.h \
+ lib/cc3200-sdk/inc/hw_memmap.h lib/cc3200-sdk/inc/hw_common_reg.h \
+ lib/cc3200-sdk/driverlib/interrupt.h lib/cc3200-sdk/inc/hw_apps_rcm.h \
+ lib/cc3200-sdk/driverlib/prcm.h lib/cc3200-sdk/driverlib/rom.h \
+ lib/cc3200-sdk/driverlib/rom_map.h lib/cc3200-sdk/driverlib/rom_patch.h \
+ lib/cc3200-sdk/driverlib/gpio.h lib/cc3200-sdk/driverlib/utils.h \
  inc/vendor/gpio_if.h inc/vendor/pin_mux_config.h inc/jtag_pinctl.h \
  /usr/lib/gcc/arm-none-eabi/4.8.2/include/stdint.h \
  /usr/include/newlib/stdint.h inc/common.h
