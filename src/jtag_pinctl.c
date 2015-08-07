@@ -156,7 +156,7 @@ int jtag_pinctl_doClock(uint8_t active_pins)
     //read TDO just before falling edge and store
     jtag_pinctl_state.lastTDO = GPIO_IF_Get(TDOLocation.ucPin,
             TDOLocation.uiGPIOPort,
-            TDOLocation.ucGPIOPin);
+            TDOLocation.ucGPIOPin) ? 1:0;
 
     //clock LOW
     GPIO_IF_Set(TCKLocation.ucPin,

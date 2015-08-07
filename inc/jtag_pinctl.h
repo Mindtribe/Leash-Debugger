@@ -25,6 +25,7 @@ struct jtagPinLocation{
 };
 
 enum jtagPinBit{
+    JTAG_NONE = 0,
     JTAG_TDI = 1,
     JTAG_TMS = 2,
     JTAG_RST = 4,
