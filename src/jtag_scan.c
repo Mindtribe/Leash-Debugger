@@ -74,9 +74,12 @@ int jtag_scan_shiftDR(uint32_t data, uint32_t len)
     //do shifting
     for(int i=0; i<len; i++){
         jtag_pinctl_doClock((data & 1) * JTAG_TDI); //send LSB
-        data = data>>1;
-        jtag_scan_state.shift_out |= jtag_pinctl_getLastTDO() * (1<<(len-i-1));
+        data /= 2;
+        jtag_scan_state.shift_out /= 2;
+        if(len-i <= 32) jtag_scan_state.shift_out |= jtag_pinctl_getLastTDO() ? 0x80000000 : 0;
     }
+    //correct for lower bit counts
+    //if(len<32) jtag_scan_state.shift_out /= 2^(32-len);
 
     //get back to Run-Test/Idle state
     jtag_pinctl_doClock(JTAG_TMS);
@@ -104,9 +107,12 @@ int jtag_scan_shiftIR(uint32_t data, uint32_t len)
     //do shifting
     for(int i=0; i<len; i++){
         jtag_pinctl_doClock((data & 1) * JTAG_TDI); //send LSB
-        data = data>>1;
-        jtag_scan_state.shift_out |= jtag_pinctl_getLastTDO() * (1<<i);
+        data /= 2;
+        jtag_scan_state.shift_out /= 2;
+        if(len-i <= 32) jtag_scan_state.shift_out |= jtag_pinctl_getLastTDO() ? 0x80000000 : 0;
     }
+    //correct for lower bit counts
+    //if(len<32) jtag_scan_state.shift_out /= 2^(32-len);
 
     //get back to Run-Test/Idle state
     jtag_pinctl_doClock(JTAG_TMS);

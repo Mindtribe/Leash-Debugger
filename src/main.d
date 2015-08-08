@@ -17,4 +17,4 @@ src/main.o: src/main.c /usr/include/newlib/stdio.h \
  lib/cc3200-sdk/driverlib/gpio.h lib/cc3200-sdk/driverlib/utils.h \
  inc/vendor/gpio_if.h inc/vendor/pin_mux_config.h inc/jtag_scan.h \
  /usr/lib/gcc/arm-none-eabi/4.8.2/include/stdint.h \
- /usr/include/newlib/stdint.h inc/common.h
+ /usr/include/newlib/stdint.h inc/jtag_codes.h inc/common.h

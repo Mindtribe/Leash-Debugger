@@ -28,6 +28,7 @@
 #include "pin_mux_config.h"
 
 #include "jtag_scan.h"
+#include "jtag_codes.h"
 #include "common.h"
 
 static int BoardInit(void);
@@ -53,7 +54,29 @@ int main(void)
     jtag_scan_init();
 
     jtag_scan_hardRst();
+
     jtag_scan_rstStateMachine();
+    //jtag_scan_shiftIR(ICEPICK_IDCODE, ICEPICK_INST_LEN);
+    //jtag_scan_shiftIR(0, ICEPICK_INST_LEN);
+    jtag_scan_shiftDR(0,32);
+
+    uint32_t result = jtag_scan_getShiftOut();
+
+
+    /* Old "Unit Tests":
+
+
+    //BYPASS test (should give 23509 in result)
+    jtag_scan_hardRst();
+
+    jtag_scan_rstStateMachine();
+    jtag_scan_shiftIR(ICEPICK_BYPASS, ICEPICK_INST_LEN);
+    jtag_scan_shiftDR(23509,33);
+
+    uint32_t result = jtag_scan_getShiftOut();
+
+
+    //looping test (infinite shifting through IR)
     jtag_scan_shiftIR(0xFF00F0F0, 32);
     jtag_scan_shiftIR(0xFF00F0F0, 32);
     while(1)
@@ -63,9 +86,7 @@ int main(void)
         GPIO_IF_LedToggle(MCU_RED_LED_GPIO);
     }
 
-    /* Old "Unit Tests":
-
-
+    //JTAG lines toggle test
     while(1){
         GPIO_IF_LedOn(MCU_RED_LED_GPIO);
         for(int i=0; i<100; i++){
@@ -79,6 +100,7 @@ int main(void)
         }
     }
 
+    //LEDS test
     while(1){
         GPIO_IF_LedOn(MCU_RED_LED_GPIO);
         GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
@@ -91,6 +113,8 @@ int main(void)
     }
 
      */
+
+    while(1){};
 
     return RET_SUCCESS;
 }
