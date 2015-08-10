@@ -28,6 +28,7 @@
 #include "pin_mux_config.h"
 
 #include "cc3200_icepick.h"
+#include "jtag_scan.h"
 #include "common.h"
 
 static int BoardInit(void);
@@ -52,6 +53,32 @@ int main(void)
 
     if(cc3200_icepick_init() == RET_FAILURE) goto error;
     if(cc3200_icepick_detect() == RET_FAILURE) goto error;
+    if(cc3200_icepick_connect() == RET_FAILURE) goto error;
+    if(cc3200_icepick_configure() == RET_FAILURE) goto error;
+
+    //these are just to poke around and see what is currently in the scanchain on a logic analyzer.
+    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_RUNIDLE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0,64,JTAG_STATE_PAUSE,JTAG_STATE_RUNIDLE);
+
+    //try to get the ARM debug port in BYPASS mode
+    //jtag_scan_shiftIR(0b1111000000, 10, JTAG_STATE_RUNIDLE, JTAG_STATE_RUNIDLE);
+
+    //these are just to poke around and see what is currently in the scanchain on a logic analyzer.
+    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_RUNIDLE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
+    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_RUNIDLE);
+
+    //try to get the ARM debug port in IDCODE mode
+    jtag_scan_shiftIR(0b0000001110, 10, JTAG_STATE_RUNIDLE, JTAG_STATE_PAUSE);
+    jtag_scan_shiftDR(0, 33, JTAG_STATE_RUNIDLE, JTAG_STATE_RUNIDLE);
+    jtag_scan_shiftDR(0, 33, JTAG_STATE_RUNIDLE, JTAG_STATE_RUNIDLE);
+    uint32_t result = (uint32_t) (jtag_scan_getShiftOut() & 0xFFFFFFFF);
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
@@ -59,7 +86,7 @@ int main(void)
 
     return RET_SUCCESS;
 
-error:
+    error:
     GPIO_IF_LedOn(MCU_RED_LED_GPIO);
     while(1){};
 
@@ -135,5 +162,5 @@ error:
         MAP_UtilsDelay(800000);
     }
 
-    */
+     */
 }

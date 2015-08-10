@@ -12,7 +12,18 @@
 For performing basic composite JTAG operations like read/write data/instruction registers.
  */
 
+#ifndef JTAG_SCAN_H_
+#define JTAG_SCAN_H_
+
 #include <stdint.h>
+
+//jtag states. This does not have all states of the state machine, only
+//those that are interesting to start from or return to when doing
+//IR or DR scan operations.
+enum jtag_state{
+    JTAG_STATE_PAUSE = 0,
+    JTAG_STATE_RUNIDLE
+};
 
 //Initializer - call once before using.
 int jtag_scan_init(void);
@@ -31,10 +42,12 @@ int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk);
 int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk);
 
 //Shift data into/out of Data Register.
-int jtag_scan_shiftDR(uint32_t data, uint32_t len);
+int jtag_scan_shiftDR(uint32_t data, uint32_t len, enum jtag_state fromState, enum jtag_state toState);
 
 //Shift data into/out of Instruction Register.
-int jtag_scan_shiftIR(uint32_t data, uint32_t len);
+int jtag_scan_shiftIR(uint32_t data, uint32_t len, enum jtag_state fromState, enum jtag_state toState);
 
 //Get the shifted out value from the most recent scan operation.
-uint32_t jtag_scan_getShiftOut(void);
+uint64_t jtag_scan_getShiftOut(void);
+
+#endif

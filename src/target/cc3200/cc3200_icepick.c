@@ -19,6 +19,8 @@
 struct cc3200_icepick_state_t{
     unsigned char initialized;
     unsigned char detected;
+    unsigned char connected;
+    unsigned char configured;
     struct cc3200_icepick_properties_t properties;
 
 };
@@ -26,6 +28,8 @@ struct cc3200_icepick_state_t{
 struct cc3200_icepick_state_t cc3200_icepick_state = {
     .initialized = 0,
     .detected = 0,
+    .connected = 0,
+    .configured = 0,
     .properties = {
         .IDCODE_MANUFACTURER = 0,
         .IDCODE_PARTNUMBER = 0,
@@ -56,8 +60,8 @@ int cc3200_icepick_detect(void)
     jtag_scan_hardRst();
     jtag_scan_rstStateMachine();
 
-    jtag_scan_shiftIR(ICEPICK_IDCODE, ICEPICK_INST_LEN);
-    jtag_scan_shiftDR(0,32); //get 32-bit IDCODE
+    jtag_scan_shiftIR(ICEPICK_IDCODE, ICEPICK_INST_LEN, JTAG_STATE_RUNIDLE, JTAG_STATE_PAUSE);
+    jtag_scan_shiftDR(0,32, JTAG_STATE_PAUSE, JTAG_STATE_RUNIDLE); //get 32-bit IDCODE
     uint32_t idcode = jtag_scan_getShiftOut();
 
     cc3200_icepick_state.properties.IDCODE_MANUFACTURER = (uint16_t) ((idcode>>1) & 0x3FF);
@@ -71,8 +75,8 @@ int cc3200_icepick_detect(void)
         return RET_FAILURE;
     }
 
-    jtag_scan_shiftIR(ICEPICK_ICEPICKCODE, ICEPICK_INST_LEN);
-    jtag_scan_shiftDR(0,32); //get 32-bit ICEPICKCODE
+    jtag_scan_shiftIR(ICEPICK_ICEPICKCODE, ICEPICK_INST_LEN, JTAG_STATE_RUNIDLE, JTAG_STATE_PAUSE);
+    jtag_scan_shiftDR(0,32, JTAG_STATE_PAUSE, JTAG_STATE_RUNIDLE); //get 32-bit ICEPICKCODE
     uint32_t icepickcode = jtag_scan_getShiftOut();
 
     cc3200_icepick_state.properties.ICEPICKCODE_CAPABILITIES = (uint8_t) ((icepickcode) & 0xF);
@@ -89,5 +93,76 @@ int cc3200_icepick_detect(void)
     }
 
     cc3200_icepick_state.detected = 1;
+    return RET_SUCCESS;
+}
+
+int cc3200_icepick_connect(void)
+{
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected) return RET_FAILURE;
+
+    //note: the reason for using these specific ICEPICK commands can be found in TI's ICEPICK type C technical reference manual.
+
+    if(jtag_scan_shiftIR(ICEPICK_CONNECT, ICEPICK_INST_LEN, JTAG_STATE_RUNIDLE, JTAG_STATE_PAUSE) == RET_FAILURE) return RET_FAILURE;
+    if(jtag_scan_shiftDR(0b10001001, 8, JTAG_STATE_PAUSE, JTAG_STATE_RUNIDLE) == RET_FAILURE) return RET_FAILURE;
+
+    cc3200_icepick_state.connected = 1;
+    return RET_SUCCESS;
+}
+
+int cc3200_icepick_disconnect(void)
+{
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected) return RET_FAILURE;
+
+    //note: the reason for using these specific ICEPICK commands can be found in TI's ICEPICK type C technical reference manual.
+
+    if(jtag_scan_shiftIR(ICEPICK_CONNECT, ICEPICK_INST_LEN, JTAG_STATE_RUNIDLE, JTAG_STATE_PAUSE) == RET_FAILURE) return RET_FAILURE;
+    if(jtag_scan_shiftDR(0b10000110, 8, JTAG_STATE_PAUSE, JTAG_STATE_RUNIDLE) == RET_FAILURE) return RET_FAILURE;
+
+    cc3200_icepick_state.connected = 0;
+    return RET_SUCCESS;
+}
+
+int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state fromState, enum jtag_state toState)
+{
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) return RET_FAILURE;
+
+    uint32_t data_reg = 0;
+    data_reg |= rw ? (1<<31) : 0; //read/write bit
+    data_reg |= ((block&0x07) << 28);
+    data_reg |= ((reg&0x0F) << 24);
+    data_reg |= (value&0xFFFFFF);
+
+    if(jtag_scan_shiftIR(ICEPICK_ROUTER, ICEPICK_INST_LEN, fromState, JTAG_STATE_PAUSE) == RET_FAILURE) return RET_FAILURE;
+    if(jtag_scan_shiftDR(data_reg, 32, JTAG_STATE_PAUSE, toState) == RET_FAILURE) return RET_FAILURE;
+
+    return RET_SUCCESS;
+}
+
+int cc3200_icepick_configure(void)
+{
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) return RET_FAILURE;
+
+    //note: this sequence of commands has been derived from OpenOCD's config file for icepick type c (icepick.cfg).
+    //another source for them was not (yet) found.
+
+    //reason for command unclear
+    if(cc3200_icepick_router_command(1, 0, 1, 0x00100, JTAG_STATE_RUNIDLE, JTAG_STATE_PAUSE) == RET_FAILURE) return RET_FAILURE;
+
+    //enable power/clock of TAP
+    if(cc3200_icepick_router_command(1, 2, 0, 0x100048, JTAG_STATE_PAUSE, JTAG_STATE_PAUSE) == RET_FAILURE) return RET_FAILURE;
+
+    //enable debug default mode
+    if(cc3200_icepick_router_command(1, 2, 0, 0x102048, JTAG_STATE_PAUSE, JTAG_STATE_PAUSE) == RET_FAILURE) return RET_FAILURE;
+
+    //select TAP
+    if(cc3200_icepick_router_command(1, 2, 0, 0x102148, JTAG_STATE_PAUSE, JTAG_STATE_PAUSE) == RET_FAILURE) return RET_FAILURE;
+
+    //set ICEPICK TAP to BYPASS
+    if(jtag_scan_shiftIR(ICEPICK_BYPASS, ICEPICK_INST_LEN, JTAG_STATE_PAUSE, JTAG_STATE_RUNIDLE) == RET_FAILURE) return RET_FAILURE;
+
+    //wait for a while
+    jtag_scan_doData(0,10);
+
+    cc3200_icepick_state.configured = 1;
     return RET_SUCCESS;
 }

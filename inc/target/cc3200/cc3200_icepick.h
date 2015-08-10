@@ -13,6 +13,8 @@
 
 #include <stdint.h>
 
+#include "jtag_scan.h"
+
 #define IDCODE_MANUFACTURER_TI 0x17
 //note: this part number was read from the device, and online resources suggest
 //that this is indeed the part number of a CC3200. However, no official documentation
@@ -39,5 +41,19 @@ int cc3200_icepick_init(void);
 
 //read IDCODE and ICEPICKCODE to get properties of target.
 int cc3200_icepick_detect(void);
+
+//connect the ICEPICK to the rest of the chip's debug hardware
+int cc3200_icepick_connect(void);
+
+//disconnect the ICEPICK from the rest of the chip's debug hardware
+int cc3200_icepick_disconnect(void);
+
+//send the ICEPICK a ROUTER-command.
+int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state fromState, enum jtag_state toState);
+
+//configure the ICEPICK for debugging the CC3200's core TAP.
+int cc3200_icepick_configure(void);
+
+//TODO: possibly add full system reset via ICEPICK module (see ICEPICK reference manual for docs on this feature)
 
 #endif

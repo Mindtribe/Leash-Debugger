@@ -59,38 +59,76 @@ int jtag_scan_rstStateMachine(void)
     return RET_SUCCESS;
 }
 
-int jtag_scan_shiftDR(uint32_t data, uint32_t len)
+int jtag_scan_shiftDR(uint32_t data, uint32_t len, enum jtag_state fromState, enum jtag_state toState)
 {
     if(!jtag_scan_state.initialized) return RET_FAILURE;
 
     jtag_scan_state.shift_out = 0;
 
     //Get to Shift-DR state
-    jtag_scan_doStateMachine(0b0010, 4);
+    switch(fromState){
+    case JTAG_STATE_RUNIDLE:
+        jtag_scan_doStateMachine(0b0010, 4);
+        break;
+    case JTAG_STATE_PAUSE:
+        jtag_scan_doStateMachine(0b00111, 5);
+        break;
+    default:
+        return RET_FAILURE; //invalid state
+    }
 
     //do shifting
     jtag_scan_doData((uint64_t)data, len);
 
     //get back to Run-Test/Idle state from current state (Exit-DR)
-    jtag_scan_doStateMachine(0b01, 2);
+    //Get to Shift-DR state
+    switch(toState){
+    case JTAG_STATE_RUNIDLE:
+        jtag_scan_doStateMachine(0b01, 2);
+        break;
+    case JTAG_STATE_PAUSE:
+        jtag_scan_doStateMachine(0b0, 1);
+        break;
+    default:
+        return RET_FAILURE; //invalid state
+    }
 
     return RET_SUCCESS;
 }
 
-int jtag_scan_shiftIR(uint32_t data, uint32_t len)
+int jtag_scan_shiftIR(uint32_t data, uint32_t len, enum jtag_state fromState, enum jtag_state toState)
 {
     if(!jtag_scan_state.initialized) return RET_FAILURE;
 
     jtag_scan_state.shift_out = 0;
 
     //Get to Shift-IR state
-    jtag_scan_doStateMachine(0b00110, 5);
+    switch(fromState){
+    case JTAG_STATE_RUNIDLE:
+        jtag_scan_doStateMachine(0b00110, 5);
+        break;
+    case JTAG_STATE_PAUSE:
+        jtag_scan_doStateMachine(0b001111, 6);
+        break;
+    default:
+        return RET_FAILURE; //invalid state
+    }
 
     //do shifting
     jtag_scan_doData((uint64_t)data, len);
 
     //get back to Run-Test/Idle state from current state (Exit-IR)
-    jtag_scan_doStateMachine(0b01, 2);
+    //Get to Shift-DR state
+    switch(toState){
+    case JTAG_STATE_RUNIDLE:
+        jtag_scan_doStateMachine(0b01, 2);
+        break;
+    case JTAG_STATE_PAUSE:
+        jtag_scan_doStateMachine(0b0, 1);
+        break;
+    default:
+        return RET_FAILURE; //invalid state
+    }
 
     return RET_SUCCESS;
 }
@@ -110,7 +148,7 @@ int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
 int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
 {
     if(!jtag_scan_state.initialized) return RET_FAILURE;
-    if(num_clk>=64) return RET_FAILURE;
+    if(num_clk>64) return RET_FAILURE;
 
     jtag_scan_state.shift_out = 0;
 
@@ -124,7 +162,7 @@ int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
     return RET_SUCCESS;
 }
 
-uint32_t jtag_scan_getShiftOut(void)
+uint64_t jtag_scan_getShiftOut(void)
 {
     return jtag_scan_state.shift_out;
 }

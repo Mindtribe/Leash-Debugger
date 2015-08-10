@@ -18,4 +18,4 @@ src/main.o: src/main.c /usr/include/newlib/stdio.h \
  inc/vendor/gpio_if.h inc/vendor/pin_mux_config.h \
  inc/target/cc3200/cc3200_icepick.h \
  /usr/lib/gcc/arm-none-eabi/4.8.2/include/stdint.h \
- /usr/include/newlib/stdint.h inc/common.h
+ /usr/include/newlib/stdint.h inc/jtag_scan.h inc/common.h

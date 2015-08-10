@@ -8,15 +8,13 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
-#ifndef JTAG_CODES_H_
-#define JTAG_CODES_H_
+#ifndef CC3200_DEBUG_H_
+#define CC3200_DEBUG_H_
 
-//Icepick-level JTAG instructions
-#define ICEPICK_INST_LEN 6
-#define ICEPICK_IDCODE 0b000100
-#define ICEPICK_ICEPICKCODE 0b000101
-#define ICEPICK_BYPASS 0b000111
-#define ICEPICK_ROUTER 0b000010
-#define ICEPICK_CONNECT 0b000111
+#define CC3200_IR_ABORT 0b1000
+#define CC3200_IR_DPACC 0b1010
+#define CC3200_IR_APACC 0b1011
+#define CC3200_IR_IDCODE 0b1110
+#define CC3200_IR_BYPASS 0b1111
 
-#endif /* JTAG_CODES_H_ */
+#endif
