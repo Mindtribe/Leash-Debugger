@@ -23,6 +23,13 @@ int jtag_scan_hardRst(void);
 //Reset the TAP access port state machine using TMS signaling.
 int jtag_scan_rstStateMachine(void);
 
+//Perform a sequence of TMS assertions to move through the JTAG state machine.
+int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk);
+
+//Shift data bits (TDI line) into the JTAG interface. State machine is assumed to be in correct state.
+//On the last bit shifted, TMS is made high to exit whatever shift state JTAG is in.
+int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk);
+
 //Shift data into/out of Data Register.
 int jtag_scan_shiftDR(uint32_t data, uint32_t len);
 

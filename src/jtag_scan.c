@@ -17,7 +17,7 @@
 //state struct
 struct jtag_scan_state_t{
     unsigned char initialized;
-    uint32_t shift_out;
+    uint64_t shift_out;
 };
 //instantiate state struct
 struct jtag_scan_state_t jtag_scan_state = {
@@ -66,27 +66,13 @@ int jtag_scan_shiftDR(uint32_t data, uint32_t len)
     jtag_scan_state.shift_out = 0;
 
     //Get to Shift-DR state
-    jtag_pinctl_doClock(JTAG_NONE);
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_NONE);
-    jtag_pinctl_doClock(JTAG_NONE);
+    jtag_scan_doStateMachine(0b0010, 4);
 
     //do shifting
-    for(int i=0; i<len; i++){
-        jtag_pinctl_doClock((data & 1) * JTAG_TDI); //send LSB
-        data /= 2;
-        jtag_scan_state.shift_out /= 2;
-        if(len-i <= 32) jtag_scan_state.shift_out |= jtag_pinctl_getLastTDO() ? 0x80000000 : 0;
-    }
-    //correct for lower bit counts
-    //if(len<32) jtag_scan_state.shift_out /= 2^(32-len);
+    jtag_scan_doData((uint64_t)data, len);
 
-    //get back to Run-Test/Idle state
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_NONE);
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_NONE);
+    //get back to Run-Test/Idle state from current state (Exit-DR)
+    jtag_scan_doStateMachine(0b01, 2);
 
     return RET_SUCCESS;
 }
@@ -98,28 +84,42 @@ int jtag_scan_shiftIR(uint32_t data, uint32_t len)
     jtag_scan_state.shift_out = 0;
 
     //Get to Shift-IR state
-    jtag_pinctl_doClock(JTAG_NONE);
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_NONE);
-    jtag_pinctl_doClock(JTAG_NONE);
+    jtag_scan_doStateMachine(0b00110, 5);
 
     //do shifting
-    for(int i=0; i<len; i++){
-        jtag_pinctl_doClock((data & 1) * JTAG_TDI); //send LSB
-        data /= 2;
-        jtag_scan_state.shift_out /= 2;
-        if(len-i <= 32) jtag_scan_state.shift_out |= jtag_pinctl_getLastTDO() ? 0x80000000 : 0;
-    }
-    //correct for lower bit counts
-    //if(len<32) jtag_scan_state.shift_out /= 2^(32-len);
+    jtag_scan_doData((uint64_t)data, len);
 
-    //get back to Run-Test/Idle state
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_NONE);
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_TMS);
-    jtag_pinctl_doClock(JTAG_NONE);
+    //get back to Run-Test/Idle state from current state (Exit-IR)
+    jtag_scan_doStateMachine(0b01, 2);
+
+    return RET_SUCCESS;
+}
+
+int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
+{
+    if(!jtag_scan_state.initialized) return RET_FAILURE;
+    if(num_clk>=32) return RET_FAILURE;
+
+    for(unsigned int i=0; i<num_clk; i++){
+        jtag_pinctl_doClock((tms_bits_lsb_first&(1<<i)) ? JTAG_TMS : JTAG_NONE);
+    }
+
+    return RET_SUCCESS;
+}
+
+int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
+{
+    if(!jtag_scan_state.initialized) return RET_FAILURE;
+    if(num_clk>=64) return RET_FAILURE;
+
+    jtag_scan_state.shift_out = 0;
+
+    for(unsigned int i=0; i<(num_clk-1); i++){
+        jtag_pinctl_doClock((tdi_bits_lsb_first&(1<<i)) ? JTAG_TDI : JTAG_NONE);
+        if(jtag_pinctl_getLastTDO()) jtag_scan_state.shift_out |= (1<<i);
+    }
+    //last bit with TMS high
+    jtag_pinctl_doClock(JTAG_TMS | ((tdi_bits_lsb_first&(1<<(num_clk-1))) ? JTAG_TDI : JTAG_NONE));
 
     return RET_SUCCESS;
 }
