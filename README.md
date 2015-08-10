@@ -13,10 +13,10 @@ Toolchain is arm-none-eabi-gcc. Tested on Ubuntu only. Rough set-up instructions
 Current build system is a makefile, future plans to switch to MTbuild.
 
 Latest project status:
-In implementation phase of JTAG master functionality. Lowest level is bitbanged GPIO, one level higher is performing scanchain operations. First versions of these layers are ready.
+In implementation phase of JTAG master functionality. Lowest level is bitbanged GPIO, one level higher is performing scanchain operations. 
+A cc3200_icepick layer is being worked on, for target detection/validation and ICEPICK router configuration.
 
 Future steps:
-- another layer of JTAG abstraction, for performing ICEPICK router configuration.
 - another layer of JTAG abstraction, for performing Cortex M4-specific debug operations.
 - direct serial link to/from host PC with abstraction layer.
 - Wi-Fi serial link to/from host PC using same abstraction layer as direct link.
