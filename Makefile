@@ -32,16 +32,26 @@ LDFLAGS += $(program_STATIC_LIBS)
 #linker script
 LDSCRIPT=linker.ld
 
+#base directory
+BASE_DIR = $(shell pwd)
+
 #rules
 .PHONY: all clean distclean
 
-all: $(program_NAME)
+all: dirmake driverlib $(program_NAME)
+
+dirmake: 
+	mkdir -p exe
+
+driverlib:
+	cd $(SDK_DIR)/driverlib/gcc && make
 
 $(program_NAME): $(program_OBJS)
 	$(LD) $(program_OBJS) $(LDFLAGS) -T $(LDSCRIPT) -o $(EXE)/$(program_NAME).axf
 
 clean:
 	@- $(RM) $(EXE)/$(program_NAME).axf
+	@- cd $(SDK_DIR)/driverlib/gcc && make clean
 	@- $(RM) $(program_OBJS)
 
 distclean: clean
