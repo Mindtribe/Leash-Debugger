@@ -112,6 +112,15 @@ int cc3200_jtagdp_accResponseWrite(uint8_t* response, enum jtag_state_scan fromS
     if( ((uint8_t)(result_status & 0x07) != CC3200_JTAGDP_WAIT) &&
             ((uint8_t)(result_status & 0x07) != CC3200_JTAGDP_OKFAULT) ) return RET_FAILURE; //invalid response
 
+    if((result_status >> 3) & (CC3200_JTAGDP_STICKYERR
+            | CC3200_JTAGDP_WDATAERR
+            | CC3200_JTAGDP_STICKYCMP)){
+        while(1){};//return RET_FAILURE;
+    }
+    if(!((result_status >> 3) & CC3200_JTAGDP_READOK)){
+        while(1){};//return RET_FAILURE;
+    }
+
     return RET_SUCCESS;
 }
 
@@ -139,6 +148,15 @@ int cc3200_jtagdp_accResponseRead(uint8_t* response, uint32_t* value, enum jtag_
 
     if( ((uint8_t)(result_status & 0x07) != CC3200_JTAGDP_WAIT) &&
             ((uint8_t)(result_status & 0x07) != CC3200_JTAGDP_OKFAULT) ) return RET_FAILURE; //invalid response
+
+    if((result_status >> 3) & (CC3200_JTAGDP_STICKYERR
+            | CC3200_JTAGDP_WDATAERR
+            | CC3200_JTAGDP_STICKYCMP)){
+        while(1){};//return RET_FAILURE;
+    }
+    if(!((result_status >> 3) & CC3200_JTAGDP_READOK)){
+        while(1){};//return RET_FAILURE;
+    }
 
     return RET_SUCCESS;
 }
@@ -179,4 +197,68 @@ int cc3200_jtagdp_DPACC_read(uint8_t addr, uint32_t* result)
     }
 
     return RET_SUCCESS;
+}
+
+int cc3200_jtagdp_APACC_write(uint8_t addr, uint32_t value)
+{
+    uint64_t shift_command = ((addr&0x0C) >> 1) | ((uint64_t) value) << 3;
+    uint8_t response = CC3200_JTAGDP_WAIT;
+
+    if(cc3200_jtagdp_shiftIR(CC3200_JTAGDP_IR_APACC,
+            JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) return RET_FAILURE;
+
+    for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && response == CC3200_JTAGDP_WAIT; i++){
+        if(cc3200_jtagdp_shiftDR(shift_command, CC3200_JTAGDP_APACC_LEN,
+                JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) return RET_FAILURE;
+
+        if(cc3200_jtagdp_accResponseWrite(&response,
+                JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) return RET_FAILURE;
+    }
+
+    return RET_SUCCESS;
+}
+
+int cc3200_jtagdp_APACC_read(uint8_t addr, uint32_t* result)
+{
+    uint64_t shift_command = 1 | ((addr&0x0C) >> 1);
+    uint8_t response = CC3200_JTAGDP_WAIT;
+
+    if(cc3200_jtagdp_shiftIR(CC3200_JTAGDP_IR_APACC,
+            JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) return RET_FAILURE;
+
+    for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && response == CC3200_JTAGDP_WAIT; i++){
+        if(cc3200_jtagdp_shiftDR(shift_command, CC3200_JTAGDP_APACC_LEN,
+                JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) return RET_FAILURE;
+
+        if(cc3200_jtagdp_accResponseRead(&response, result,
+                JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) return RET_FAILURE;
+    }
+
+    return RET_SUCCESS;
+}
+
+int cc3200_jtagdp_powerUpSystem(void)
+{
+    if(cc3200_jtagdp_DPACC_write(0x04, CC3200_JTAGDP_CSYSPWRUPREQ) == RET_FAILURE) return RET_FAILURE;
+
+    uint32_t temp;
+    for(int i=0; i<CC3200_JTAGDP_PWRUP_RETRIES; i++){
+        if(cc3200_jtagdp_DPACC_read(0x04, &temp) == RET_FAILURE) return RET_FAILURE;
+        if(temp & CC3200_JTAGDP_CSYSPWRUPACK) return RET_SUCCESS;
+    }
+
+    return RET_FAILURE;
+}
+
+int cc3200_jtagdp_powerUpDebug(void)
+{
+    if(cc3200_jtagdp_DPACC_write(0x04, CC3200_JTAGDP_CDBGPWRUPREQ) == RET_FAILURE) return RET_FAILURE;
+
+    uint32_t temp;
+    for(int i=0; i<CC3200_JTAGDP_PWRUP_RETRIES; i++){
+        if(cc3200_jtagdp_DPACC_read(0x04, &temp) == RET_FAILURE) return RET_FAILURE;
+        if(temp & CC3200_JTAGDP_CDBGPWRUPACK) return RET_SUCCESS;
+    }
+
+    return RET_FAILURE;
 }

@@ -33,6 +33,7 @@
 #define CC3200_JTAGDP_OKFAULT 0b010
 #define CC3200_JTAGDP_WAIT 0b001
 #define CC3200_JTAGDP_ACC_RETRIES 5
+#define CC3200_JTAGDP_PWRUP_RETRIES 5
 
 //control/status register
 #define CC3200_JTAGDP_CSYSPWRUPACK (1<<31)
@@ -54,9 +55,9 @@
 #define CC3200_JTAGDP_STICKYORUN (1<<1)
 #define CC3200_JTAGDP_ORUNDETECT (1)
 
-//initialize the jtagdp module.
+//initialize the jtagdp state.
 //this represents the "JTAGDP" as specified in the ARM debug interface architecture (one layer deeper than TI's ICEPICK router).
-//Therefore it is not the first thing in the scan chain.
+//Therefore it is not the first thing in the scan chain - the ICEPICK is always in front on the CC3200.
 //This module does assume it is the LAST thing in the scan chain.
 //Arguments to this function allow to configure how many preceding IR and DR bits there are in the scan chain, and what their
 //values should be set to when trying to access the JTAGDP (normally, 6 bits IR set to 1 for BYPASSing the ICEPICK, and
@@ -80,5 +81,11 @@ int cc3200_jtagdp_DPACC_write(uint8_t addr, uint32_t value);
 
 //perform a DPACC read on the JTAG-DP
 int cc3200_jtagdp_DPACC_read(uint8_t addr, uint32_t* result);
+
+//perform an APACC write on the JTAG-DP
+int cc3200_jtagdp_APACC_write(uint8_t addr, uint32_t value);
+
+//perform an APACC read on the JTAG-DP
+int cc3200_jtagdp_APACC_read(uint8_t addr, uint32_t* result);
 
 #endif

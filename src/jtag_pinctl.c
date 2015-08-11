@@ -59,7 +59,7 @@ struct jtagPinLocation TCKLocation = {
 };
 
 //"unit delay" (min TCK clock period becomes 4 times this)
-const int UNIT_DELAY = 400;
+const int UNIT_DELAY = 10;
 
 //initializes JTAG pins to inactive.
 int jtag_pinctl_init(void)

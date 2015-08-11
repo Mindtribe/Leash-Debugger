@@ -50,4 +50,10 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan fromStat
 //Get the shifted out value from the most recent scan operation.
 uint64_t jtag_scan_getShiftOut(void);
 
+//send system powerup request and wait for ACK.
+int cc3200_jtagdp_powerUpSystem(void);
+
+//send debug subsystem powerup requesat and wait for ACK.
+int cc3200_jtagdp_powerUpDebug(void);
+
 #endif

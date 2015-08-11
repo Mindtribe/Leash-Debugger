@@ -69,6 +69,22 @@ int main(void)
     if(cc3200_jtagdp_DPACC_write(0x08,0xF0) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
     if(cc3200_jtagdp_DPACC_read(0x08,&result2) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
 
+    //powerup
+    if(cc3200_jtagdp_powerUpSystem() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+
+    uint32_t AP_ID[16];
+
+    for(uint32_t i=0; i<16; i++){
+        uint32_t APSELECT = (0x0<<4) | i<<24; //select bank F of this AP
+        if(cc3200_jtagdp_DPACC_write(0x08,APSELECT) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+        uint32_t test = 0;
+        if(cc3200_jtagdp_DPACC_read(0x08,&test) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+        if(test != APSELECT) while(1){};
+        uint32_t* item = &(AP_ID[i]);
+        if(cc3200_jtagdp_APACC_read(0x0C,item) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    }
+
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
     while(1){};
