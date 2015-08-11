@@ -8,15 +8,13 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
-#ifndef JTAG_CODES_H_
-#define JTAG_CODES_H_
+#include "rom_map.h"
+#include "utils.h"
 
-//Icepick-level JTAG instructions
-#define ICEPICK_INST_LEN 6
-#define ICEPICK_IDCODE 0b000100
-#define ICEPICK_ICEPICKCODE 0b000101
-#define ICEPICK_BYPASS 0b000111
-#define ICEPICK_ROUTER 0b000010
-#define ICEPICK_CONNECT 0b000111
+#include "misc_hal.h"
 
-#endif /* JTAG_CODES_H_ */
+void delay_loop(int iterations)
+{
+    MAP_UtilsDelay(iterations);
+    return;
+}

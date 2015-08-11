@@ -24,6 +24,14 @@
 
 #define ICEPICKCODE_TYPE_C 0x1CC
 
+//Icepick-level JTAG instructions
+#define ICEPICK_IR_LEN 6
+#define ICEPICK_IR_IDCODE 0b000100
+#define ICEPICK_IR_ICEPICKCODE 0b000101
+#define ICEPICK_IR_BYPASS 0b111111
+#define ICEPICK_IR_ROUTER 0b000010
+#define ICEPICK_IR_CONNECT 0b000111
+
 struct cc3200_icepick_properties_t{
     uint16_t IDCODE_MANUFACTURER;
     uint16_t IDCODE_PARTNUMBER;
@@ -49,7 +57,7 @@ int cc3200_icepick_connect(void);
 int cc3200_icepick_disconnect(void);
 
 //send the ICEPICK a ROUTER-command.
-int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state fromState, enum jtag_state toState);
+int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state_scan fromState, enum jtag_state_scan toState);
 
 //configure the ICEPICK for debugging the CC3200's core TAP.
 int cc3200_icepick_configure(void);

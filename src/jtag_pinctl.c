@@ -15,9 +15,9 @@
 #include "utils.h"
 #include "rom_map.h"
 #include "gpio.h"
-#include "utils.h"
 
 #include "jtag_pinctl.h"
+#include "jtag_statemachine.h"
 #include "common.h"
 
 //state struct
@@ -25,7 +25,7 @@ struct jtag_pinctl_state_t{
     unsigned char initialized;
     unsigned char lastTDO;
 };
-//instatiated state struct
+//instantiated state structMAP_UtilsDelay
 static struct jtag_pinctl_state_t jtag_pinctl_state = {
     .initialized = 0,
     .lastTDO = 0
@@ -111,6 +111,8 @@ int jtag_pinctl_init(void)
             TCKLocation.ucGPIOPin,
             0);
 
+    jtag_statemachine_reset();
+
     jtag_pinctl_state.initialized = 1;
     return RET_SUCCESS;
 }
@@ -125,6 +127,8 @@ int jtag_pinctl_doClock(uint8_t active_pins)
     TMS = (active_pins & JTAG_TMS) ? 1 : 0;
     TDI = (active_pins & JTAG_TDI) ? 1 : 0;
     RST = (active_pins & JTAG_RST) ? 0 : 1; //inverted: active low
+
+    jtag_statemachine_transition(TMS);
 
     GPIO_IF_Set(TMSLocation.ucPin,
             TMSLocation.uiGPIOPort,

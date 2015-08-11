@@ -28,8 +28,10 @@
 #include "pin_mux_config.h"
 
 #include "cc3200_icepick.h"
+#include "cc3200_jtagdp.h"
 #include "jtag_scan.h"
 #include "common.h"
+#include "error.h"
 
 static int BoardInit(void);
 
@@ -51,116 +53,25 @@ int main(void)
     GPIO_IF_LedConfigure(LED1|LED2|LED3);
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
 
-    if(cc3200_icepick_init() == RET_FAILURE) goto error;
-    if(cc3200_icepick_detect() == RET_FAILURE) goto error;
-    if(cc3200_icepick_connect() == RET_FAILURE) goto error;
-    if(cc3200_icepick_configure() == RET_FAILURE) goto error;
+    //ICEPICK router detection and configuration
+    if(cc3200_icepick_init() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_icepick_detect() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_icepick_connect() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_icepick_configure() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
 
-    //these are just to poke around and see what is currently in the scanchain on a logic analyzer.
-    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_RUNIDLE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0,64,JTAG_STATE_PAUSE,JTAG_STATE_RUNIDLE);
+    //ARM core debug interface (JTAG-DP) detection
+    if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_detect() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
 
-    //try to get the ARM debug port in BYPASS mode
-    //jtag_scan_shiftIR(0b1111000000, 10, JTAG_STATE_RUNIDLE, JTAG_STATE_RUNIDLE);
-
-    //these are just to poke around and see what is currently in the scanchain on a logic analyzer.
-    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_RUNIDLE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_PAUSE);
-    //jtag_scan_shiftDR(0b10101010101010101010101010101010,64,JTAG_STATE_PAUSE,JTAG_STATE_RUNIDLE);
-
-    //try to get the ARM debug port in IDCODE mode
-    jtag_scan_shiftIR(0b0000001110, 10, JTAG_STATE_RUNIDLE, JTAG_STATE_PAUSE);
-    jtag_scan_shiftDR(0, 33, JTAG_STATE_RUNIDLE, JTAG_STATE_RUNIDLE);
-    jtag_scan_shiftDR(0, 33, JTAG_STATE_RUNIDLE, JTAG_STATE_RUNIDLE);
-    uint32_t result = (uint32_t) (jtag_scan_getShiftOut() & 0xFFFFFFFF);
+    //Try reading, then writing, then reading a DP register.
+    uint32_t result1, result2;
+    if(cc3200_jtagdp_DPACC_read(0x08,&result1) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_DPACC_write(0x08,0xF0) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_DPACC_read(0x08,&result2) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
     while(1){};
 
     return RET_SUCCESS;
-
-    error:
-    GPIO_IF_LedOn(MCU_RED_LED_GPIO);
-    while(1){};
-
-
-    /* Old "Unit Tests":
-
-    //READING IDCODE TEST
-
-
-    jtag_scan_init();
-
-    jtag_scan_hardRst();
-
-    jtag_scan_rstStateMachine();
-    jtag_scan_shiftIR(ICEPICK_IDCODE, ICEPICK_INST_LEN);
-    //jtag_scan_shiftIR(0, ICEPICK_INST_LEN);
-    jtag_scan_shiftDR(0,32);
-
-
-    //jtag_scan_doStateMachine(0b00110, 5);
-    //jtag_scan_doData(ICEPICK_IDCODE, ICEPICK_INST_LEN);
-    //jtag_scan_doStateMachine(0b0011, 4);
-    //jtag_scan_doData(0, 32);
-    //jtag_scan_doStateMachine(0b10, 2);
-
-
-    uint32_t result = jtag_scan_getShiftOut();
-
-
-    //BYPASS test (should give 23509 in result)
-    jtag_scan_hardRst();
-
-    jtag_scan_rstStateMachine();
-    jtag_scan_shiftIR(ICEPICK_BYPASS, ICEPICK_INST_LEN);
-    jtag_scan_shiftDR(23509,33);
-
-    uint32_t result = jtag_scan_getShiftOut();
-
-
-    //looping test (infinite shifting through IR)
-    jtag_scan_shiftIR(0xFF00F0F0, 32);
-    jtag_scan_shiftIR(0xFF00F0F0, 32);
-    while(1)
-    {
-        jtag_scan_shiftIR(jtag_scan_getShiftOut(), 32);
-        MAP_UtilsDelay(400000);
-        GPIO_IF_LedToggle(MCU_RED_LED_GPIO);
-    }
-
-    //JTAG lines toggle test
-    while(1){
-        GPIO_IF_LedOn(MCU_RED_LED_GPIO);
-        for(int i=0; i<100; i++){
-            jtag_pinctl_doClock(JTAG_TMS | JTAG_RST);
-            jtag_pinctl_doClock(JTAG_TDI);
-        }
-        GPIO_IF_LedOff(MCU_RED_LED_GPIO);
-        for(int i=0; i<100; i++){
-            jtag_pinctl_doClock(JTAG_TMS | JTAG_RST);
-            jtag_pinctl_doClock(JTAG_TDI);
-        }
-    }
-
-    //LEDS test
-    while(1){
-        GPIO_IF_LedOn(MCU_RED_LED_GPIO);
-        GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
-        GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
-        MAP_UtilsDelay(800000);
-        GPIO_IF_LedOff(MCU_RED_LED_GPIO);
-        GPIO_IF_LedOff(MCU_ORANGE_LED_GPIO);
-        GPIO_IF_LedOff(MCU_GREEN_LED_GPIO);
-        MAP_UtilsDelay(800000);
-    }
-
-     */
 }
