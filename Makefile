@@ -1,57 +1,32 @@
 #SDK stuff
-SDK_DIR=./lib/cc3200-sdk
+SDK_DIR=./cc3200-sdk
 
-#output folder
-EXE := ./exe
+#wifidebugger
+WIFIDEBUGGER_DIR=./wifidebugger
 
-#project parameters
-program_NAME := WirelessDebugger
-program_C_SRCS := $(wildcard ./src/*.c) $(wildcard ./src/vendor/*.c) $(wildcard ./src/target/cc3200/*.c)
-program_CXX_SRCS := $(wildcard ./src/*.cpp) $(wildcard ./src/vendor/*.cpp)
-program_C_OBJS := ${program_C_SRCS:.c=.o}
-program_CXX_OBJS := ${program_CXX_SRCS:.cpp=.o}
-program_OBJS := $(program_C_OBJS) $(program_CXX_OBJS)
-program_INCLUDE_DIRS := ./inc ./inc/vendor $(SDK_DIR)/inc $(SDK_DIR)/driverlib $(SDK_DIR) ./inc/target/cc3200
-program_LIBRARY_DIRS := ./lib ./lib/vendor $(SDK_DIR)/driverlib/gcc/exe
-program_LIBRARIES :=
-program_STATIC_LIBS := $(SDK_DIR)/driverlib/gcc/exe/libdriver.a
-
-#compiler and linker
-CC=arm-none-eabi-gcc
-LD=arm-none-eabi-ld
-
-#flags
-CPPFLAGS += $(foreach includedir,$(program_INCLUDE_DIRS),-I$(includedir)) \
-	-mthumb -mcpu=cortex-m4 -ffunction-sections -fdata-sections -MD -std=c99 -g -Dgcc -O0 -c
-#LDFLAGS += --specs=nosys.specs
-LDFLAGS += --gc-sections
-LDFLAGS += $(foreach librarydir,$(program_LIBRARY_DIRS),-L$(librarydir))
-LDFLAGS += $(foreach library,$(program_LIBRARIES),-l$(library))
-LDFLAGS += $(program_STATIC_LIBS)
-
-#linker script
-LDSCRIPT=linker.ld
+#testapp
+TESTAPP_DIR = ./testapp
 
 #base directory
 BASE_DIR = $(shell pwd)
 
 #rules
-.PHONY: all clean distclean
+.PHONY: all clean distclean wifidebugger testapp
 
-all: dirmake driverlib $(program_NAME)
+all: wifidebugger testapp
 
-dirmake: 
-	mkdir -p exe
+wifidebugger:
+	cd $(WIFIDEBUGGER_DIR) && make
+
+testapp:
+	cd $(TESTAPP_DIR) && make
 
 driverlib:
 	cd $(SDK_DIR)/driverlib/gcc && make
 
-$(program_NAME): $(program_OBJS)
-	$(LD) $(program_OBJS) $(LDFLAGS) -T $(LDSCRIPT) -o $(EXE)/$(program_NAME).axf
-
 clean:
-	@- $(RM) $(EXE)/$(program_NAME).axf
+	@- cd $(WIFIDEBUGGER_DIR) && make clean
+	@- cd $(TESTAPP_DIR) && make clean
 	@- cd $(SDK_DIR)/driverlib/gcc && make clean
-	@- $(RM) $(program_OBJS)
 
 distclean: clean
