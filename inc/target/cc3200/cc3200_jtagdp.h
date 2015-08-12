@@ -8,6 +8,11 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
+/*
+ * Functions to interact with the Cortex M4's JTAG-DP debug port, as found in the CC3200 SoC
+ * (and as should be found in any other Cortex M4 core with debug functionality).
+ */
+
 #ifndef CC3200_JTAGDP_H_
 #define CC3200_JTAGDP_H_
 

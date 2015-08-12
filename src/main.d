@@ -19,5 +19,5 @@ src/main.o: src/main.c /usr/include/newlib/stdio.h \
  inc/target/cc3200/cc3200_icepick.h \
  /usr/lib/gcc/arm-none-eabi/4.8.2/include/stdint.h \
  /usr/include/newlib/stdint.h inc/jtag_scan.h \
- inc/target/cc3200/cc3200_jtagdp.h inc/common.h inc/error.h inc/common.h \
- inc/mem_log.h
+ inc/target/cc3200/cc3200_jtagdp.h inc/target/cc3200/cc3200_core.h \
+ inc/common.h inc/error.h inc/common.h inc/mem_log.h

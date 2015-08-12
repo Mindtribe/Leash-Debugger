@@ -8,6 +8,10 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
+/*
+ * Functions to interact with the ICEPICK type C JTAG router found in CC3200 SoCs.
+ */
+
 #ifndef CC3200_ICEPICK_H_
 #define CC3200_ICEPICK_H_
 

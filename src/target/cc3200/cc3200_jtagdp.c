@@ -99,7 +99,7 @@ int cc3200_jtagdp_readAPs(void)
     for(uint32_t i=0; i<16; i++){
         if(cc3200_jtagdp_selectAPBank(i, CC3200_JTAGDP_AP_IDCODE_BANK) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
         if(cc3200_jtagdp_APACC_read(CC3200_JTAGDP_AP_IDCODE_REG,
-                &cc3200_jtagdp_state.ap[i].idcode) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+                &cc3200_jtagdp_state.ap[i].idcode) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
     }
 
     return RET_SUCCESS;
@@ -286,6 +286,9 @@ int cc3200_jtagdp_APACC_read(uint8_t addr, uint32_t* result)
 
 int cc3200_jtagdp_powerUpDebug(void)
 {
+    //FYI: learned through trail-and-error that this doesn't work at all if only CSYSPWRUPREQ is asserted first.
+    //It works if either CDBGPWRUPREQ is asserted, or both at the same time.
+
     if(!cc3200_jtagdp_state.initialized || !cc3200_jtagdp_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
 
     if(cc3200_jtagdp_DPACC_write(0x04, CC3200_JTAGDP_CDBGPWRUPREQ | CC3200_JTAGDP_CSYSPWRUPREQ) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);

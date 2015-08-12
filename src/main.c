@@ -29,6 +29,7 @@
 
 #include "cc3200_icepick.h"
 #include "cc3200_jtagdp.h"
+#include "cc3200_core.h"
 #include "jtag_scan.h"
 #include "common.h"
 #include "error.h"
@@ -87,6 +88,11 @@ int main(void)
 
     if(cc3200_jtagdp_readAPs() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     mem_log_add("Read out all 16 AP's IDCODES connected to JTAG-DP.", 0);
+
+    //core module
+    if(cc3200_core_init() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_detect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    mem_log_add("Initialized and detected MEM-AP of cortex M4.", 0);
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
