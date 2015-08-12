@@ -19,6 +19,7 @@
 #include "jtag_pinctl.h"
 #include "jtag_statemachine.h"
 #include "common.h"
+#include "error.h"
 
 //state struct
 struct jtag_pinctl_state_t{
@@ -59,7 +60,7 @@ struct jtagPinLocation TCKLocation = {
 };
 
 //"unit delay" (min TCK clock period becomes 4 times this)
-const int UNIT_DELAY = 10;
+const int UNIT_DELAY = 100;
 
 //initializes JTAG pins to inactive.
 int jtag_pinctl_init(void)
@@ -120,7 +121,7 @@ int jtag_pinctl_init(void)
 //asserts JTAG clock with the specified pins active.
 int jtag_pinctl_doClock(uint8_t active_pins)
 {
-    if(!jtag_pinctl_state.initialized) return RET_FAILURE; //not initialized
+    if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN); //not initialized
 
     //determine which pins to set
     unsigned char TMS, TDI, RST;

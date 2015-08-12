@@ -16,8 +16,17 @@
 #ifndef ERROR_H_
 #define ERROR_H_
 
+#include "common.h"
+
 #define ERROR_UNKNOWN 1
 
-void error_wait(int error_code);
+#define MAX_ERROR_LOGS 20
+
+#define RETURN_ERROR(X) {error_add(__FILE__,__LINE__,X); return RET_FAILURE;}
+#define WAIT_ERROR(X) {error_wait(__FILE__,__LINE__,X);}
+
+void error_wait(char* file, int line, int error_code);
+void error_add(char* file, int line, int error_code);
+void clear_errors(void);
 
 #endif

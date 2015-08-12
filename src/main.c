@@ -32,6 +32,7 @@
 #include "jtag_scan.h"
 #include "common.h"
 #include "error.h"
+#include "mem_log.h"
 
 static int BoardInit(void);
 
@@ -48,42 +49,44 @@ static int BoardInit(void)
 int main(void)
 {
     BoardInit();
+    clear_errors();
+    mem_log_clear();
+    mem_log_add("Start of main().", 0);
 
     PinMuxConfig();
     GPIO_IF_LedConfigure(LED1|LED2|LED3);
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
 
     //ICEPICK router detection and configuration
-    if(cc3200_icepick_init() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-    if(cc3200_icepick_detect() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-    if(cc3200_icepick_connect() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-    if(cc3200_icepick_configure() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_icepick_init() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(cc3200_icepick_detect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(cc3200_icepick_connect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(cc3200_icepick_configure() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    mem_log_add("Detected and configured ICEPICK router.", 0);
 
     //ARM core debug interface (JTAG-DP) detection
-    if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-    if(cc3200_jtagdp_detect() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_detect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    mem_log_add("Detected core's JTAG-DP port.", 0);
 
-    //Try reading, then writing, then reading a DP register.
-    uint32_t result1, result2;
-    if(cc3200_jtagdp_DPACC_read(0x08,&result1) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-    if(cc3200_jtagdp_DPACC_write(0x08,0xF0) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-    if(cc3200_jtagdp_DPACC_read(0x08,&result2) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    //Clear control/status register.
+    if(cc3200_jtagdp_clearCSR() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    mem_log_add("Cleared JTAG-DP CSR.", 0);
+
+    //Read control/status register.
+    uint32_t csr;
+    cc3200_jtagdp_checkCSR(&csr);
+    mem_log_add("CSR value:", csr);
 
     //powerup
-    if(cc3200_jtagdp_powerUpSystem() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-    if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) error_wait(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    mem_log_add("Powered up SoC and debug logic.", 0);
 
-    uint32_t AP_ID[16];
+    cc3200_jtagdp_checkCSR(&csr);
+    mem_log_add("CSR value:", csr);
 
-    for(uint32_t i=0; i<16; i++){
-        uint32_t APSELECT = (0x0<<4) | i<<24; //select bank F of this AP
-        if(cc3200_jtagdp_DPACC_write(0x08,APSELECT) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-        uint32_t test = 0;
-        if(cc3200_jtagdp_DPACC_read(0x08,&test) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-        if(test != APSELECT) while(1){};
-        uint32_t* item = &(AP_ID[i]);
-        if(cc3200_jtagdp_APACC_read(0x0C,item) == RET_FAILURE) error_wait(ERROR_UNKNOWN);
-    }
+    if(cc3200_jtagdp_readAPs() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    mem_log_add("Read out all 16 AP's IDCODES connected to JTAG-DP.", 0);
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 

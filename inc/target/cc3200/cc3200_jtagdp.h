@@ -33,7 +33,7 @@
 #define CC3200_JTAGDP_OKFAULT 0b010
 #define CC3200_JTAGDP_WAIT 0b001
 #define CC3200_JTAGDP_ACC_RETRIES 5
-#define CC3200_JTAGDP_PWRUP_RETRIES 5
+#define CC3200_JTAGDP_PWRUP_RETRIES 50
 
 //control/status register
 #define CC3200_JTAGDP_CSYSPWRUPACK (1<<31)
@@ -54,6 +54,10 @@
 #define CC3200_JTAGDP_TRNMODE_MASK (0x03<<CC3200_JTAGDP_TRNMODE_OFFSET)
 #define CC3200_JTAGDP_STICKYORUN (1<<1)
 #define CC3200_JTAGDP_ORUNDETECT (1)
+
+//AP
+#define CC3200_JTAGDP_AP_IDCODE_BANK 0xF
+#define CC3200_JTAGDP_AP_IDCODE_REG 0x0C
 
 //initialize the jtagdp state.
 //this represents the "JTAGDP" as specified in the ARM debug interface architecture (one layer deeper than TI's ICEPICK router).
@@ -87,5 +91,20 @@ int cc3200_jtagdp_APACC_write(uint8_t addr, uint32_t value);
 
 //perform an APACC read on the JTAG-DP
 int cc3200_jtagdp_APACC_read(uint8_t addr, uint32_t* result);
+
+//clear the control/status register.
+int cc3200_jtagdp_clearCSR(void);
+
+//read the control/status register.
+int cc3200_jtagdp_checkCSR(uint32_t* csr);
+
+//Power up the debug/SoC power domains.
+int cc3200_jtagdp_powerUpDebug(void);
+
+//Select a certain AP and register bank.
+int cc3200_jtagdp_selectAPBank(uint8_t AP, uint8_t bank);
+
+//Read the IDCODEs of all APs.
+int cc3200_jtagdp_readAPs(void);
 
 #endif

@@ -12,9 +12,60 @@
 
 #include "error.h"
 
-void error_wait(int error_code)
+struct error_log{
+    char* file;
+    int line;
+    int code;
+};
+
+struct error_state_t{
+    int cur_error;
+    int overflow;
+    struct error_log errors[MAX_ERROR_LOGS];
+};
+
+static struct error_state_t error_state = {
+    .cur_error = 0,
+    .overflow = 0
+};
+
+void error_wait(char* file, int line, int error_code)
 {
+    if(error_state.cur_error<MAX_ERROR_LOGS){
+        error_state.errors[error_state.cur_error].file = file;
+        error_state.errors[error_state.cur_error].line = line;
+        error_state.errors[error_state.cur_error].code = error_code;
+        error_state.cur_error++;
+    }
+    else error_state.overflow = 1;
+
     GPIO_IF_LedOn(MCU_RED_LED_GPIO);
     while(1){};
+    return;
+}
+
+void error_add(char* file, int line, int error_code)
+{
+    if(error_state.cur_error<MAX_ERROR_LOGS){
+        error_state.errors[error_state.cur_error].file = file;
+        error_state.errors[error_state.cur_error].line = line;
+        error_state.errors[error_state.cur_error].code = error_code;
+        error_state.cur_error++;
+    }
+    else error_state.overflow = 1;
+
+    return;
+}
+
+void clear_errors(void)
+{
+    for(int i=0; i<MAX_ERROR_LOGS; i++){
+        error_state.errors[i].file = 0;
+        error_state.errors[i].line = 0;
+        error_state.errors[i].code = 0;
+    }
+    error_state.cur_error = 0;
+    error_state.overflow = 0;
+
     return;
 }

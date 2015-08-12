@@ -6,4 +6,4 @@ src/jtag_pinctl.o: src/jtag_pinctl.c \
  inc/vendor/gpio_if.h lib/cc3200-sdk/driverlib/utils.h \
  lib/cc3200-sdk/driverlib/rom_map.h lib/cc3200-sdk/driverlib/rom_patch.h \
  lib/cc3200-sdk/driverlib/gpio.h inc/jtag_pinctl.h \
- inc/jtag_statemachine.h inc/common.h
+ inc/jtag_statemachine.h inc/common.h inc/error.h inc/common.h
