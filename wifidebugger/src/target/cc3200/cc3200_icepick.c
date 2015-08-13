@@ -57,7 +57,6 @@ int cc3200_icepick_detect(void)
 {
     if(!cc3200_icepick_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
 
-    jtag_scan_hardRst();
     jtag_scan_rstStateMachine();
 
     jtag_scan_shiftIR(ICEPICK_IR_IDCODE, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE);

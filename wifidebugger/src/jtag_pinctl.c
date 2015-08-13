@@ -60,7 +60,7 @@ struct jtagPinLocation TCKLocation = {
 };
 
 //"unit delay" (min TCK clock period becomes 4 times this)
-const int UNIT_DELAY = 100;
+const int UNIT_DELAY = 10;
 
 //initializes JTAG pins to inactive.
 int jtag_pinctl_init(void)
@@ -115,6 +115,53 @@ int jtag_pinctl_init(void)
     jtag_statemachine_reset();
 
     jtag_pinctl_state.initialized = 1;
+    return RET_SUCCESS;
+}
+
+int jtag_pinctl_assertPins(uint8_t pins)
+{
+    if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN); //not initialized
+
+    if(pins & JTAG_RST) GPIO_IF_Set(RSTLocation.ucPin,
+            RSTLocation.uiGPIOPort,
+            RSTLocation.ucGPIOPin, 0);
+
+    if(pins & JTAG_TMS) GPIO_IF_Set(TMSLocation.ucPin,
+            TMSLocation.uiGPIOPort,
+            TMSLocation.ucGPIOPin, 1);
+
+    if(pins & JTAG_TDI) GPIO_IF_Set(TDILocation.ucPin,
+            TDILocation.uiGPIOPort,
+            TDILocation.ucGPIOPin, 1);
+
+    if(pins & JTAG_TCK) GPIO_IF_Set(TCKLocation.ucPin,
+            TCKLocation.uiGPIOPort,
+            TCKLocation.ucGPIOPin, 1);
+
+    return RET_SUCCESS;
+
+}
+
+int jtag_pinctl_deAssertPins(uint8_t pins)
+{
+    if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN); //not initialized
+
+    if(pins & JTAG_RST) GPIO_IF_Set(RSTLocation.ucPin,
+            RSTLocation.uiGPIOPort,
+            RSTLocation.ucGPIOPin, 1);
+
+    if(pins & JTAG_TMS) GPIO_IF_Set(TMSLocation.ucPin,
+            TMSLocation.uiGPIOPort,
+            TMSLocation.ucGPIOPin, 0);
+
+    if(pins & JTAG_TDI) GPIO_IF_Set(TDILocation.ucPin,
+            TDILocation.uiGPIOPort,
+            TDILocation.ucGPIOPin, 0);
+
+    if(pins & JTAG_TCK) GPIO_IF_Set(TCKLocation.ucPin,
+            TCKLocation.uiGPIOPort,
+            TCKLocation.ucGPIOPin, 0);
+
     return RET_SUCCESS;
 }
 
@@ -181,5 +228,4 @@ unsigned char jtag_pinctl_getLastTDO(void)
 {
     return jtag_pinctl_state.lastTDO;
 }
-
 

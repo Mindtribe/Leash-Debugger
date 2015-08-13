@@ -1,0 +1,104 @@
+GOAL:
+Quick 1-day feasibility study of the wireless debug adapter idea.
+
+
+
+
+PROJECT DESCRIPTION:
+
+JTAG debug adapter for a specific target connected to debug host wirelessly
+
+
+
+The suggested setup uses GDB as the host debugger because of:
+- popularity
+- well-documented, simple and widely used serial remote debug protocol
+The suggested wireless link type is WiFi because:
+- popularity, support and ease-of-use
+- speed
+- "plays well" with GDB remote protocol (socket-type connection)
+The suggested target platform (debugger) is TI CC3200 because:
+- built-in managed WiFi with many examples and support
+- much-used within Mindtribe (Corgi, Jack Russel)
+The suggested target debuggee could be CC3200 as well (much-used within Mindtribe), but could be any JTAG-enabled uC
+
+
+
+Rough breakdown of "parts" of the product code:
+- JTAG debug funtionality
+	- Serial shift / GPIO control of all JTAG port pins
+	- Using JTAG port to support debugging operations such as stepping, halting, read/modify registers/memory, flashing etc
+- Wireless connect functionality
+	- Configure LauchPad as access point
+	- Set up socket connection with gdbserver compliant server on Launchpad
+
+The wireless connection part seems to be a relatively small effort on this project: TI already offers an access point example code which should be usable with minimal modification.
+
+There are plenty of examples to draw on concerning the gdbserver stub (openOCD, GDB user guide)
+
+JTAG support will be the main part (and risk) of this project. There is no official documentation on JTAG debugging procedures for ARM Cortex M4 AFAIK, let alone CC3200 implementation.
+
+
+
+Feasibility:
+- is all required documentation available?
+- is the project feasible technically?
+- does the time scale allow the project to be finished?
+- are there possibilities to be satisfied with a subset of funcitonality if needed?
+
+
+Q: is all required documentation available?
+A: don't know this yet (JTAG mainly). All else is fine.
+
+Q: is the project feasible technically?
+A: Yes.
+
+Q: time scale?
+A: WiFi connection seems trivial. GDBServer seems simple enough, possibly time-consuming (not sure about number of stub functions required yet). JTAG is the main unknown.
+
+Q: subset?
+A: Yes: 
+- If JTAG development takes up the whole project time, we can settle for WiFi-less result (FTDI serial link instead).
+- There can be many levels of JTAG support (just flashing, halt/continue, stepping, breakpoints, watchpoints, etc etc) so the project can scale.
+
+
+Main things to figure out: 
+- JTAG documentation/complexity
+- GDBServer documentation/complexity.
+
+
+
+JTAG documentation/complexity:
+The amount of documentation available for debugging the CC3200 --seems-- to be acceptable, but does not give enough confidence to say for sure. The key documents involved:
+
+Cortex-M4 Revision r0p0 Technical Reference Manual by ARM: gives an overview of debug architecture in a Cortex M4 system.
+ARM v7-M Architecture Reference Manual by ARM: gives details about debug architecture, registers, commands and operations for the ARM v7 architecture used in Cortex M4 (the document above refers to this one for details).
+CC3200 Technical Reference Manual by TI: Explains how CC3200 chip pins are internally connected to the ARM core. It --seems-- like 2-wire SWD mode is connected directly to the debug port of the ARM as specified in the ARM documentation, and 4-wire mode has some TI-proprietary stuff in-between.
+
+Judging from this, a good first step to confirm these conclusions would be to try to perform the most simple possible JTAG operation that would validate access to the ARM core's debug functionality (for example: read the ARM core ID).
+EDIT: it seems even more basic to try to identify/configure the ICEPICK module of the CC3200!
+
+
+
+
+GDBServer documentation/complexity:
+"Word of mouth" online is that the official GDB documentation is outdated when it comes to implementing a proper gdbserver. However, there are plenty of examples of working gdbserver implementations to use for inspiration. Examples:
+- OpenOCD
+- https://github.com/rouming/AVR-GDBServer/blob/master/gdb.c, which is a gdbserver implementation for 8-bit AVR uC's, just under 1200 lines of code (including everything: serial comms, parsing commands, fiddling with the processor).
+This stub's architecture-dependent methods are: gdb_send_byte, gdb_read_byte, gdb_send_buff_vec, gdb_send_buff, gdb_send_reply, gdb_send_state, gdb_read_registers, gdb_write_registers, gdb_read_register, gdb_write_register, gdb_read_memory, gdb_write_memory, gdb_insert_breakpoint, gdb_remove_breakpoint_ptr, gdb_remove_breakpoint, gdb_insert_breakpoints_on_next_pc, gdb_find_break, gdb_insert_remove_breakpoint, gdb_do_stepi, gdb_trap.
+
+
+
+Open point of research: what is the minimal set of commands that should be supported for GDB to be guaranteed to work?
+In any case, the functions above seem manageable.
+
+
+Another open point of research: this thread (http://e2e.ti.com/support/wireless_connectivity/f/968/t/366581) suggests that it may be extra work to enable 4-wire JTAG as opposed to 2-wire SWD, and that programming the external flash through either of these may be hard or impossible.
+
+other interesting docs:
+reverse-engineered SWD on FreeScale: http://blog.thisisnotrocketscience.nl/programming-microcontroller-devices-the-hard-way/
+libSWD - open-source library that implements transport layer of SWD
+something about ICEPICK TAP selection: http://processors.wiki.ti.com/images/f/f6/Router_Scan_Sequence-ICEpick-D.pdf
+more general about ICEPICK: http://processors.wiki.ti.com/index.php/ICEPICK
+
+

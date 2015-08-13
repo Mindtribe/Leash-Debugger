@@ -43,4 +43,8 @@ int jtag_pinctl_doClock(uint8_t active_pins);
 //Get the most recent TDO bit (typically after performing a clock cycle).
 unsigned char jtag_pinctl_getLastTDO(void);
 
+//for direct control
+int jtag_pinctl_assertPins(uint8_t pins);
+int jtag_pinctl_deAssertPins(uint8_t pins);
+
 #endif

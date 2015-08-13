@@ -58,6 +58,11 @@ int main(void)
     PinMuxConfig();
     GPIO_IF_LedConfigure(LED1|LED2|LED3);
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
+    GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
+
+    //hard reset
+    jtag_scan_init();
+    jtag_scan_hardRst();
 
     //ICEPICK router detection and configuration
     if(cc3200_icepick_init() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
@@ -77,8 +82,8 @@ int main(void)
 
     //Read control/status register.
     uint32_t csr;
-    cc3200_jtagdp_checkCSR(&csr);
-    mem_log_add("CSR value:", csr);
+    //if(cc3200_jtagdp_checkCSR(&csr) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    //mem_log_add("CSR value:", csr);
 
     //powerup
     if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
@@ -94,6 +99,28 @@ int main(void)
     if(cc3200_core_init() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     if(cc3200_core_detect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     mem_log_add("Initialized and detected MEM-AP of cortex M4.", 0);
+
+    //read ROM
+    if(cc3200_core_read_rom_table() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    mem_log_add("Finished reading ROM table.", 0);
+
+    //OPERATIONS BELOW ARE FAILING. DEBUG MODE NEEDS ENABLING?
+
+    //read an address
+    uint32_t ledaddr;
+    if(cc3200_core_read_mem_addr(0x0000000020005270, &ledaddr) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_write_mem_addr(0x0000000020005270, 0) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+
+    cc3200_jtagdp_checkCSR(&csr);
+    mem_log_add("CSR value:", csr);
+
+    //read the DHCSR
+    uint32_t DHCSR;
+    if(cc3200_core_read_mem_addr(CC3200_CORE_MEM_DHCSR, &DHCSR) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+
+    //enable debug, halt core
+    //if(cc3200_core_debug_init_halt() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    //mem_log_add("Entered debug and halted core.", 0);
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 

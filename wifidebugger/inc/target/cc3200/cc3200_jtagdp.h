@@ -40,6 +40,10 @@
 #define CC3200_JTAGDP_ACC_RETRIES 5
 #define CC3200_JTAGDP_PWRUP_RETRIES 50
 
+//JTAG-DP registers
+#define CC3200_JTAGDP_REG_CSR 0x04
+#define CC3200_JTAGDP_REG_ABORT 0x00
+
 //control/status register
 #define CC3200_JTAGDP_CSYSPWRUPACK (1<<31)
 #define CC3200_JTAGDP_CSYSPWRUPREQ (1<<30)
@@ -60,7 +64,7 @@
 #define CC3200_JTAGDP_STICKYORUN (1<<1)
 #define CC3200_JTAGDP_ORUNDETECT (1)
 
-//AP
+//MEM-AP
 #define CC3200_JTAGDP_AP_IDCODE_BANK 0xF
 #define CC3200_JTAGDP_AP_IDCODE_REG 0x0C
 
@@ -111,5 +115,11 @@ int cc3200_jtagdp_selectAPBank(uint8_t AP, uint8_t bank);
 
 //Read the IDCODEs of all APs.
 int cc3200_jtagdp_readAPs(void);
+
+//send system powerup request and wait for ACK.
+int cc3200_jtagdp_powerUpSystem(void);
+
+//send debug subsystem powerup request and wait for ACK.
+int cc3200_jtagdp_powerUpDebug(void);
 
 #endif

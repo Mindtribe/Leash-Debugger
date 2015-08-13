@@ -1,0 +1,15 @@
+(---------------------------------------------------------------------)
+(                                                                     )
+(    DBDOCTOR                                                         )
+(                                                                     )
+(    Drawing          : CC3200-LAUNCHXL_BRD_Rev4p1_20140624.brd       )
+(    Software Version : 16.6P004                                      )
+(    Date/Time        : Tue Jun 24 08:36:07 2014                      )
+(                                                                     )
+(---------------------------------------------------------------------)
+
+
+
+WARNING   WARNING(SPMHDB-42): Run batch DRC to correctly regenerate DRC errs.
+
+1 warnings, 0 errors detected, 0 errors could be fixed.

@@ -47,3 +47,21 @@ Future steps:
 - Wi-Fi serial link to/from host PC using same abstraction layer as direct link.
 - gdbserver stub.
 - (possibly) OpenOCD "remote_bitbang" protocol stub.
+
+# Other notes #
+
+ERROR DETECTION AND RECOVERY
+
+Basic error detection is in place, but recovery from errors is not present. Example: after a hard reset, debug hardware won't be accessible for (seen in trial and error) a second. This, in the past, has resulted in failure to read out the CSW register of the MEM-AP, or failure in earlier stages depending on the amount of time after the reset. It should be possible to recover from such errors and wait until the reset is complete.
+
+RESET HARDWARE
+
+The LaunchpadXL does not offer direct access to the CC3200 RESET line (the "RST" pin is output-only). A wire needs to be soldered to perform hard resets over the JTAG interface.
+
+FLASHING
+
+As far as I've been able to find, the only known method to program the external flash on the Launchpad boards is to use TI's Uniflash tool (other than trying to program the flash chip directly). OpenOCD does not support flashing this board, only loading directly into RAM. It would be nice to extend the scope of the project with a stub program that can be loaded into the RAM, and then acts as a proxy for writing to the flash.
+
+CACHING
+
+As of now, the code is being built iteratively, solving problems on each iteration. To provide better robustness and better insight into root causes when errors do occur in various layers of the JTAG interface, it would be good to cache certain registers on the debugger. For example, the control/status registers of the ICEPICK, of the JTAG_DP and the MEM_AP.

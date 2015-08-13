@@ -22,6 +22,7 @@ MAPFILE := ./$(program_NAME).map
 #compiler and linker
 CC=arm-none-eabi-gcc
 LD=arm-none-eabi-ld
+OBJCOPY=arm-none-eabi-objcopy
 
 #flags
 CPPFLAGS += $(foreach includedir,$(program_INCLUDE_DIRS),-I$(includedir)) \
@@ -52,9 +53,11 @@ driverlib:
 
 $(program_NAME): $(program_OBJS)
 	$(LD) $(program_OBJS) $(LDFLAGS) -T $(LDSCRIPT) -o $(EXE)/$(program_NAME).axf
+	$(OBJCOPY) -O binary $(EXE)/$(program_NAME).axf $(EXE)/$(program_NAME).bin
 
 clean:
 	@- $(RM) $(EXE)/$(program_NAME).axf
+	@- $(RM) $(EXE)/$(program_NAME).bin
 	@- $(RM) $(MAPFILE)
 	@- $(RM) $(program_OBJS)
 

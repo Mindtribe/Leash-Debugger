@@ -14,6 +14,7 @@
 #include "jtag_pinctl.h"
 #include "jtag_statemachine.h"
 #include "common.h"
+#include "misc_hal.h"
 #include "error.h"
 
 //state struct
@@ -41,11 +42,11 @@ int jtag_scan_hardRst(void)
 {
     if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
 
-    //hardware reset using the reset pin (repeatedly for longer pulse)
-    for(int i=0; i<10; i++){
-        jtag_pinctl_doClock(JTAG_RST);
-    }
-    jtag_pinctl_doClock(JTAG_NONE); //end pulse
+    //hardware reset using the reset pin
+    jtag_pinctl_assertPins(JTAG_RST);
+    delay_loop(100000);
+    jtag_pinctl_deAssertPins(JTAG_RST);
+    delay_loop(20000000);
 
     return RET_SUCCESS;
 }
@@ -71,11 +72,11 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan fromStat
     enum jtag_state cur_state = jtag_statemachine_getState();
     switch(fromState){
     case JTAG_STATE_SCAN_RUNIDLE:
-        if(cur_state != JTAG_STATE_RTI && cur_state != JTAG_STATE_TLR) RETURN_ERROR(ERROR_UNKNOWN);
+        if(cur_state != JTAG_STATE_RTI && cur_state != JTAG_STATE_TLR) RETURN_ERROR(jtag_statemachine_getState());
         jtag_scan_doStateMachine(0b0010, 4);
         break;
     case JTAG_STATE_SCAN_PAUSE:
-        if(cur_state != JTAG_STATE_PAUSEDR && cur_state != JTAG_STATE_PAUSEIR) RETURN_ERROR(ERROR_UNKNOWN);
+        if(cur_state != JTAG_STATE_PAUSEDR && cur_state != JTAG_STATE_PAUSEIR) RETURN_ERROR(jtag_statemachine_getState());
         jtag_scan_doStateMachine(0b00111, 5);
         break;
     default:
@@ -92,11 +93,11 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan fromStat
     switch(toState){
     case JTAG_STATE_SCAN_RUNIDLE:
         jtag_scan_doStateMachine(0b01, 2);
-        if(jtag_statemachine_getState() != JTAG_STATE_RTI) RETURN_ERROR(ERROR_UNKNOWN);
+        if(jtag_statemachine_getState() != JTAG_STATE_RTI) RETURN_ERROR(jtag_statemachine_getState());
         break;
     case JTAG_STATE_SCAN_PAUSE:
         jtag_scan_doStateMachine(0b0, 1);
-        if(jtag_statemachine_getState() != JTAG_STATE_PAUSEDR) RETURN_ERROR(ERROR_UNKNOWN);
+        if(jtag_statemachine_getState() != JTAG_STATE_PAUSEDR) RETURN_ERROR(jtag_statemachine_getState());
         break;
     default:
         RETURN_ERROR(ERROR_UNKNOWN); //invalid state

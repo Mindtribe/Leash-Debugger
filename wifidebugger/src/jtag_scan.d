@@ -3,4 +3,5 @@ src/jtag_scan.o: src/jtag_scan.c \
  /usr/include/newlib/stdint.h \
  /usr/include/newlib/machine/_default_types.h \
  /usr/include/newlib/sys/features.h inc/jtag_scan.h inc/jtag_pinctl.h \
- inc/jtag_statemachine.h inc/common.h inc/error.h inc/common.h
+ inc/jtag_statemachine.h inc/common.h inc/misc_hal.h inc/error.h \
+ inc/common.h
