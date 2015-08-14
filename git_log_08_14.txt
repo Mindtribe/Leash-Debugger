@@ -1,0 +1,126 @@
+commit 6a40c12bff9390f0f8f61afa614428c9394ebf47
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Thu Aug 13 17:02:41 2015 -0700
+
+    temporary commit: no progress in getting the processor to halt.
+
+commit ccf28f20a4164221321ad83633cd2a280702d47d
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Thu Aug 13 15:50:35 2015 -0700
+
+    First success in poking memory. flash test-app onto the target, then run wifidebugger to debug it, and the orange LED should turn off (through a memory poke).
+
+commit 6e86cc44a306747971f01fb922293dfe0ee66c50
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Wed Aug 12 14:55:09 2015 -0700
+
+    revamped dir structure to include test app project and separate the SDK. testapp added: switches LED on/off based on volatile variable in memory. For memory poke testing purposes.
+
+commit 666761c5a0344a306c2c2ea57b1a2ad771f4318d
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Wed Aug 12 13:56:56 2015 -0700
+
+    backup before changing folder structure.
+
+commit 6a07ab1b91f079e6f8283f598705fc8d9e0cbc46
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Wed Aug 12 11:35:09 2015 -0700
+
+    Fixed some comms bugs, able to powerup debug and read IDR of all 16 MEM-AP ports.
+
+commit c556eb9a88a8527a1ceb4c76d8225146bf8248d3
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Tue Aug 11 16:21:36 2015 -0700
+
+    Incremental commit - having trouble accessing any AP through the DP.
+
+commit eda85eeb11b682f7e50c719c6da615b7e46736c5
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Tue Aug 11 15:27:22 2015 -0700
+
+    added JTAG-DP layer for Cortex M4 debug port. Tested reading from and writing to JTAG-DP register.
+
+commit d7aab9276c10bcf4884bd49107fd7362282b1d1e
+Merge: 38bab96 b528669
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Mon Aug 10 16:33:00 2015 -0700
+
+    Merge branch 'master' of https://github.com/Mindtribe/Wi-Fi-Debug-Adapter
+
+commit 38bab969755025541afaa366a21578292250bd47
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Mon Aug 10 16:32:48 2015 -0700
+
+    Reached the ARM debug port, for some reason need to read DR twice to get IDCODE of core, but ultimately gets it.
+
+commit b528669b6bb2a15b93351b9375851ecb7e75e142
+Author: SanderVocke <sandervocke@gmail.com>
+Date:   Mon Aug 10 13:49:46 2015 -0700
+
+    Update README.md
+
+commit 20029b77a8c9b0b90ce179aa6e42040c521240fd
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Mon Aug 10 13:48:11 2015 -0700
+
+    cc3200_icepick layer added. Capable of detecting and verifying a target CC3200 by IDCODE and ICEPICKCODE.
+
+commit 1fa2040d7ec7fc3c6747bc1ea7ad39f813b5bab7
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Mon Aug 10 10:01:32 2015 -0700
+
+    A few makefile fixes.
+
+commit 548f1a6607b8db94c2b798edc774534170cc1a40
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Fri Aug 7 17:31:42 2015 -0700
+
+    able to read IDCODE when not putting any instructions. Failure when trying any ICEPICK instruction - possibly endianness-related.
+
+commit a36f18b8a7139737d1814a3bf0d2cdd0400f20b5
+Author: SanderVocke <sandervocke@gmail.com>
+Date:   Fri Aug 7 14:51:51 2015 -0700
+
+    Update README.md
+
+commit 6b204afc4d4b96df514779db8f09c08f9d0d8ce8
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Fri Aug 7 14:46:45 2015 -0700
+
+    Added JTAG scan layer, quickly tested basic func using feedback from TDI to TDO
+
+commit 729129c46250f38dbbb00e0872a408c0293c2ebb
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Fri Aug 7 12:11:57 2015 -0700
+
+    included dependent parts of CC3200 SDK
+
+commit dee2fc61c36671a5350ac6ab885102fdd8cc9c0e
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Fri Aug 7 11:24:48 2015 -0700
+
+    basic JTAG GPIO bitbanging layer done.
+
+commit e94ed1422cd985d65b5bbe53c71be25f9b3c5aa6
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Thu Aug 6 11:21:03 2015 -0700
+
+    removed ~ files
+
+commit a64e8eda75fe8976c8be953a5f658b77874381d4
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Thu Aug 6 11:16:53 2015 -0700
+
+    added license.md
+
+commit ec0450ccf926c0e0c1c7f40d70ceb341c87e4b76
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Thu Aug 6 11:14:05 2015 -0700
+
+    updated README.md
+
+commit 811c50a2e404d694b3f4887254149504e86929ca
+Author: Sander Vocke <sander@mindtribe.com>
+Date:   Thu Aug 6 10:09:03 2015 -0700
+
+    self-contained copy of TI Blinky example with makefile. MTbuild not working (yet).
