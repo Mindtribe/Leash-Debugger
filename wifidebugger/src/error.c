@@ -15,7 +15,7 @@
 struct error_log{
     char* file;
     int line;
-    int code;
+    uint32_t code;
 };
 
 struct error_state_t{
@@ -29,7 +29,7 @@ static struct error_state_t error_state = {
     .overflow = 0
 };
 
-void error_wait(char* file, int line, int error_code)
+void error_wait(char* file, int line, uint32_t error_code)
 {
     if(error_state.cur_error<MAX_ERROR_LOGS){
         error_state.errors[error_state.cur_error].file = file;
@@ -44,7 +44,7 @@ void error_wait(char* file, int line, int error_code)
     return;
 }
 
-void error_add(char* file, int line, int error_code)
+void error_add(char* file, int line, uint32_t error_code)
 {
     if(error_state.cur_error<MAX_ERROR_LOGS){
         error_state.errors[error_state.cur_error].file = file;

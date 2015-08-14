@@ -25,8 +25,8 @@
 #define RETURN_ERROR(X) {error_add(__FILE__,__LINE__,X); return RET_FAILURE;}
 #define WAIT_ERROR(X) {error_wait(__FILE__,__LINE__,X);}
 
-void error_wait(char* file, int line, int error_code);
-void error_add(char* file, int line, int error_code);
+void error_wait(char* file, int line, uint32_t error_code);
+void error_add(char* file, int line, uint32_t error_code);
 void clear_errors(void);
 
 #endif

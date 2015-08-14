@@ -174,7 +174,7 @@ int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
         jtag_pinctl_doClock((tdi_bits_lsb_first & 1) * JTAG_TDI);
         tdi_bits_lsb_first >>= 1;
         //jtag_pinctl_doClock((tdi_bits_lsb_first&(1<<i)) ? JTAG_TDI : JTAG_NONE);
-        if(jtag_pinctl_getLastTDO()) jtag_scan_state.shift_out |= (1<<(uint64_t)i);
+        if(jtag_pinctl_getLastTDO()) jtag_scan_state.shift_out |= (((uint64_t)1)<<((uint64_t)i));
     }
     //last bit with TMS high
     jtag_pinctl_doClock(JTAG_TMS | (tdi_bits_lsb_first & 1) * JTAG_TDI);

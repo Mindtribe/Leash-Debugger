@@ -115,8 +115,6 @@ int main(void)
     if(cc3200_core_debug_halt() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     mem_log_add("Entered debug and halted core.", 0);
 
-
-
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
     while(1){};
