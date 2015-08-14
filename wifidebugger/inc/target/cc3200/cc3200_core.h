@@ -56,14 +56,17 @@
 #define CC3200_CORE_BASEOFFSET_PERID2 0xFE8
 #define CC3200_CORE_BASEOFFSET_PERID3 0xFEC
 #define CC3200_CORE_BASEOFFSET_PERID4 0xFD0
-
-//relevant addresses in system memory space
-#define CC3200_CORE_MEM_DHCSR 0xE000EDF0
+#define CC3200_CORE_MEM_DHCSR 0xDF0
 
 //DHCSR bitmasks
 #define CC3200_CORE_MEM_DHCSR_C_DEBUGEN (1<<0)
 #define CC3200_CORE_MEM_DHCSR_C_HALT (1<<1)
 #define CC3200_CORE_MEM_DHCSR_S_HALT (1<<17)
+#define CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET 16
+#define CC3200_CORE_MEM_DHCSR_DBGKEY_MASK (0xFFFF<<CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET)
+
+//misc
+#define CC3200_CORE_DBGKEY 0xA05F
 
 //initialize the core access port. Assumes cc3200_jtagdp is initialized already.
 int cc3200_core_init(void);
@@ -83,10 +86,13 @@ int cc3200_core_read_mem_addr(uint32_t addr, uint32_t* result);
 //write a memory location from the core system memory space.
 int cc3200_core_write_mem_addr(uint32_t addr, uint32_t value);
 
-//read the ROM table.
-int cc3200_core_read_rom_table(void);
+//halt the core.
+int cc3200_core_debug_halt(void);
 
-//enable debug mode and halt the core.
-int cc3200_core_debug_init_halt(void);
+//enable debug.
+int cc3200_core_debug_enable(void);
+
+//get the debug base address.
+uint32_t cc3200_core_get_debug_base(void);
 
 #endif

@@ -8,14 +8,11 @@
     Target(s):  ISO/IEC 9899:1999 (target independent)
     --------------------------------------------------------- */
 
-#ifndef COMMON_H_
-#define COMMON_H_
+#include "common.h"
 
-#include <stdint.h>
-
-#define RET_SUCCESS (0)
-#define RET_FAILURE (-1)
-
-uint32_t flip_endian(uint32_t input);
-
-#endif
+uint32_t flip_endian(uint32_t input){
+    return (input<<24)
+            | ((input&0x0000FF00)<<8)
+            | ((input&0x00FF0000)>>8)
+            | ((input&0xFF000000)>>24);
+}

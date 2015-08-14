@@ -124,7 +124,24 @@ int cc3200_core_write_mem_addr(uint32_t addr, uint32_t value)
     return RET_SUCCESS;
 }
 
-int cc3200_core_read_rom_table(void)
+int cc3200_core_debug_halt(void)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if(cc3200_core_write_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_MEM_DHCSR,
+            (CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
+            (CC3200_CORE_MEM_DHCSR_C_DEBUGEN) |
+            CC3200_CORE_MEM_DHCSR_C_HALT) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    uint32_t temp;
+    if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_MEM_DHCSR,
+            &temp) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!(temp & CC3200_CORE_MEM_DHCSR_S_HALT)) RETURN_ERROR(temp);
+
+    return RET_SUCCESS;
+}
+
+int cc3200_core_debug_enable(void)
 {
     if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
 
@@ -186,21 +203,22 @@ int cc3200_core_read_rom_table(void)
         cur_addr += 4;
     }
 
+    //unlock debugging using the debug key
+    if(cc3200_core_write_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_MEM_DHCSR,
+            CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_write_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_MEM_DHCSR,
+            (CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
+            CC3200_CORE_MEM_DHCSR_C_DEBUGEN) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    uint32_t temp;
+    if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_MEM_DHCSR,
+            &temp) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!(temp & CC3200_CORE_MEM_DHCSR_C_DEBUGEN)) RETURN_ERROR(temp);
+
     return RET_SUCCESS;
 }
 
-int cc3200_core_debug_init_halt(void)
+uint32_t cc3200_core_get_debug_base(void)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
-
-    if(cc3200_core_write_mem_addr(CC3200_CORE_MEM_DHCSR,
-            CC3200_CORE_MEM_DHCSR_C_DEBUGEN) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_core_write_mem_addr(CC3200_CORE_MEM_DHCSR,
-            CC3200_CORE_MEM_DHCSR_C_DEBUGEN | CC3200_CORE_MEM_DHCSR_C_HALT) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-
-    uint32_t temp;
-    if(cc3200_core_read_mem_addr(CC3200_CORE_MEM_DHCSR, &temp) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(!(temp & CC3200_CORE_MEM_DHCSR_S_HALT)) RETURN_ERROR(temp);
-
-    return RET_SUCCESS;
+    return cc3200_core_state.debug_base_addr;
 }

@@ -100,13 +100,10 @@ int main(void)
     if(cc3200_core_detect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     mem_log_add("Initialized and detected MEM-AP of cortex M4.", 0);
 
-    //read ROM
-    if(cc3200_core_read_rom_table() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    mem_log_add("Finished reading ROM table.", 0);
+    //enable debug
+    if(cc3200_core_debug_enable() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
-    //OPERATIONS BELOW ARE FAILING. DEBUG MODE NEEDS ENABLING?
-
-    //read an address
+    //turn the orange LED off on target (which has "testapp" running)
     uint32_t ledaddr;
     if(cc3200_core_read_mem_addr(0x0000000020005270, &ledaddr) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     if(cc3200_core_write_mem_addr(0x0000000020005270, 0) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
@@ -114,13 +111,11 @@ int main(void)
     cc3200_jtagdp_checkCSR(&csr);
     mem_log_add("CSR value:", csr);
 
-    //read the DHCSR
-    uint32_t DHCSR;
-    if(cc3200_core_read_mem_addr(CC3200_CORE_MEM_DHCSR, &DHCSR) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    //halt the core
+    if(cc3200_core_debug_halt() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    mem_log_add("Entered debug and halted core.", 0);
 
-    //enable debug, halt core
-    //if(cc3200_core_debug_init_halt() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    //mem_log_add("Entered debug and halted core.", 0);
+
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
