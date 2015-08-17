@@ -1,0 +1,28 @@
+PROGRESS VS. PLANNING:
+
+Planning:
+
+week 1: setup codebase
+week 2: inplement JTAG interface, get man-ID from chip (we must be pretty close to debug features then - right?)
+week 3: halt the processor (only a small step from week 2, right?)
+
+Real life:
+
+week 1: setup codebase, inplement JTAG interface, get man-ID (quicker than expected, yay)
+week 2: "oh man, there's so much stuff in there": get lost in the documents and implementing various abstraction layers. Halt and poke done.
+week 3: ?
+
+DOCUMENTATION WEIGHT
+
+FPGA4FUN tutorial page on JTAG - 4 pages - great little summary of the JTAG protocol, which has sufficed for implementation.
+
+TI ICEPICK type C reference guide --PUBLIC VERSION--: ~40 pages - describes (generically) the ICEPICK JTAG router found in (among others) the CC3200.
+TI's not-so-public stuff: ? pages - describes the router setup for the CC3200 specifically, i presume.
+TI's CC3200 reference guide: has no significant information about debug, stating reassuringly that "Further details about the debug interface will be addressed in the revision of this manual."
+OpenOCD source code and configuration scripts - have so far filled in the blanks as to the specific ICEPICK configuration needed, and can probably help in any future lacks of documentation.
+
+ARM Debug Interface v5 Architecture specification: ~240 pages - describes the JTAG-DP ("port" at boundary of core) and how to use it to navigate "AP's" (generic for many ARM processors)
+ARMv7-M debug architecture reference manual: section ~70 pages - describes the actual registers and methods for performing debug operations in the core (generic among ARMv7-M family)
+Cortex M4 Technical Reference Manual: section ~20 pages - describes which parts of the ARMv7-M debug architecture are implemented on Cortex-M4 and how.
+
+All this documentation together: easily 1.5 inches thick...

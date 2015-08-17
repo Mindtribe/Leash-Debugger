@@ -85,7 +85,8 @@ struct cc3200_core_state_t cc3200_core_state = {
     .fpb_addr = 0,
     .itm_addr = 0,
     .tpiu_addr = 0,
-    .etm_addr = 0
+    .etm_addr = 0,
+    .romtable = {0}
 };
 
 int cc3200_core_init(void)

@@ -39,7 +39,7 @@ struct jtagPinLocation TDILocation = {
     .ucGPIOPin = 0
 };
 struct jtagPinLocation TDOLocation = {
-    .ucPin = 1,
+    .ucPin = 22,
     .uiGPIOPort = 0,
     .ucGPIOPin = 0
 };

@@ -9,13 +9,17 @@
     --------------------------------------------------------- */
 
 #include "gpio_if.h"
+#include "uart_if.h"
 
 #include "error.h"
+#include "common.h"
 
 struct error_log{
-    char* file;
     int line;
     uint32_t code;
+    char file[FILE_MAX];
+    char codechar[ERROR_CODECHAR_MAX];
+    char linechar[ERROR_LINECHAR_MAX];
 };
 
 struct error_state_t{
@@ -31,13 +35,7 @@ static struct error_state_t error_state = {
 
 void error_wait(char* file, int line, uint32_t error_code)
 {
-    if(error_state.cur_error<MAX_ERROR_LOGS){
-        error_state.errors[error_state.cur_error].file = file;
-        error_state.errors[error_state.cur_error].line = line;
-        error_state.errors[error_state.cur_error].code = error_code;
-        error_state.cur_error++;
-    }
-    else error_state.overflow = 1;
+    error_add(file, line, error_code);
 
     GPIO_IF_LedOn(MCU_RED_LED_GPIO);
     while(1){};
@@ -47,12 +45,21 @@ void error_wait(char* file, int line, uint32_t error_code)
 void error_add(char* file, int line, uint32_t error_code)
 {
     if(error_state.cur_error<MAX_ERROR_LOGS){
-        error_state.errors[error_state.cur_error].file = file;
-        error_state.errors[error_state.cur_error].line = line;
-        error_state.errors[error_state.cur_error].code = error_code;
+        wfd_strncpy(error_state.errors[error_state.cur_error].file, file, FILE_MAX);
+        wfd_itoa(error_code, error_state.errors[error_state.cur_error].codechar);
+        wfd_itoa(line, error_state.errors[error_state.cur_error].linechar);
+
         error_state.cur_error++;
     }
     else error_state.overflow = 1;
+
+    Message("Error ");
+    Message(error_state.errors[error_state.cur_error - 1].codechar);
+    Message(" @ ");
+    Message(error_state.errors[error_state.cur_error - 1].file);
+    Message(":");
+    Message(error_state.errors[error_state.cur_error - 1].linechar);
+    Message("\n\r");
 
     return;
 }
@@ -60,7 +67,7 @@ void error_add(char* file, int line, uint32_t error_code)
 void clear_errors(void)
 {
     for(int i=0; i<MAX_ERROR_LOGS; i++){
-        error_state.errors[i].file = 0;
+        error_state.errors[i].file[0] = 0;
         error_state.errors[i].line = 0;
         error_state.errors[i].code = 0;
     }

@@ -1,2 +1,0 @@
-Was having a problem where instructions passed to the ICEPICK's instruction register didn't work.
-The problem turned out to be that TMS must be asserted in the JTAG state machine SIMULTANEOUSLY with the last TDI bit shifting in.

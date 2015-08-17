@@ -26,6 +26,7 @@
 #include "utils.h"
 
 #include "gpio_if.h"
+#include "uart_if.h"
 #include "pin_mux_config.h"
 
 #include "cc3200_icepick.h"
@@ -35,6 +36,7 @@
 #include "common.h"
 #include "error.h"
 #include "mem_log.h"
+#include "misc_hal.h"
 
 static int BoardInit(void);
 
@@ -51,11 +53,19 @@ static int BoardInit(void)
 int main(void)
 {
     BoardInit();
+
+    //UART terminal
+    InitTerm();
+    ClearTerm();
+    PinMuxConfig();
+
+    mem_log_add("Init", 0);
+
+    //(error) logging in memory init
     clear_errors();
     mem_log_clear();
     mem_log_add("Start of main().", 0);
 
-    PinMuxConfig();
     GPIO_IF_LedConfigure(LED1|LED2|LED3);
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
     GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);

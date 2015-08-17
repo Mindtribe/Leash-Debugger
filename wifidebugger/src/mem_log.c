@@ -9,9 +9,13 @@
     --------------------------------------------------------- */
 
 #include "mem_log.h"
+#include "uart_if.h"
+
+#include "common.h"
 
 struct mem_log_entry{
-    char* msg;
+    char msg[MSG_MAX];
+    char codechar[CODECHAR_MAX];
     int code;
 };
 
@@ -28,7 +32,7 @@ static struct mem_log_state_t mem_log_state = {
 
 void mem_log_clear(void){
     for(int i=0; i<MEM_LOG_ENTRIES; i++){
-        mem_log_state.log[i].msg = 0;
+        mem_log_state.log[i].msg[0] = 0;
         mem_log_state.log[i].code = 0;
     }
 
@@ -38,11 +42,20 @@ void mem_log_clear(void){
 
 void mem_log_add(char* msg, int code){
     if(mem_log_state.cur_entry < MEM_LOG_ENTRIES){
-        mem_log_state.log[mem_log_state.cur_entry].msg = msg;
+        wfd_strncpy(mem_log_state.log[mem_log_state.cur_entry].msg, msg, MSG_MAX);
+        wfd_itoa(code, mem_log_state.log[mem_log_state.cur_entry].codechar);
         mem_log_state.log[mem_log_state.cur_entry].code = code;
     }
     else mem_log_state.overflow = 1;
     mem_log_state.cur_entry++;
+
+    //Report("Log (code %d): %s\n\r", code, msg);
+    char code_chr[20];
+    Message("Log: ");
+    Message(mem_log_state.log[mem_log_state.cur_entry-1].msg);
+    Message(" (code ");
+    Message(mem_log_state.log[mem_log_state.cur_entry-1].codechar);
+    Message(")\n\r");
 
     return;
 }
