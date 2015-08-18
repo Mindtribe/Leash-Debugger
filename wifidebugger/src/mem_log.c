@@ -12,6 +12,7 @@
 #include "uart_if.h"
 
 #include "common.h"
+#include "gdb_helpers.h"
 
 struct mem_log_entry{
     char msg[MSG_MAX];
@@ -49,13 +50,20 @@ void mem_log_add(char* msg, int code){
     else mem_log_state.overflow = 1;
     mem_log_state.cur_entry++;
 
-    //Report("Log (code %d): %s\n\r", code, msg);
-    char code_chr[20];
-    Message("Log: ");
-    Message(mem_log_state.log[mem_log_state.cur_entry-1].msg);
-    Message(" (code ");
-    Message(mem_log_state.log[mem_log_state.cur_entry-1].codechar);
-    Message(")\n\r");
+    char msgs[100];
+    int msgi = 0;
+    msgi += wfd_strncpy(&(msgs[msgi]), "O Log:  ", 100);
+    msgi += wfd_strncpy(&(msgs[msgi]), mem_log_state.log[mem_log_state.cur_entry-1].msg, 100);
+    msgi += wfd_strncpy(&(msgs[msgi]), " (code ", 100);
+    msgi += wfd_strncpy(&(msgs[msgi]), mem_log_state.log[mem_log_state.cur_entry-1].codechar, 100);
+    msgi += wfd_strncpy(&(msgs[msgi]), ")\n\r", 100);
+
+    if(!gdb_helpers_isInitialized()){
+        Message(&(msgs[2]));
+    }
+    else{
+        //gdb_helpers_TransmitPacket(msgs); //enable to send logs to GDB terminal.
+    }
 
     return;
 }

@@ -11,6 +11,7 @@
 #include "gpio_if.h"
 #include "uart_if.h"
 
+#include "gdb_helpers.h"
 #include "error.h"
 #include "common.h"
 
@@ -48,18 +49,30 @@ void error_add(char* file, int line, uint32_t error_code)
         wfd_strncpy(error_state.errors[error_state.cur_error].file, file, FILE_MAX);
         wfd_itoa(error_code, error_state.errors[error_state.cur_error].codechar);
         wfd_itoa(line, error_state.errors[error_state.cur_error].linechar);
+        error_state.errors[error_state.cur_error].line = line;
+        error_state.errors[error_state.cur_error].code = error_code;
 
         error_state.cur_error++;
     }
     else error_state.overflow = 1;
 
-    Message("Error ");
-    Message(error_state.errors[error_state.cur_error - 1].codechar);
-    Message(" @ ");
-    Message(error_state.errors[error_state.cur_error - 1].file);
-    Message(":");
-    Message(error_state.errors[error_state.cur_error - 1].linechar);
-    Message("\n\r");
+    char msg[100];
+    int msgi = 0;
+    msgi += wfd_strncpy(&(msg[msgi]), "O Error ", 100);
+    msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].codechar, 100);
+    msgi += wfd_strncpy(&(msg[msgi]), " @ ", 100);
+    msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].file, 100);
+    msgi += wfd_strncpy(&(msg[msgi]), ":", 100);
+    msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].linechar, 100);
+    //msgi += wfd_strncpy(&(msg[msgi]), "\n\r", 100);
+
+    if(!gdb_helpers_isInitialized()){
+        Message(&(msg[2]));
+        Message("\n\r");
+    }
+    else{
+        gdb_helpers_TransmitPacket(msg);
+    }
 
     return;
 }

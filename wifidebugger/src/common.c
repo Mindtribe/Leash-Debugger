@@ -46,11 +46,20 @@ void wfd_itoa(int num, char* string)
     return;
 }
 
-void wfd_strncpy(char* dest, char* src, int max_size)
+int wfd_strncpy(char* dest, char* src, int max_size)
 {
     for(int i=0; i<max_size; i++){
-        if(i >= max_size) return;
+        if(i >= max_size) return RET_FAILURE;
         dest[i] = src[i];
-        if(src[i] == 0) return;
+        if(src[i] == 0) return i;
     }
+
+    return RET_FAILURE;
+}
+
+int wfd_stringsEqual(char* src1, char* src2){
+    for(int i=0; src1[i] != 0 && src2[i] != 0; i++){
+        if(src1[i] != src2[i]) return 0;
+    }
+    return 1;
 }

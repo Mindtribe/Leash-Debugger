@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include "error.h"
+#include "gdb_helpers.h"
 
 void default_PutChar(char c);
 void default_GetChar(char* c);
@@ -110,9 +111,18 @@ void gdb_helpers_byteToHex(uint8_t byte, char* dst)
 }
 
 uint8_t gdb_helpers_hexToByte(char* src){
-    uint8_t byte = 0;
 
-    //TODO Fill this in!!!
+    uint8_t byte = 0;
+    char hnibble, lnibble;
+    hnibble = gdb_helpers_toUpperCaseHex(src[0]);
+    lnibble = gdb_helpers_toUpperCaseHex(src[1]);
+
+    if((hnibble >= '0') && (hnibble <= '9')) {byte += (hnibble - '0')*16; }
+    else {byte += (hnibble - 'A' + 10)*16;}
+    if((lnibble >= '0') && (lnibble <= '9')) {byte += (lnibble - '0'); }
+    else {byte += (lnibble - 'A' + 10);}
+
+    return byte;
 }
 
 void gdb_helpers_toHex(char* src, char* dst)
@@ -142,4 +152,22 @@ void gdb_helpers_TransmitPacket(char* packet_data)
     gdb_helpers_state.pPutChar(chksm_nibbles[1]);
 
     return;
+}
+
+int gdb_helpers_isInitialized(void){
+    return gdb_helpers_state.initialized;
+}
+
+int gdb_helpers_isHex(char c)
+{
+    if((c>='0') && (c<='9')) return 1;
+    if((c>='A') && (c<='F')) return 1;
+    if((c>='a') && (c<='f')) return 1;
+    return -1;
+}
+
+char gdb_helpers_toUpperCaseHex(char c)
+{
+    if((c>='a') && (c<='f')) return c-32;
+    return c;
 }

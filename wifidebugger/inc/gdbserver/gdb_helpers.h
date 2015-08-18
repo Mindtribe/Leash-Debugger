@@ -18,7 +18,7 @@
 
 #include <stdint.h>
 
-int gdb_helpers_init(void* pPutChar(char), void* pGetChar(char*));
+int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*));
 
 void gdb_helpers_PutChar(char c);
 
@@ -37,5 +37,11 @@ uint8_t gdb_helpers_hexToByte(char* src);
 void gdb_helpers_toHex(char* src, char* dst);
 
 void gdb_helpers_TransmitPacket(char* packet_data);
+
+int gdb_helpers_isInitialized(void);
+
+int gdb_helpers_isHex(char c);
+
+char gdb_helpers_toUpperCaseHex(char c);
 
 #endif

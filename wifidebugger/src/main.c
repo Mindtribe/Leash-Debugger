@@ -73,7 +73,7 @@ int main(void)
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
     GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
 
-    gdbserver_init();
+    gdbserver_init((void*) &TermPutChar, (void*) &TermGetChar);
     gdbserver_loop();
 
     //Some tests.
