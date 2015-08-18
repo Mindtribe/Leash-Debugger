@@ -132,3 +132,15 @@ ClearTerm()
 {
     Message("\33[2J\r");
 }
+
+void TermPutChar(char c)
+{
+    MAP_UARTCharPut(CONSOLE,c);
+    return;
+}
+
+void TermGetChar(char* c)
+{
+    *c = (char) MAP_UARTCharGet(CONSOLE);
+    return;
+}

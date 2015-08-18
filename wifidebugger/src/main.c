@@ -37,6 +37,10 @@
 #include "error.h"
 #include "mem_log.h"
 #include "misc_hal.h"
+#include "gdb_helpers.h"
+#include "target_al.h"
+#include "cc3200.h"
+#include "gdbserver.h"
 
 static int BoardInit(void);
 
@@ -56,7 +60,6 @@ int main(void)
 
     //UART terminal
     InitTerm();
-    ClearTerm();
     PinMuxConfig();
 
     mem_log_add("Init", 0);
@@ -70,60 +73,16 @@ int main(void)
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
     GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
 
-    //hard reset
-    jtag_scan_init();
-    jtag_scan_hardRst();
+    gdbserver_init();
+    gdbserver_loop();
 
-    //ICEPICK router detection and configuration
-    if(cc3200_icepick_init() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    if(cc3200_icepick_detect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    if(cc3200_icepick_connect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    if(cc3200_icepick_configure() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    mem_log_add("Detected and configured ICEPICK router.", 0);
+    //Some tests.
+    struct target_al_interface *target_if = &cc3200_interface;
 
-    //ARM core debug interface (JTAG-DP) detection
-    if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    if(cc3200_jtagdp_detect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    mem_log_add("Detected core's JTAG-DP port.", 0);
-
-    //Clear control/status register.
-    if(cc3200_jtagdp_clearCSR() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    mem_log_add("Cleared JTAG-DP CSR.", 0);
-
-    //Read control/status register.
-    uint32_t csr;
-    //if(cc3200_jtagdp_checkCSR(&csr) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    //mem_log_add("CSR value:", csr);
-
-    //powerup
-    if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    mem_log_add("Powered up SoC and debug logic.", 0);
-
-    cc3200_jtagdp_checkCSR(&csr);
-    mem_log_add("CSR value:", csr);
-
-    if(cc3200_jtagdp_readAPs() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    mem_log_add("Read out all 16 AP's IDCODES connected to JTAG-DP.", 0);
-
-    //core module
-    if(cc3200_core_init() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    if(cc3200_core_detect() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    mem_log_add("Initialized and detected MEM-AP of cortex M4.", 0);
-
-    //enable debug
-    if(cc3200_core_debug_enable() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-
-    //turn the orange LED off on target (which has "testapp" running)
-    uint32_t ledaddr;
-    if(cc3200_core_read_mem_addr(0x0000000020005270, &ledaddr) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    if(cc3200_core_write_mem_addr(0x0000000020005270, 0) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-
-    cc3200_jtagdp_checkCSR(&csr);
-    mem_log_add("CSR value:", csr);
-
-    //halt the core
-    if(cc3200_core_debug_halt() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    mem_log_add("Entered debug and halted core.", 0);
+    if((*target_if->target_init)() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    //turn LED off:
+    if((*target_if->target_mem_write)(0x0000000020005270, 0) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if((*target_if->target_halt)() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 

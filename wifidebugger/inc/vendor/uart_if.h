@@ -76,6 +76,8 @@ extern void DispatcherUartSendPacket(unsigned char *inBuff, unsigned short usLen
 extern void InitTerm(void);
 extern void ClearTerm(void);
 extern void Message(const char *str);
+void TermPutChar(char c);
+void TermGetChar(char* c);
 
 //*****************************************************************************
 //
