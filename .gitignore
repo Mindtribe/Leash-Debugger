@@ -27,9 +27,14 @@
 *.i*86
 *.x86_64
 *.hex
+*.axf
+*.bin
 
 # Debug files
 *.dSYM/
 
 #Files ending in ~
 *~
+
+#Dependency files
+*.d
