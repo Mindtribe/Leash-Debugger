@@ -103,6 +103,7 @@ struct gdbserver_state_t{
     char cur_checksum[2];
     int cur_packet_index;
     enum gdbserver_stop_reason stop_reason;
+    struct target_al_interface *target;
 };
 struct gdbserver_state_t gdbserver_state = {
     .initialized = 0,
@@ -115,9 +116,15 @@ struct gdbserver_state_t gdbserver_state = {
     .stop_reason = STOPREASON_UNKNOWN
 };
 
-int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*))
+int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), struct target_al_interface *target)
 {
     if(gdb_helpers_init((void*)pPutChar, (void*)pGetChar) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    gdbserver_state.target = target;
+
+    if((*target->target_init)() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if((*target->target_halt)() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
     gdbserver_state.initialized = 1;
     return RET_SUCCESS;
 }
@@ -234,9 +241,8 @@ int gdbserver_processGeneralQuery(char* queryString)
         gdbserver_TransmitPacket("");
         break;
     case QUERY_TSTATUS: //ask whether a trace experiment is currently running.
-        //for now, traces are not supported at all. Always respond:
-        //"No, and none have been run yet."
-        gdbserver_TransmitPacket("T0;tnotrun:0");
+        gdbserver_TransmitPacket("");
+        //gdbserver_TransmitPacket("T0;tnotrun:0");
         break;
     case QUERY_TFV: //ask about current trace variables.
         //traces are unsupported, empty response
@@ -251,6 +257,7 @@ int gdbserver_processGeneralQuery(char* queryString)
         gdbserver_TransmitPacket("1");
         break;
     default:
+        gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
         break;//unsupported query as of now
     }
 
@@ -275,6 +282,7 @@ int gdbserver_processPacket(void)
 #endif
 
     //process the packet based on header character
+    char *temp;
     switch(gdbserver_state.cur_packet[0]){
     case 'q': //general query
         if(gdbserver_processGeneralQuery(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
@@ -289,17 +297,110 @@ int gdbserver_processPacket(void)
         gdbserver_TransmitPacket("OK"); //reply OK
         break;
     case '?': //ask for the reason why execution has stopped
-        switch(gdbserver_state.stop_reason){
-        default:
-        case STOPREASON_UNKNOWN:
-            gdbserver_TransmitPacket("T00");
-            break;
+        gdbserver_TransmitStopReason();
+        break;
+    case 'g': //request the register status
+        (*gdbserver_state.target->target_get_gdb_reg_string)(&temp); //get the register string
+        gdbserver_TransmitPacket(temp); //send the register string
+        break;
+    case 'G': //write registers
+        if((*gdbserver_state.target->target_put_gdb_reg_string)(&(gdbserver_state.cur_packet[1]))
+                == RET_FAILURE){
+            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            gdbserver_TransmitPacket("E0");
+        }
+        else gdbserver_TransmitPacket("OK");
+        break;
+    case 'm': //read memory
+        if(gdbserver_reportMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
+            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        }
+        break;
+    case 'M': //write memory
+        if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
+            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         }
         break;
     default:
-        gdbserver_reset_error(__LINE__, gdbserver_state.cur_packet[0]);
+        gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
+        //error_add(__FILE__,__LINE__, gdbserver_state.cur_packet[0]);
         break;
     }
+
+    return RET_SUCCESS;
+}
+
+int gdbserver_reportMemory(char* argstring)
+{
+    //First, get the arguments
+    char* addrstring;
+    char* lenstring;
+    for(int i=0; i<30; i++){
+        if(argstring[i] == ','){
+            argstring[i] = 0;
+            addrstring = argstring;
+            lenstring = &(argstring[i+1]);
+            break;
+        }
+        if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no comma found
+    }
+
+    uint32_t addr = gdb_helpers_hexToInt(addrstring);
+    uint32_t len = gdb_helpers_hexToInt(lenstring);
+    uint32_t data = 0;
+
+    //TODO: for now we only support word accesses, fix this!
+    if(len!=4) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if((*gdbserver_state.target->target_mem_read)(addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    //construct the answer string
+    char retstring[9];
+    retstring[8]=0;
+    gdb_helpers_byteToHex((uint8_t)((data>>0)&0xFF), &(retstring[0]));
+    gdb_helpers_byteToHex((uint8_t)((data>>8)&0xFF), &(retstring[2]));
+    gdb_helpers_byteToHex((uint8_t)((data>>16)&0xFF), &(retstring[4]));
+    gdb_helpers_byteToHex((uint8_t)((data>>24)&0xFF), &(retstring[6]));
+
+    gdbserver_TransmitPacket(retstring);
+
+    return RET_SUCCESS;
+}
+
+int gdbserver_writeMemory(char* argstring)
+{
+    //First, get the arguments
+    char* addrstring;
+    char* lenstring;
+    char* datastring;
+    for(int i=0; i<30; i++){
+        if(argstring[i] == ','){
+            argstring[i] = 0;
+            addrstring = argstring;
+            lenstring = &(argstring[i+1]);
+            break;
+        }
+        if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no comma found
+    }
+    for(int i=0; i<30; i++){
+        if(lenstring[i] == ':'){
+            lenstring[i] = 0;
+            datastring = &(lenstring[i+1]);
+            break;
+        }
+        if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no colon found
+    }
+
+    uint32_t addr = gdb_helpers_hexToInt(addrstring);
+    uint32_t len = gdb_helpers_hexToInt(lenstring);
+    uint32_t data = gdb_helpers_hexToInt_LE(datastring);
+
+    //TODO: for now we only support word accesses, fix this!
+    if(len!=4) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if((*gdbserver_state.target->target_mem_write)(addr, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    gdbserver_TransmitPacket("OK");
 
     return RET_SUCCESS;
 }
@@ -311,4 +412,13 @@ int gdbserver_loop(void)
     };
 
     return RET_SUCCESS;
+}
+
+void gdbserver_TransmitStopReason(void){
+    switch(gdbserver_state.stop_reason){
+    default:
+    case STOPREASON_UNKNOWN:
+        gdbserver_TransmitPacket("T00");
+        break;
+    }
 }

@@ -57,6 +57,9 @@ struct cc3200_core_state_t{
     uint32_t itm_addr;
     uint32_t tpiu_addr;
     uint32_t etm_addr;
+
+    //debug status
+    uint8_t halted;
 };
 struct cc3200_core_state_t cc3200_core_state = {
     .initialized = 0,
@@ -86,7 +89,8 @@ struct cc3200_core_state_t cc3200_core_state = {
     .itm_addr = 0,
     .tpiu_addr = 0,
     .etm_addr = 0,
-    .romtable = {0}
+    .romtable = {0},
+    .halted = 0
 };
 
 int cc3200_core_init(void)
@@ -182,6 +186,8 @@ int cc3200_core_debug_halt(void)
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
             &temp) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
     if(!(temp & CC3200_CORE_MEM_DHCSR_S_HALT)) RETURN_ERROR(temp);
+
+    cc3200_core_state.halted = 1;
 
     return RET_SUCCESS;
 }
@@ -287,4 +293,57 @@ int cc3200_core_debug_enable(void)
 uint32_t cc3200_core_get_debug_base(void)
 {
     return cc3200_core_state.debug_base_addr;
+}
+
+int cc3200_core_read_reg(enum cc3200_reg_index reg, uint32_t* dst)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!cc3200_core_state.halted) RETURN_ERROR(ERROR_UNKNOWN); //must be halted to read a register
+
+    uint32_t regnum = (uint32_t) reg;
+
+    //select the register
+    if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DCRSR,
+            regnum & CC3200_CORE_MEM_REGSEL_MASK) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    //wait for the transaction to finish
+    uint32_t dhcsr = 0;
+    int i;
+    for(i=0; i<100 && !(dhcsr & CC3200_CORE_MEM_DHCSR_S_REGRDY); i++){
+        if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR, &dhcsr)
+                == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    }
+    if(i>=100) RETURN_ERROR(ERROR_UNKNOWN);
+
+    //read the result out
+    if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DCRDR, dst)
+            == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    return RET_SUCCESS;
+}
+
+int cc3200_core_write_reg(enum cc3200_reg_index reg, uint32_t value)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!cc3200_core_state.halted) RETURN_ERROR(ERROR_UNKNOWN); //must be halted to access a register
+
+    uint32_t regnum = (uint32_t) reg;
+
+    //prepare the data
+    if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DCRDR, value)
+            == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    //select the register and initialize the transaction
+    if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DCRSR,
+            (regnum & CC3200_CORE_MEM_REGSEL_MASK) | CC3200_CORE_MEM_DCRSR_REGWNR) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    //wait for the transaction to finish
+    uint32_t dhcsr;
+    for(int i=0; i<100; i++){
+        if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR, &dhcsr)
+                == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if((dhcsr & CC3200_CORE_MEM_DHCSR_S_REGRDY)) return RET_SUCCESS;
+    }
+
+    return RET_FAILURE;
 }

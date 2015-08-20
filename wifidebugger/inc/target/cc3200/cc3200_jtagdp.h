@@ -119,7 +119,4 @@ int cc3200_jtagdp_readAPs(void);
 //send system powerup request and wait for ACK.
 int cc3200_jtagdp_powerUpSystem(void);
 
-//send debug subsystem powerup request and wait for ACK.
-int cc3200_jtagdp_powerUpDebug(void);
-
 #endif

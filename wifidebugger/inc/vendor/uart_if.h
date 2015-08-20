@@ -60,7 +60,7 @@ extern "C"
 //
 // Define the size of UART IF buffer for RX
 //
-#define UART_IF_BUFFER           64
+#define UART_IF_BUFFER           128
 
 //
 // Define the UART IF buffer

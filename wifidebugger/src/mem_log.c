@@ -50,13 +50,13 @@ void mem_log_add(char* msg, int code){
     else mem_log_state.overflow = 1;
     mem_log_state.cur_entry++;
 
-    char msgs[100];
+    char msgs[MSG_MAX];
     int msgi = 0;
-    msgi += wfd_strncpy(&(msgs[msgi]), "O Log:  ", 100);
-    msgi += wfd_strncpy(&(msgs[msgi]), mem_log_state.log[mem_log_state.cur_entry-1].msg, 100);
-    msgi += wfd_strncpy(&(msgs[msgi]), " (code ", 100);
-    msgi += wfd_strncpy(&(msgs[msgi]), mem_log_state.log[mem_log_state.cur_entry-1].codechar, 100);
-    msgi += wfd_strncpy(&(msgs[msgi]), ")\n\r", 100);
+    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), "O Log:  ", MSG_MAX-msgi-1);                                            }
+    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), mem_log_state.log[mem_log_state.cur_entry-1].msg, MSG_MAX-msgi-1);      }
+    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), " (code ", MSG_MAX-msgi-1);                                             }
+    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), mem_log_state.log[mem_log_state.cur_entry-1].codechar, MSG_MAX-msgi-1); }
+    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), ")\n\r", MSG_MAX-msgi-1);                                               }
 
     if(!gdb_helpers_isInitialized()){
         Message(&(msgs[2]));

@@ -31,4 +31,8 @@ int cc3200_mem_read(uint32_t addr, uint32_t* dst);
 
 int cc3200_mem_write(uint32_t addr, uint32_t value);
 
+int cc3200_get_gdb_reg_string(char** string);
+
+int cc3200_put_gdb_reg_string(char* string);
+
 #endif

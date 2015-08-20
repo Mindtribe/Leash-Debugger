@@ -23,8 +23,26 @@ struct target_al_interface cc3200_interface = {
     .target_halt = &cc3200_halt,
     .target_continue = &cc3200_continue,
     .target_mem_read = &cc3200_mem_read,
-    .target_mem_write = &cc3200_mem_write
+    .target_mem_write = &cc3200_mem_write,
+    .target_get_gdb_reg_string = &cc3200_get_gdb_reg_string,
+    .target_put_gdb_reg_string = &cc3200_put_gdb_reg_string
 };
+
+struct cc3200_state_t{
+    char regstring[CC3200_REG_LAST+1];
+};
+struct cc3200_state_t cc3200_state = {
+    .regstring = {0}
+};
+
+static void cc3200_byteToHex(uint8_t byte, char* dst)
+{
+    wfd_byteToHex(byte, dst);
+}
+
+static uint8_t cc3200_hexToByte(char* hex){
+    return wfd_hexToByte(hex);
+}
 
 int cc3200_init(void)
 {
@@ -94,5 +112,46 @@ int cc3200_mem_read(uint32_t addr, uint32_t* dst)
 int cc3200_mem_write(uint32_t addr, uint32_t value)
 {
     return cc3200_core_write_mem_addr(addr, value);
+}
+
+int cc3200_get_gdb_reg_string(char** string)
+{
+    struct cc3200_reg_list reglst;
+
+    for(enum cc3200_reg_index i=0; i<CC3200_REG_LAST; i++){
+        if(cc3200_core_read_reg(i, &(((uint32_t *)&reglst)[i])) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    cc3200_state.regstring[8*CC3200_REG_LAST] = 0; //zero-terminate
+
+    for(enum cc3200_reg_index i=0; i<CC3200_REG_LAST; i++){
+        //bytewise convert the register to hex characters.
+        cc3200_byteToHex((((uint32_t*)&reglst)[i]>>0) & 0xFF, &(cc3200_state.regstring[8*i+0]));
+        cc3200_byteToHex((((uint32_t*)&reglst)[i]>>8) & 0xFF, &(cc3200_state.regstring[8*i+2]));
+        cc3200_byteToHex((((uint32_t*)&reglst)[i]>>16) & 0xFF, &(cc3200_state.regstring[8*i+4]));
+        cc3200_byteToHex((((uint32_t*)&reglst)[i]>>24) & 0xFF, &(cc3200_state.regstring[8*i+6]));
+    }
+
+    *string = cc3200_state.regstring; //point to the string
+
+    return RET_SUCCESS;
+}
+
+int cc3200_put_gdb_reg_string(char* string)
+{
+    //TODO: string validity tests
+
+    for(int i = 0; string[i] != 0 && i<CC3200_REG_LAST; i++){
+        if(string[i*8] == 'x') continue; //skip this register
+
+        uint32_t reg = 0; //the register value
+        reg |= (cc3200_hexToByte(&(string[i*8+0])) << 0);
+        reg |= (cc3200_hexToByte(&(string[i*8+2])) << 8);
+        reg |= (cc3200_hexToByte(&(string[i*8+4])) << 16);
+        reg |= (cc3200_hexToByte(&(string[i*8+6])) << 24);
+
+        if(cc3200_core_write_reg(i, reg) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    }
+    return RET_SUCCESS;
 }
 

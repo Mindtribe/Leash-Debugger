@@ -17,6 +17,7 @@
 #define CC3200_CORE_H_
 
 #include <stdint.h>
+#include "cc3200_reg.h"
 
 //properties to check
 #define CC3200_CORE_AP_IDR 0x24770011
@@ -60,13 +61,21 @@
 
 //SCS
 #define CC3200_CORE_MEM_DHCSR 0xDF0
+#define CC3200_CORE_MEM_DCRSR 0xDF4
+#define CC3200_CORE_MEM_DCRDR 0xDF8
+#define CC3200_CORE_MEM_DEMCR 0xDFC
 
 //DHCSR bitmasks
 #define CC3200_CORE_MEM_DHCSR_C_DEBUGEN (1<<0)
 #define CC3200_CORE_MEM_DHCSR_C_HALT (1<<1)
+#define CC3200_CORE_MEM_DHCSR_S_REGRDY (1<<16)
 #define CC3200_CORE_MEM_DHCSR_S_HALT (1<<17)
 #define CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET 16
 #define CC3200_CORE_MEM_DHCSR_DBGKEY_MASK (0xFFFF<<CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET)
+
+//DCRSR bitmasks
+#define CC3200_CORE_MEM_DCRSR_REGWNR (1<<16)
+#define CC3200_CORE_MEM_REGSEL_MASK 0x1F
 
 //misc
 #define CC3200_CORE_DBGKEY 0xA05F //"key" to unlock debug halting register writes
@@ -98,5 +107,11 @@ int cc3200_core_debug_enable(void);
 
 //get the debug base address.
 uint32_t cc3200_core_get_debug_base(void);
+
+//read a register.
+int cc3200_core_read_reg(enum cc3200_reg_index reg, uint32_t* dst);
+
+//write a register.
+int cc3200_core_write_reg(enum cc3200_reg_index reg, uint32_t value);
 
 #endif

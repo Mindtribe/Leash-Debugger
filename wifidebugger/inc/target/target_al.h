@@ -24,6 +24,8 @@ struct target_al_interface{
     int (*target_continue)(void);
     int (*target_mem_read)(uint32_t, uint32_t*);
     int (*target_mem_write)(uint32_t, uint32_t);
+    int (*target_get_gdb_reg_string)(char**);
+    int (*target_put_gdb_reg_string)(char*);
 };
 
 #endif

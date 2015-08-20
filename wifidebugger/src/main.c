@@ -62,18 +62,16 @@ int main(void)
     InitTerm();
     PinMuxConfig();
 
-    mem_log_add("Init", 0);
-
     //(error) logging in memory init
     clear_errors();
     mem_log_clear();
-    mem_log_add("Start of main().", 0);
 
     GPIO_IF_LedConfigure(LED1|LED2|LED3);
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
     GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
 
-    gdbserver_init((void*) &TermPutChar, (void*) &TermGetChar);
+    gdbserver_init((void*) &TermPutChar, (void*) &TermGetChar, &cc3200_interface);
+    mem_log_add("Init",0);
     gdbserver_loop();
 
     //Some tests.

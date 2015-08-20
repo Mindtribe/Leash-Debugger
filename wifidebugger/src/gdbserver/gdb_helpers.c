@@ -97,32 +97,12 @@ uint8_t gdb_helpers_getChecksum(char* data)
 
 void gdb_helpers_byteToHex(uint8_t byte, char* dst)
 {
-    char* hNibble = dst;
-    char* lNibble = &(dst[1]);
-    uint8_t i_lNibble, i_hNibble;
-    i_lNibble = byte%16;
-    i_hNibble = byte/16;
-
-    if(i_lNibble < 10) *lNibble = '0' + (char)i_lNibble;
-    else *lNibble = 'A' + ((char)i_lNibble-10);
-    if(i_hNibble < 10) *hNibble = '0' + (char)i_hNibble;
-    else *hNibble = 'A' + ((char)i_hNibble-10);
-    return;
+    wfd_byteToHex(byte, dst);
 }
 
 uint8_t gdb_helpers_hexToByte(char* src){
 
-    uint8_t byte = 0;
-    char hnibble, lnibble;
-    hnibble = gdb_helpers_toUpperCaseHex(src[0]);
-    lnibble = gdb_helpers_toUpperCaseHex(src[1]);
-
-    if((hnibble >= '0') && (hnibble <= '9')) {byte += (hnibble - '0')*16; }
-    else {byte += (hnibble - 'A' + 10)*16;}
-    if((lnibble >= '0') && (lnibble <= '9')) {byte += (lnibble - '0'); }
-    else {byte += (lnibble - 'A' + 10);}
-
-    return byte;
+    return wfd_hexToByte(src);
 }
 
 void gdb_helpers_toHex(char* src, char* dst)
@@ -168,6 +148,16 @@ int gdb_helpers_isHex(char c)
 
 char gdb_helpers_toUpperCaseHex(char c)
 {
-    if((c>='a') && (c<='f')) return c-32;
-    return c;
+    return wfd_toUpperCaseHex(c);
+}
+
+uint32_t gdb_helpers_hexToInt(char* src)
+{
+    return wfd_hexToInt(src);
+}
+
+uint32_t gdb_helpers_hexToInt_LE(char* src)
+{
+    uint32_t data = wfd_hexToInt(src);
+    return flip_endian(data);
 }
