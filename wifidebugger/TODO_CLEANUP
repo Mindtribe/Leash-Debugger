@@ -1,0 +1,9 @@
+- interface with gdbserver <-> target is messy. It should be clean.
+- memory accesses: just cast stuff to uint8_t to get endian-independence!
+- endianness-independence in general.
+- messy utility functions.
+- messy loop-based delays.
+- can we not have some kind of malloc?
+- cc3200: better structuring for code re-use.
+- generic string argument retrieval in gdbserver
+- return SIGINT instead of SIGQUIT

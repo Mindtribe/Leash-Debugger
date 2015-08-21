@@ -16,6 +16,8 @@
 #define RET_SUCCESS (0)
 #define RET_FAILURE (-1)
 
+#define MIN(X, Y) ((X > Y) ? Y : X)
+
 uint32_t flip_endian(uint32_t input);
 void wfd_itoa(int num, char* string);
 int wfd_strncpy(char* dest, char* src, int max_size);
@@ -25,5 +27,6 @@ uint8_t wfd_hexToByte(char* src);
 char wfd_toUpperCaseHex(char c);
 uint32_t wfd_strlen(char* src);
 uint32_t wfd_hexToInt(char* src);
+unsigned long long wfd_crc32(uint8_t *buf, uint32_t bufLen, unsigned long long crc);
 
 #endif

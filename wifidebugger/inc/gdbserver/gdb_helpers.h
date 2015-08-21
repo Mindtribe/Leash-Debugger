@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#define CRC32_POLY 0x04C11DB7
+
 int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*));
 
 void gdb_helpers_PutChar(char c);

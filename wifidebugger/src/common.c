@@ -9,6 +9,7 @@
     --------------------------------------------------------- */
 
 #include "common.h"
+#include "crc32.h"
 
 uint32_t flip_endian(uint32_t input){
     return (input<<24)
@@ -58,10 +59,12 @@ int wfd_strncpy(char* dest, char* src, int max_size)
 }
 
 int wfd_stringsEqual(char* src1, char* src2){
-    for(int i=0; src1[i] != 0 && src2[i] != 0; i++){
+    int i;
+    for(i=0; src1[i] != 0 && src2[i] != 0; i++){
         if(src1[i] != src2[i]) return 0;
     }
-    return 1;
+    if(src1[i] == 0 && src2[i] == 0) return 1;
+    return 0;
 }
 
 void wfd_byteToHex(uint8_t byte, char* dst)
@@ -109,6 +112,7 @@ uint32_t wfd_hexToInt(char* src)
 
     for(int i=0; i<len; i++){
         if((src[i] >= '0') && (src[i] <= '9')) {result += (src[i] - '0')<<(4*(len-i-1)); }
+        else if((src[i] >= 'a') && (src[i] <= 'f')) {result += (src[i] - 'a' + 10)<<(4*(len-i-1)); }
         else {result += (src[i] - 'A' + 10)<<(4*(len-i-1));}
     }
     return result;
@@ -120,3 +124,7 @@ char wfd_toUpperCaseHex(char c)
     return c;
 }
 
+unsigned long long wfd_crc32(uint8_t *buf, uint32_t bufLen, unsigned long long crc)
+{
+    return crc32(buf, bufLen, crc);
+}

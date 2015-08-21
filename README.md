@@ -15,17 +15,52 @@ The most straightforward way to run this on the board is using OpenOCD+GDB (see 
 
 To test the OpenOCD connection to the target board, try the following:
 
+```
 cd scripts
-sudo ./openocd_test
+./openocd_test
+```
 
 if successful, this should lead to OpenOCD reporting a connection to the device, and giving information about it (number of break/watchpoints etc).
 
-To debug an .axf file, try:
+To debug an .axf file (the debugger code), try:
 
+```
 cd scripts
-sudo ./gdb_debug ./../wifidebugger/exe/wifidebugger.axf
+./gdb_debug_debugger ./../wifidebugger/exe/wifidebugger.axf
+```
 
-this should start a GDB debugging session using openOCD.
+this should start a GDB debugging session using openOCD, running the debug adapter code on the board.
+
+Starting a session to debug the target via the running debugger can be done by having another instance of GDB:
+
+```
+cd scripts
+./gdb_debug_debuggee ./../testapp/exe/testapp.axf
+```
+
+...After which GDB commands have to be used to actually load code, set pc/sp and execute:
+
+```
+(gdb) target remote /dev/ttyUSB1
+(gdb) load
+(gdb) compare-sections
+(gdb) set $sp = g_pfnVectors[0]
+(gdb) set $pc = g_pfnVectors[1]
+(gdb) continue
+```
+
+NOTE: in order to gain non-root access to ttyUSB for debugging, add your user to the dialout group:
+
+```
+sudo usermod -a -G dialout $USER
+```
+
+... and also in Ubuntu, this only seems to work after removing software called 'modemmanager':
+
+```
+sudo apt-get remove modemmanager
+```
+
 
 # Misc #
 
@@ -42,10 +77,22 @@ Current build system is a makefile, future plans to switch to MTbuild.
 In implementation phase of JTAG master functionality. Lowest level is bitbanged GPIO, one level higher is performing scanchain operations. 
 A cc3200_icepick layer is finished. Work being done on Cortex M4 debug operations.
 
+Also it uses UART to communicate with GDB using a basic GDBserver stub. Packet support so far includes:
+- memory read/write
+- register read/write (although xPSR register writes are ignored - they seem to lead to hard faults when writing to them)
+- interrupt/continue
+- CRC checks on memory regions (allowing GDB to verify RAM loads)
+The main missing ones are:
+- step
+- reset
+
+With the current functionality, it is able to load a program into RAM, set stack pointer/program counter and execute it.
+
+RAM loading is slow: less than 300 Bytes/s.
+
 Future steps:
-- direct serial link to/from host PC with abstraction layer.
 - Wi-Fi serial link to/from host PC using same abstraction layer as direct link.
-- gdbserver stub.
+- extended support for packets (symbol reading, binary transfer...)
 - (possibly) OpenOCD "remote_bitbang" protocol stub.
 
 # Other notes #

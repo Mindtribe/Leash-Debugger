@@ -192,6 +192,45 @@ int cc3200_core_debug_halt(void)
     return RET_SUCCESS;
 }
 
+int cc3200_core_debug_step(void)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!cc3200_core_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
+            (CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
+            (CC3200_CORE_MEM_DHCSR_C_DEBUGEN) |
+            CC3200_CORE_MEM_DHCSR_C_STEP) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    uint32_t temp;
+    if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
+            &temp) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!(temp & CC3200_CORE_MEM_DHCSR_S_HALT)) RETURN_ERROR(temp);
+
+    cc3200_core_state.halted = 1;
+
+    return RET_SUCCESS;
+}
+
+int cc3200_core_debug_continue(void)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!cc3200_core_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
+            (CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
+            (CC3200_CORE_MEM_DHCSR_C_DEBUGEN)) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    uint32_t temp;
+    if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
+            &temp) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(temp & CC3200_CORE_MEM_DHCSR_S_HALT) RETURN_ERROR(temp);
+
+    cc3200_core_state.halted = 0;
+
+    return RET_SUCCESS;
+}
+
 int cc3200_core_debug_enable(void)
 {
     if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
@@ -346,4 +385,12 @@ int cc3200_core_write_reg(enum cc3200_reg_index reg, uint32_t value)
     }
 
     return RET_FAILURE;
+}
+
+int cc3200_core_set_pc(uint32_t addr)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!cc3200_core_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+
+    return cc3200_core_write_reg(CC3200_REG_PC, addr);
 }

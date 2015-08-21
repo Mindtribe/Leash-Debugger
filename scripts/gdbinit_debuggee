@@ -1,4 +1,5 @@
 set serial baud 115200
 set debug serial 1
 set debug remote 1
+set remotetimeout 20
 #target remote /dev/ttyUSB1

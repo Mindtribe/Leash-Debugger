@@ -22,10 +22,14 @@ struct target_al_interface{
     int (*target_reset)(void);
     int (*target_halt)(void);
     int (*target_continue)(void);
+    int (*target_step)(void);
     int (*target_mem_read)(uint32_t, uint32_t*);
     int (*target_mem_write)(uint32_t, uint32_t);
-    int (*target_get_gdb_reg_string)(char**);
+    int (*target_mem_block_read)(uint32_t, uint32_t, uint8_t*);
+    int (*target_mem_block_write)(uint32_t, uint32_t, uint8_t*);
+    int (*target_get_gdb_reg_string)(char*);
     int (*target_put_gdb_reg_string)(char*);
+    int (*target_set_pc)(uint32_t);
 };
 
 #endif

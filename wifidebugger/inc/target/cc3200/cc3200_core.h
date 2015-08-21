@@ -68,6 +68,7 @@
 //DHCSR bitmasks
 #define CC3200_CORE_MEM_DHCSR_C_DEBUGEN (1<<0)
 #define CC3200_CORE_MEM_DHCSR_C_HALT (1<<1)
+#define CC3200_CORE_MEM_DHCSR_C_STEP (1<<2)
 #define CC3200_CORE_MEM_DHCSR_S_REGRDY (1<<16)
 #define CC3200_CORE_MEM_DHCSR_S_HALT (1<<17)
 #define CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET 16
@@ -102,6 +103,12 @@ int cc3200_core_write_mem_addr(uint32_t addr, uint32_t value);
 //halt the core.
 int cc3200_core_debug_halt(void);
 
+//continue execution.
+int cc3200_core_debug_continue(void);
+
+//step an instruction
+int cc3200_core_debug_step(void);
+
 //enable debug.
 int cc3200_core_debug_enable(void);
 
@@ -113,5 +120,8 @@ int cc3200_core_read_reg(enum cc3200_reg_index reg, uint32_t* dst);
 
 //write a register.
 int cc3200_core_write_reg(enum cc3200_reg_index reg, uint32_t value);
+
+//set the program counter.
+int cc3200_core_set_pc(uint32_t addr);
 
 #endif

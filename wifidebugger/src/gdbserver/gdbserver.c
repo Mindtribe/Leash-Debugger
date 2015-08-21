@@ -8,6 +8,8 @@
     Target(s):  ISO/IEC 9899:1999 (target independent)
     --------------------------------------------------------- */
 
+#include <signal.h>
+
 #include "gdbserver.h"
 #include "target_al.h"
 #include "gdb_helpers.h"
@@ -91,15 +93,16 @@ const char* gdbserver_query_strings[] = {
 };
 
 enum gdbserver_stop_reason{
-    STOPREASON_UNKNOWN = 0
+    STOPREASON_UNKNOWN = 0,
+    STOPREASON_INTERRUPT
 };
 
 struct gdbserver_state_t{
     int initialized;
     enum gdbserver_packet_phase packet_phase;
     int awaiting_ack;
-    char last_sent_packet[MAX_GDB_PACKET_LEN];
-    char cur_packet[MAX_GDB_PACKET_LEN];
+    char last_sent_packet[GDBSERVER_MAX_PACKET_LEN_TX];
+    char cur_packet[GDBSERVER_MAX_PACKET_LEN_RX];
     char cur_checksum[2];
     int cur_packet_index;
     enum gdbserver_stop_reason stop_reason;
@@ -142,6 +145,16 @@ void gdbserver_TransmitPacket(char* packet_data)
     return;
 }
 
+void gdbserver_Interrupt()
+{
+    if((*gdbserver_state.target->target_halt)() == RET_FAILURE){
+        gdbserver_TransmitPacket("OError halting target!");
+    }
+    gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
+    gdbserver_TransmitPacket("S03"); //send "stopped due to SIGINT"
+    return;
+}
+
 int gdbserver_processChar(void)
 {
     char c;
@@ -149,6 +162,7 @@ int gdbserver_processChar(void)
 
 #ifdef GDBSERVER_KEEP_CHARS
     lastChars[curChar++ % GDBSERVER_KEEP_CHARS_NUM] = c;
+    if(curChar%GDBSERVER_KEEP_CHARS_NUM) lastChars[curChar%GDBSERVER_KEEP_CHARS_NUM]  = 0; //zero-terminate
 #endif
 
     if(gdbserver_state.packet_phase == PACKET_DATA){ //in data phase
@@ -158,7 +172,7 @@ int gdbserver_processChar(void)
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
             gdbserver_state.cur_packet_index = 0;
         }
-        else if(gdbserver_state.cur_packet_index >= (MAX_GDB_PACKET_LEN - 1)) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);} //too long
+        else if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);} //too long
         else {gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c; }
     }
     else{ //all other cases
@@ -176,10 +190,14 @@ int gdbserver_processChar(void)
             gdbserver_state.packet_phase = PACKET_DATA;
             gdbserver_state.cur_packet_index = 0;
             break;
+        case CTRL_C:
+            gdbserver_Interrupt();
+            break;
         default:
             switch(gdbserver_state.packet_phase){
             case PACKET_NONE:
-                gdbserver_reset_error(__LINE__, c); break; //invalid character at this point.
+                //do nothing - invalid character (junk)
+                //gdbserver_reset_error(__LINE__, c); break; //invalid character at this point.
                 break;
             case PACKET_CHECKSUM:
                 if(!gdb_helpers_isHex(c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
@@ -249,12 +267,15 @@ int gdbserver_processGeneralQuery(char* queryString)
         gdbserver_TransmitPacket("");
         break;
     case QUERY_C: //ask what the current thread ID is
-        //this is bare-metal debugging, so we reply "all threads".
-        gdbserver_TransmitPacket("QC-1");
+        gdbserver_TransmitPacket(""); //reply "unsupported"
+        //gdbserver_TransmitPacket("QC-1"); //reply "all threads"
         break;
     case QUERY_ATTACHED: //ask whether the debugger attached to an existing process, or created a new one.
         //default to "attached" (this informs GDB that some stuff was already going on)
         gdbserver_TransmitPacket("1");
+        break;
+    case QUERY_CRC: //get a CRC checksum of memory region to verify memory
+        if(gdbserver_doMemCRC(&(queryString[4])) == RET_FAILURE) error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         break;
     default:
         gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
@@ -282,7 +303,6 @@ int gdbserver_processPacket(void)
 #endif
 
     //process the packet based on header character
-    char *temp;
     switch(gdbserver_state.cur_packet[0]){
     case 'q': //general query
         if(gdbserver_processGeneralQuery(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
@@ -300,8 +320,12 @@ int gdbserver_processPacket(void)
         gdbserver_TransmitStopReason();
         break;
     case 'g': //request the register status
-        (*gdbserver_state.target->target_get_gdb_reg_string)(&temp); //get the register string
-        gdbserver_TransmitPacket(temp); //send the register string
+        if((*gdbserver_state.target->target_get_gdb_reg_string)(gdbserver_state.last_sent_packet)
+                == RET_FAILURE){
+            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            gdbserver_TransmitPacket("E0");
+        }
+        else{ gdbserver_TransmitPacket(gdbserver_state.last_sent_packet); } //send the register string
         break;
     case 'G': //write registers
         if((*gdbserver_state.target->target_put_gdb_reg_string)(&(gdbserver_state.cur_packet[1]))
@@ -309,16 +333,33 @@ int gdbserver_processPacket(void)
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
             gdbserver_TransmitPacket("E0");
         }
-        else gdbserver_TransmitPacket("OK");
+        else {gdbserver_TransmitPacket("OK");}
         break;
     case 'm': //read memory
-        if(gdbserver_reportMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
+        if(gdbserver_readMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         }
         break;
     case 'M': //write memory
         if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        }
+        break;
+    case 'c': //continue
+        //we discard the signal number.
+        if(wfd_strlen(gdbserver_state.cur_packet) == 6){
+            //there is an address to go to.
+            uint32_t addr = gdb_helpers_hexToInt(&(gdbserver_state.cur_packet[4]));
+            if((*gdbserver_state.target->target_set_pc)(addr)
+                    == RET_FAILURE){
+                error_add(__FILE__,__LINE__,addr);
+                gdbserver_TransmitPacket("E0");
+            }
+        }
+        if((*gdbserver_state.target->target_continue)()
+                == RET_FAILURE){
+            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            gdbserver_TransmitPacket("E0");
         }
         break;
     default:
@@ -330,7 +371,7 @@ int gdbserver_processPacket(void)
     return RET_SUCCESS;
 }
 
-int gdbserver_reportMemory(char* argstring)
+int gdbserver_readMemory(char* argstring)
 {
     //First, get the arguments
     char* addrstring;
@@ -347,20 +388,62 @@ int gdbserver_reportMemory(char* argstring)
 
     uint32_t addr = gdb_helpers_hexToInt(addrstring);
     uint32_t len = gdb_helpers_hexToInt(lenstring);
-    uint32_t data = 0;
+    uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
-    //TODO: for now we only support word accesses, fix this!
-    if(len!=4) RETURN_ERROR(ERROR_UNKNOWN);
+    if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(ERROR_UNKNOWN);
 
-    if((*gdbserver_state.target->target_mem_read)(addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*gdbserver_state.target->target_mem_block_read)(addr, len, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     //construct the answer string
-    char retstring[9];
-    retstring[8]=0;
-    gdb_helpers_byteToHex((uint8_t)((data>>0)&0xFF), &(retstring[0]));
-    gdb_helpers_byteToHex((uint8_t)((data>>8)&0xFF), &(retstring[2]));
-    gdb_helpers_byteToHex((uint8_t)((data>>16)&0xFF), &(retstring[4]));
-    gdb_helpers_byteToHex((uint8_t)((data>>24)&0xFF), &(retstring[6]));
+    char retstring[GDBSERVER_MAX_PACKET_LEN_TX];
+    int i;
+    for(i=0; i<len; i++){
+        gdb_helpers_byteToHex(data[i], &(retstring[i*2]));
+    }
+    retstring[i*2] = 0; //terminate
+
+    gdbserver_TransmitPacket(retstring);
+
+    return RET_SUCCESS;
+}
+
+int gdbserver_doMemCRC(char* argstring)
+{
+    //First, get the arguments
+    char* addrstring;
+    char* lenstring;
+    for(int i=0; i<30; i++){
+        if(argstring[i] == ','){
+            argstring[i] = 0;
+            addrstring = argstring;
+            lenstring = &(argstring[i+1]);
+            break;
+        }
+        if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no comma found
+    }
+
+    uint32_t addr = gdb_helpers_hexToInt(addrstring);
+    uint32_t len = gdb_helpers_hexToInt(lenstring);
+    uint32_t bytes_left = len;
+
+    unsigned long long crc32 = 0xFFFFFFFF;
+
+    uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
+    while(bytes_left){
+        if((*gdbserver_state.target->target_mem_block_read)(addr, GDBSERVER_MAX_BLOCK_ACCESS, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //get some bytes
+        crc32 = wfd_crc32(data, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), crc32);
+        bytes_left-=MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left);
+        addr+=GDBSERVER_MAX_BLOCK_ACCESS;
+    }
+
+    //construct the answer string
+    char retstring[10];
+    retstring[0] = 'C';
+    gdb_helpers_byteToHex((uint8_t)(((uint32_t)crc32)>>24), &(retstring[1]));
+    gdb_helpers_byteToHex((uint8_t)(((uint32_t)crc32)>>16), &(retstring[3]));
+    gdb_helpers_byteToHex((uint8_t)(((uint32_t)crc32)>>8), &(retstring[5]));
+    gdb_helpers_byteToHex((uint8_t)(((uint32_t)crc32)>>0), &(retstring[7]));
+    retstring[9] = 0;
 
     gdbserver_TransmitPacket(retstring);
 
@@ -393,12 +476,16 @@ int gdbserver_writeMemory(char* argstring)
 
     uint32_t addr = gdb_helpers_hexToInt(addrstring);
     uint32_t len = gdb_helpers_hexToInt(lenstring);
-    uint32_t data = gdb_helpers_hexToInt_LE(datastring);
+    uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
-    //TODO: for now we only support word accesses, fix this!
-    if(len!=4) RETURN_ERROR(ERROR_UNKNOWN);
+    if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(len);
 
-    if((*gdbserver_state.target->target_mem_write)(addr, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    //convert data
+    for(int i=0; i<len; i++){
+        data[i] = gdb_helpers_hexToByte(&(datastring[i*2]));
+    }
+
+    if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     gdbserver_TransmitPacket("OK");
 
