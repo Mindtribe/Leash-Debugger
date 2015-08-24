@@ -455,7 +455,7 @@ int gdbserver_doMemCRC(char* argstring)
 
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
     while(bytes_left){
-        if((*gdbserver_state.target->target_mem_block_read)(addr, GDBSERVER_MAX_BLOCK_ACCESS, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //get some bytes
+        if((*gdbserver_state.target->target_mem_block_read)(addr, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //get some bytes
         crc32 = wfd_crc32(data, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), crc32);
         bytes_left-=MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left);
         addr+=GDBSERVER_MAX_BLOCK_ACCESS;

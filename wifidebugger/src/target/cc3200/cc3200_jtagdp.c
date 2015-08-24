@@ -185,7 +185,7 @@ int cc3200_jtagdp_accResponseRead(uint8_t* response, uint32_t* value, enum jtag_
 
     uint64_t shift_command = 1 | (0x0C >> 1); //dummy command
 
-    if(cc3200_jtagdp_shiftDR(shift_command, CC3200_JTAGDP_DPACC_LEN,
+    if(cc3200_jtagdp_shiftDR(shift_command, CC3200_JTAGDP_APACC_LEN,
             toState) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     uint64_t result = jtag_scan_getShiftOut();
@@ -224,7 +224,7 @@ int cc3200_jtagdp_DPACC_write(uint8_t addr, uint32_t value, uint8_t check_respon
     return RET_SUCCESS;
 }
 
-int cc3200_jtagdp_DPACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* values, uint8_t check_response)
+int cc3200_jtagdp_APACC_pipeline_read(uint8_t addr, uint32_t len, uint32_t* dst)
 {
     if(!cc3200_jtagdp_state.initialized || !cc3200_jtagdp_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
     if(len == 0) return RET_SUCCESS;
@@ -232,28 +232,27 @@ int cc3200_jtagdp_DPACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* val
     uint64_t shift_command, result;
     uint8_t response;
 
-    if(cc3200_jtagdp_shiftIR(CC3200_JTAGDP_IR_DPACC,
+    if(cc3200_jtagdp_shiftIR(CC3200_JTAGDP_IR_APACC,
             JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
-    //rest of pipelined transfers
-    for(int j = 0; j<len; j++){
-        shift_command = ((addr&0x0C) >> 1) | ((uint64_t) values[j]) << 3;
-        response = CC3200_JTAGDP_WAIT;
 
-        for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && response == CC3200_JTAGDP_WAIT; i++){
-            if(cc3200_jtagdp_shiftDR(shift_command, CC3200_JTAGDP_DPACC_LEN,
-                    JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-
-            result = jtag_scan_getShiftOut();
-            response = (uint8_t)(result & 0x07);
-
-            if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) RETURN_ERROR(ERROR_UNKNOWN); //invalid response
-        }
-    }
-    if(check_response){
-        //final response check
-        if(cc3200_jtagdp_accResponseWrite(&response,
+    shift_command = 1 | ((addr&0x0C) >> 1);
+    response = CC3200_JTAGDP_WAIT;
+    for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && response == CC3200_JTAGDP_WAIT; i++){
+        if(cc3200_jtagdp_shiftDR(shift_command, CC3200_JTAGDP_APACC_LEN,
                 JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        result = jtag_scan_getShiftOut();
+        response = (uint8_t)(result & 0x07);
+        if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) RETURN_ERROR(ERROR_UNKNOWN); //invalid response
+    }
+
+    for(int j = 0; j<len; j++){
+
+        if(cc3200_jtagdp_accResponseRead(&response, &(dst[j]), JTAG_STATE_SCAN_PAUSE) == RET_FAILURE){
+            RETURN_ERROR(ERROR_UNKNOWN);
+        }
+
+        if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) RETURN_ERROR(ERROR_UNKNOWN); //invalid response
     }
 
     uint32_t csr;

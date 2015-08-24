@@ -119,10 +119,10 @@ int cc3200_jtagdp_readAPs(void);
 //send system powerup request and wait for ACK.
 int cc3200_jtagdp_powerUpSystem(void);
 
-//pipelined DPACC accesses.
-int cc3200_jtagdp_DPACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* values, uint8_t check_response);
-
 //pipelined APACC accesses.
 int cc3200_jtagdp_APACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* values, uint8_t check_response);
+
+//pipelined APACC accesses.
+int cc3200_jtagdp_APACC_pipeline_read(uint8_t addr, uint32_t len, uint32_t* dst);
 
 #endif

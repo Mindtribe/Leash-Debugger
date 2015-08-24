@@ -164,16 +164,25 @@ int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
     uint32_t data;
     uint8_t *data_bytes = (uint8_t*)&data;
 
-    uint32_t last_read_addr = addr & 0xFFFFFFFC;
-    if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-
-    int out_byte = 0;
-    for(int i=0; i<bytes; i++){
-        if((addr+i)/4 != last_read_addr/4){ //different word?
-            last_read_addr = (addr+i)& 0xFFFFFFFC;
-            if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if((bytes%4 ==0) && (addr%4 ==0)){ //word-aligned full-word reads
+        if(cc3200_core_pipeline_read_mem_addr(addr, bytes/4, (uint32_t*) dst) == RET_FAILURE){
+            RETURN_ERROR(ERROR_UNKNOWN);
         }
-        dst[out_byte++] = data_bytes[(addr+i)%4];
+    }
+    else{ //non-word-aligned or incomplete words
+
+        uint32_t last_read_addr = addr & 0xFFFFFFFC;
+        if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+        int out_byte = 0;
+        for(int i=0; i<bytes; i++){
+            if((addr+i)/4 != last_read_addr/4){ //different word?
+                last_read_addr = (addr+i)& 0xFFFFFFFC;
+                if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+            }
+            dst[out_byte++] = data_bytes[(addr+i)%4];
+        }
+
     }
 
     return RET_SUCCESS;

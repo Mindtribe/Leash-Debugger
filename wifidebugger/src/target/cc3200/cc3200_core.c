@@ -165,6 +165,16 @@ int cc3200_core_pipeline_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, 
     return RET_SUCCESS;
 }
 
+int cc3200_core_pipeline_read_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, uint32_t *dst)
+{
+    if(!cc3200_core_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if(!cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_APACC_pipeline_read(regaddr & 0xF, len, dst) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    return RET_SUCCESS;
+}
+
 int cc3200_core_read_mem_addr(uint32_t addr, uint32_t* result)
 {
     if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
@@ -181,6 +191,16 @@ int cc3200_core_pipeline_write_mem_addr(uint32_t addr, uint32_t len, uint32_t* v
 
     if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,addr, 0) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
     if(cc3200_core_pipeline_write_APreg(0,CC3200_CORE_AP_DATARW_ADDR,len,values) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    return RET_SUCCESS;
+}
+
+int cc3200_core_pipeline_read_mem_addr(uint32_t addr, uint32_t len, uint32_t *dst)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,addr, 0) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_pipeline_read_APreg(0,CC3200_CORE_AP_DATARW_ADDR,len,dst) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     return RET_SUCCESS;
 }

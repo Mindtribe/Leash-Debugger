@@ -103,6 +103,9 @@ int cc3200_core_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t value, uint8_t
 //pipelined writes to register of the access port. regaddr is the combined bank and register address.
 int cc3200_core_pipeline_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, uint32_t *values);
 
+//pipelined reads from register of the access port. regaddr is the combined bank and register address.
+int cc3200_core_pipeline_read_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, uint32_t *dst);
+
 //read a memory location from the core system memory space.
 int cc3200_core_read_mem_addr(uint32_t addr, uint32_t* result);
 
@@ -111,6 +114,9 @@ int cc3200_core_write_mem_addr(uint32_t addr, uint32_t value);
 
 //write successive memory locations in a pipelined fashion.
 int cc3200_core_pipeline_write_mem_addr(uint32_t addr, uint32_t len, uint32_t* values);
+
+//read successive memory locations in a pipelined fashion.
+int cc3200_core_pipeline_read_mem_addr(uint32_t addr, uint32_t len, uint32_t *dst);
 
 //halt the core.
 int cc3200_core_debug_halt(void);
