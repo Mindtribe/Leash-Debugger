@@ -1,0 +1,14 @@
+CC3200 ARCHITECTURE
+
+Is a SoC with two processor cores:
+	- ARM Cortex M4 (user)
+		- (specs)
+	- ARM Cortex M? (pre-programmed for WiFi)
+		- (specs)
+		- Built-in wifi functions
+
+JTAG:
+	- ICEPICK
+
+FLASH:
+	- External

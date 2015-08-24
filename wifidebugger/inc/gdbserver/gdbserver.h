@@ -22,10 +22,10 @@
 
 #define GDBSERVER_LOG_PACKETS
 
-#define GDBSERVER_MAX_PACKET_LEN_RX 256
-#define GDBSERVER_MAX_PACKET_LEN_TX 256
+#define GDBSERVER_MAX_PACKET_LEN_RX 512
+#define GDBSERVER_MAX_PACKET_LEN_TX 512
 
-#define GDBSERVER_MAX_BLOCK_ACCESS 64
+#define GDBSERVER_MAX_BLOCK_ACCESS 128
 
 #define CTRL_C 0x03 //interrupt character.
 
@@ -47,7 +47,7 @@ int gdbserver_readMemory(char* argstring);
 
 int gdbserver_writeMemory(char* argstring);
 
-void gdbserver_Interrupt();
+void gdbserver_Interrupt(uint8_t signal);
 
 int gdbserver_doMemCRC(char* argstring);
 

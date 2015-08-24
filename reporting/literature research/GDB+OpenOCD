@@ -1,0 +1,18 @@
+GDB AND OPENOCD TOOLCHAIN
+
+GDB is a well-known, widely used open-source debugger. It supports many architectures, including ARM-type processors.
+However, it has no features that allow it to interface with embedded boards to reach these embedded processors.
+
+GDB includes a protocol for "remote debugging" which allows it to debug embedded targets remotely, assuming some software and/or adapter exists that can perform the target-dependent steps for it:
+- halt, continue, step
+- memory/register access
+- break/watchpoints
+- flash memory
+- etc
+
+This makes it potentially very powerful in combination with interface software and adapters.
+
+OPENOCD
+
+Is a project aiming to act as a server for the GDB remote protocol, for as many targets and board/adapter configurations as possible.
+Supports many transport layers, adapters for these layers, core types and specific boards to connect to.

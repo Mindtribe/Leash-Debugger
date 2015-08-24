@@ -62,7 +62,7 @@ int jtag_scan_rstStateMachine(void)
     return RET_SUCCESS;
 }
 
-int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan fromState, enum jtag_state_scan toState)
+int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 {
     if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
 
@@ -70,13 +70,13 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan fromStat
 
     //Get to Shift-DR state
     enum jtag_state cur_state = jtag_statemachine_getState();
-    switch(fromState){
-    case JTAG_STATE_SCAN_RUNIDLE:
-        if(cur_state != JTAG_STATE_RTI && cur_state != JTAG_STATE_TLR) RETURN_ERROR(jtag_statemachine_getState());
+    switch(cur_state){
+    case JTAG_STATE_RTI:
+    case JTAG_STATE_TLR:
         jtag_scan_doStateMachine(0b0010, 4);
         break;
-    case JTAG_STATE_SCAN_PAUSE:
-        if(cur_state != JTAG_STATE_PAUSEDR && cur_state != JTAG_STATE_PAUSEIR) RETURN_ERROR(jtag_statemachine_getState());
+    case JTAG_STATE_PAUSEDR:
+    case JTAG_STATE_PAUSEIR:
         jtag_scan_doStateMachine(0b00111, 5);
         break;
     default:
@@ -107,7 +107,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan fromStat
     return RET_SUCCESS;
 }
 
-int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan fromState, enum jtag_state_scan toState)
+int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 {
     if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
 
@@ -115,13 +115,13 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan fromStat
 
     //Get to Shift-IR state
     enum jtag_state cur_state = jtag_statemachine_getState();
-    switch(fromState){
-    case JTAG_STATE_SCAN_RUNIDLE:
-        if(cur_state != JTAG_STATE_RTI && cur_state != JTAG_STATE_TLR) RETURN_ERROR(ERROR_UNKNOWN);
+    switch(cur_state){
+    case JTAG_STATE_RTI:
+    case JTAG_STATE_TLR:
         jtag_scan_doStateMachine(0b00110, 5);
         break;
-    case JTAG_STATE_SCAN_PAUSE:
-        if(cur_state != JTAG_STATE_PAUSEDR && cur_state != JTAG_STATE_PAUSEIR) RETURN_ERROR(ERROR_UNKNOWN);
+    case JTAG_STATE_PAUSEDR:
+    case JTAG_STATE_PAUSEIR:
         jtag_scan_doStateMachine(0b001111, 6);
         break;
     default:

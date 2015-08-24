@@ -82,6 +82,7 @@ Also it uses UART to communicate with GDB using a basic GDBserver stub. Packet s
 - register read/write (although xPSR register writes are ignored - they seem to lead to hard faults when writing to them)
 - interrupt/continue
 - CRC checks on memory regions (allowing GDB to verify RAM loads)
+
 The main missing ones are:
 - step
 - reset

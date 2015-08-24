@@ -59,8 +59,8 @@ int cc3200_icepick_detect(void)
 
     jtag_scan_rstStateMachine();
 
-    jtag_scan_shiftIR(ICEPICK_IR_IDCODE, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE);
-    jtag_scan_shiftDR(0,32, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_RUNIDLE); //get 32-bit IDCODE
+    jtag_scan_shiftIR(ICEPICK_IR_IDCODE, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE);
+    jtag_scan_shiftDR(0,32, JTAG_STATE_SCAN_RUNIDLE); //get 32-bit IDCODE
     uint32_t idcode = jtag_scan_getShiftOut();
 
     cc3200_icepick_state.properties.IDCODE_MANUFACTURER = (uint16_t) ((idcode>>1) & 0x7FF);
@@ -74,8 +74,8 @@ int cc3200_icepick_detect(void)
         RETURN_ERROR(ERROR_UNKNOWN);
     }
 
-    jtag_scan_shiftIR(ICEPICK_IR_ICEPICKCODE, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE);
-    jtag_scan_shiftDR(0,32, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_RUNIDLE); //get 32-bit ICEPICKCODE
+    jtag_scan_shiftIR(ICEPICK_IR_ICEPICKCODE, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE);
+    jtag_scan_shiftDR(0,32, JTAG_STATE_SCAN_RUNIDLE); //get 32-bit ICEPICKCODE
     uint32_t icepickcode = jtag_scan_getShiftOut();
 
     cc3200_icepick_state.properties.ICEPICKCODE_CAPABILITIES = (uint8_t) ((icepickcode) & 0xF);
@@ -101,8 +101,8 @@ int cc3200_icepick_connect(void)
 
     //note: the reason for using these specific ICEPICK commands can be found in TI's ICEPICK type C technical reference manual.
 
-    if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(jtag_scan_shiftDR(0b10001001, 8, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftDR(0b10001001, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     cc3200_icepick_state.connected = 1;
     return RET_SUCCESS;
@@ -114,14 +114,14 @@ int cc3200_icepick_disconnect(void)
 
     //note: the reason for using these specific ICEPICK commands can be found in TI's ICEPICK type C technical reference manual.
 
-    if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(jtag_scan_shiftDR(0b10000110, 8, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftDR(0b10000110, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     cc3200_icepick_state.connected = 0;
     return RET_SUCCESS;
 }
 
-int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state_scan fromState, enum jtag_state_scan toState)
+int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state_scan toState)
 {
     if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) RETURN_ERROR(ERROR_UNKNOWN);
 
@@ -131,8 +131,8 @@ int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32
     data_reg |= ((reg&0x0F) << 24);
     data_reg |= (value&0xFFFFFF);
 
-    if(jtag_scan_shiftIR(ICEPICK_IR_ROUTER, ICEPICK_IR_LEN, fromState, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(jtag_scan_shiftDR(data_reg, 32, JTAG_STATE_SCAN_PAUSE, toState) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftIR(ICEPICK_IR_ROUTER, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftDR(data_reg, 32, toState) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     return RET_SUCCESS;
 }
@@ -145,27 +145,27 @@ int cc3200_icepick_configure(void)
     //another source for them was not (yet) found.
 
     //reason for command unclear
-    if(cc3200_icepick_router_command(1, 0, 1, 0x00100, JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_icepick_router_command(1, 0, 1, 0x00100, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     //enable power/clock of TAP
-    if(cc3200_icepick_router_command(1, 2, 0, 0x100048, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_icepick_router_command(1, 2, 0, 0x100048, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     //enable debug default mode
-    if(cc3200_icepick_router_command(1, 2, 0, 0x102048, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_icepick_router_command(1, 2, 0, 0x102048, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     //select TAP
-    if(cc3200_icepick_router_command(1, 2, 0, 0x102148, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_icepick_router_command(1, 2, 0, 0x102148, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     //set ICEPICK TAP to BYPASS
-    if(jtag_scan_shiftIR(ICEPICK_IR_BYPASS, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftIR(ICEPICK_IR_BYPASS, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     //wait for a while
     delay_loop(100000);
 
     //TODO: this shouldn't be necessary, but it has been observed that the IR only starts working again after a double dummy write for some reason.
     //Figure out why!
-    if(jtag_scan_shiftIR(0b1111111111, 10, JTAG_STATE_SCAN_RUNIDLE, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(jtag_scan_shiftIR(0b1111111111, 10, JTAG_STATE_SCAN_PAUSE, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftIR(0b1111111111, 10, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftIR(0b1111111111, 10, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     cc3200_icepick_state.configured = 1;
     return RET_SUCCESS;

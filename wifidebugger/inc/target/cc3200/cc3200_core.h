@@ -27,7 +27,10 @@
 //AP addresses
 #define CC3200_CORE_AP_CSW_ADDR 0x00
 #define CC3200_CORE_AP_TRANSFERADDR_ADDR 0x04
-#define CC3200_CORE_AP_BANKEDDATA_BANK 0x1
+#define CC3200_CORE_AP_BD0_ADDR 0x10
+#define CC3200_CORE_AP_BD1_ADDR 0x14
+#define CC3200_CORE_AP_BD2_ADDR 0x18
+#define CC3200_CORE_AP_BD3_ADDR 0x1C
 #define CC3200_CORE_AP_DATARW_ADDR 0x0C
 #define CC3200_CORE_AP_CFG_ADDR 0xF4
 #define CC3200_CORE_AP_BASE_ADDR 0xF8
@@ -46,6 +49,9 @@
 #define CC3200_CORE_CSW_ADDRINC_MASK (0x3 << CC3200_CORE_CSW_ADDRINC_OFFSET)
 #define CC3200_CORE_CSW_SIZE_OFFSET (0)
 #define CC3200_CORE_CSW_SIZE_MASK (0x7 << CC3200_CORE_CSW_SIZE_OFFSET)
+
+//settings in control/status register
+#define CC3200_CORE_CSW_ADDRINC_SINGLE (1 << CC3200_CORE_CSW_ADDRINC_OFFSET)
 
 //addresses relative to DEBUG_BASE
 #define CC3200_CORE_BASEOFFSET_COMPID0 0xFF0
@@ -89,16 +95,22 @@ int cc3200_core_init(void);
 int cc3200_core_detect(void);
 
 //read a register of the access port. regaddr is the combined bank and register address.
-int cc3200_core_read_APreg(uint8_t ap, uint8_t regaddr, uint32_t* result);
+int cc3200_core_read_APreg(uint8_t ap, uint8_t regaddr, uint32_t* result, uint8_t check_response);
 
 //write a register of the access port. regaddr is the combined bank and register address.
-int cc3200_core_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t value);
+int cc3200_core_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t value, uint8_t check_response);
+
+//pipelined writes to register of the access port. regaddr is the combined bank and register address.
+int cc3200_core_pipeline_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, uint32_t *values);
 
 //read a memory location from the core system memory space.
 int cc3200_core_read_mem_addr(uint32_t addr, uint32_t* result);
 
 //write a memory location from the core system memory space.
 int cc3200_core_write_mem_addr(uint32_t addr, uint32_t value);
+
+//write successive memory locations in a pipelined fashion.
+int cc3200_core_pipeline_write_mem_addr(uint32_t addr, uint32_t len, uint32_t* values);
 
 //halt the core.
 int cc3200_core_debug_halt(void);

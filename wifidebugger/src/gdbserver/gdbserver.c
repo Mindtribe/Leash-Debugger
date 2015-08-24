@@ -101,6 +101,7 @@ struct gdbserver_state_t{
     int initialized;
     enum gdbserver_packet_phase packet_phase;
     int awaiting_ack;
+    int gdb_connected;
     char last_sent_packet[GDBSERVER_MAX_PACKET_LEN_TX];
     char cur_packet[GDBSERVER_MAX_PACKET_LEN_RX];
     char cur_checksum[2];
@@ -116,7 +117,8 @@ struct gdbserver_state_t gdbserver_state = {
     .cur_packet = {0},
     .cur_checksum = {0},
     .cur_packet_index = 0,
-    .stop_reason = STOPREASON_UNKNOWN
+    .stop_reason = STOPREASON_UNKNOWN,
+    .gdb_connected = 0
 };
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), struct target_al_interface *target)
@@ -124,9 +126,21 @@ int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), struct targe
     if(gdb_helpers_init((void*)pPutChar, (void*)pGetChar) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
     gdbserver_state.target = target;
 
-    if((*target->target_init)() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OInitializing JTAG target...");
 
-    if((*target->target_halt)() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*target->target_init)() == RET_FAILURE){
+        if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OFailed!");
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OHalting target...");
+
+    if((*target->target_halt)() == RET_FAILURE){
+        if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OFailed!");
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OReady.");
 
     gdbserver_state.initialized = 1;
     return RET_SUCCESS;
@@ -145,13 +159,17 @@ void gdbserver_TransmitPacket(char* packet_data)
     return;
 }
 
-void gdbserver_Interrupt()
+void gdbserver_Interrupt(uint8_t signal)
 {
     if((*gdbserver_state.target->target_halt)() == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
     }
     gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
-    gdbserver_TransmitPacket("S03"); //send "stopped due to SIGINT"
+    char reply[4];
+    reply[0] = 'S';
+    gdb_helpers_byteToHex(signal, &(reply[1]));
+    reply[3] = 0;
+    gdbserver_TransmitPacket(reply);
     return;
 }
 
@@ -191,7 +209,7 @@ int gdbserver_processChar(void)
             gdbserver_state.cur_packet_index = 0;
             break;
         case CTRL_C:
-            gdbserver_Interrupt();
+            gdbserver_Interrupt(SIGINT);
             break;
         default:
             switch(gdbserver_state.packet_phase){
@@ -366,6 +384,13 @@ int gdbserver_processPacket(void)
         gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
         //error_add(__FILE__,__LINE__, gdbserver_state.cur_packet[0]);
         break;
+    }
+
+    if(!gdbserver_state.gdb_connected){
+        //TODO: this never actually gets displayed... O packets only allowed while running.
+        gdbserver_TransmitPacket("OCC3200 Wi-Fi debugger v0.1");
+        gdbserver_TransmitPacket("OCopyright 2015, Mindtribe Product Engineering");
+        gdbserver_state.gdb_connected = 1;
     }
 
     return RET_SUCCESS;

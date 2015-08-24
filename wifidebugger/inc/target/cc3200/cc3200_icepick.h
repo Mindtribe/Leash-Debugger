@@ -61,7 +61,7 @@ int cc3200_icepick_connect(void);
 int cc3200_icepick_disconnect(void);
 
 //send the ICEPICK a ROUTER-command.
-int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state_scan fromState, enum jtag_state_scan toState);
+int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state_scan toState);
 
 //configure the ICEPICK for debugging the CC3200's core TAP.
 int cc3200_icepick_configure(void);

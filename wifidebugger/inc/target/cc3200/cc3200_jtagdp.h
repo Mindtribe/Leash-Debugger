@@ -81,25 +81,25 @@ int cc3200_jtagdp_init(int num_precede_ir_bits, uint64_t precede_ir_bits, int nu
 int cc3200_jtagdp_detect(void);
 
 //wrapper for shiftIR to access JTAG-DP port only
-int cc3200_jtagdp_shiftIR(uint8_t data, enum jtag_state_scan fromState, enum jtag_state_scan toState);
+int cc3200_jtagdp_shiftIR(uint8_t data, enum jtag_state_scan toState);
 
 //wrapper for shiftDR to access JTAG-DP port only
-int cc3200_jtagdp_shiftDR(uint64_t data, int DR_len, enum jtag_state_scan fromState, enum jtag_state_scan toState);
+int cc3200_jtagdp_shiftDR(uint64_t data, int DR_len, enum jtag_state_scan toState);
 
 //get the response of the last transaction.
-int cc3200_jtagdp_accResponse(uint8_t* response, enum jtag_state_scan fromState, enum jtag_state_scan toState);
+int cc3200_jtagdp_accResponse(uint8_t* response, enum jtag_state_scan toState);
 
 //perform a DPACC write on the JTAG-DP
-int cc3200_jtagdp_DPACC_write(uint8_t addr, uint32_t value);
+int cc3200_jtagdp_DPACC_write(uint8_t addr, uint32_t value, uint8_t check_response);
 
 //perform a DPACC read on the JTAG-DP
-int cc3200_jtagdp_DPACC_read(uint8_t addr, uint32_t* result);
+int cc3200_jtagdp_DPACC_read(uint8_t addr, uint32_t* result, uint8_t check_response);
 
 //perform an APACC write on the JTAG-DP
-int cc3200_jtagdp_APACC_write(uint8_t addr, uint32_t value);
+int cc3200_jtagdp_APACC_write(uint8_t addr, uint32_t value, uint8_t check_response);
 
 //perform an APACC read on the JTAG-DP
-int cc3200_jtagdp_APACC_read(uint8_t addr, uint32_t* result);
+int cc3200_jtagdp_APACC_read(uint8_t addr, uint32_t* result, uint8_t check_response);
 
 //clear the control/status register.
 int cc3200_jtagdp_clearCSR(void);
@@ -118,5 +118,11 @@ int cc3200_jtagdp_readAPs(void);
 
 //send system powerup request and wait for ACK.
 int cc3200_jtagdp_powerUpSystem(void);
+
+//pipelined DPACC accesses.
+int cc3200_jtagdp_DPACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* values, uint8_t check_response);
+
+//pipelined APACC accesses.
+int cc3200_jtagdp_APACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* values, uint8_t check_response);
 
 #endif
