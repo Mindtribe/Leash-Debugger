@@ -15,17 +15,30 @@
 
 void default_PutChar(char c);
 void default_GetChar(char* c);
+int default_GetCharsAvailable(void);
 
 struct gdb_helpers_state_t{
     int initialized;
     void (*pPutChar)(char);
     void (*pGetChar)(char*);
+    int (*pGetCharsAvail)(void);
 };
 struct gdb_helpers_state_t gdb_helpers_state = {
     .initialized = 0,
     .pPutChar = &default_PutChar,
-    .pGetChar = &default_GetChar
+    .pGetChar = &default_GetChar,
+    .pGetCharsAvail = &default_GetCharsAvailable
 };
+
+int default_GetCharsAvailable(void)
+{
+    //if we reach here, someone tried to do stuff
+    //before proper pointer initialization.
+    //throw an error!
+    WAIT_ERROR(ERROR_UNKNOWN);
+
+    return RET_FAILURE;
+}
 
 void default_PutChar(char c)
 {
@@ -47,10 +60,11 @@ void default_GetChar(char* c)
     return;
 }
 
-int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*))
+int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void))
 {
     gdb_helpers_state.pPutChar = pPutChar;
     gdb_helpers_state.pGetChar = pGetChar;
+    gdb_helpers_state.pGetCharsAvail = pGetCharsAvail;
     gdb_helpers_state.initialized = 1;
     return RET_SUCCESS;
 }
@@ -71,6 +85,13 @@ void gdb_helpers_GetChar(char* c)
     gdb_helpers_state.pGetChar(c);
 
     return;
+}
+
+int gdb_helpers_CharsAvaliable(void)
+{
+    if(!gdb_helpers_state.initialized) WAIT_ERROR(ERROR_UNKNOWN);
+
+    return gdb_helpers_state.pGetCharsAvail();
 }
 
 void gdb_helpers_Ack(void)

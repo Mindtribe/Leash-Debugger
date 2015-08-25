@@ -22,14 +22,19 @@
 
 #define GDBSERVER_LOG_PACKETS
 
-#define GDBSERVER_MAX_PACKET_LEN_RX 512
-#define GDBSERVER_MAX_PACKET_LEN_TX 512
+//note: keep <256 or change PacketSize response in gdbserver
+#define GDBSERVER_MAX_PACKET_LEN_RX 256
+#define GDBSERVER_MAX_PACKET_LEN_TX 256
 
-#define GDBSERVER_MAX_BLOCK_ACCESS 128
+#define GDBSERVER_MAX_BLOCK_ACCESS 256
+
+#define GDBSERVER_NUM_BKPT 256
+
+#define GDBSERVER_POLL_INTERVAL 100
 
 #define CTRL_C 0x03 //interrupt character.
 
-int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), struct target_al_interface *target);
+int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target);
 
 int gdbserver_processChar(void);
 
@@ -45,10 +50,16 @@ void gdbserver_TransmitStopReason(void);
 
 int gdbserver_readMemory(char* argstring);
 
-int gdbserver_writeMemory(char* argstring);
+int gdbserver_writeMemory(char* argstring, uint8_t binary_format);
 
 void gdbserver_Interrupt(uint8_t signal);
 
 int gdbserver_doMemCRC(char* argstring);
+
+int gdbserver_setSWBreakpoint(uint32_t addr, uint8_t len_bytes);
+
+int gdbserver_pollTarget(void);
+
+int gdbserver_handleHalt(void);
 
 #endif

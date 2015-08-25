@@ -66,6 +66,7 @@
 #define CC3200_CORE_BASEOFFSET_MEMTYPE 0xFCC
 
 //SCS
+#define CC3200_CORE_MEM_DFSR 0xD30
 #define CC3200_CORE_MEM_DHCSR 0xDF0
 #define CC3200_CORE_MEM_DCRSR 0xDF4
 #define CC3200_CORE_MEM_DCRDR 0xDF8
@@ -83,6 +84,9 @@
 //DCRSR bitmasks
 #define CC3200_CORE_MEM_DCRSR_REGWNR (1<<16)
 #define CC3200_CORE_MEM_REGSEL_MASK 0x1F
+
+//DFSR bitmasks
+#define CC3200_CORE_DFSR_BKPT (1<<1)
 
 //misc
 #define CC3200_CORE_DBGKEY 0xA05F //"key" to unlock debug halting register writes
@@ -141,5 +145,11 @@ int cc3200_core_write_reg(enum cc3200_reg_index reg, uint32_t value);
 
 //set the program counter.
 int cc3200_core_set_pc(uint32_t addr);
+
+//poll to see if the target is halted
+int cc3200_core_poll_halted(uint8_t *result);
+
+//get the DFSR register to examine halt reason
+int cc3200_core_getDFSR(uint32_t *result);
 
 #endif

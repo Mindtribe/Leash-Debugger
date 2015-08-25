@@ -224,6 +224,8 @@ int cc3200_jtagdp_DPACC_write(uint8_t addr, uint32_t value, uint8_t check_respon
     return RET_SUCCESS;
 }
 
+//TODO: DO NOT USE PIPELINED READS: buggy!
+//Something is going wrong when the chip sends "wait" replies.
 int cc3200_jtagdp_APACC_pipeline_read(uint8_t addr, uint32_t len, uint32_t* dst)
 {
     if(!cc3200_jtagdp_state.initialized || !cc3200_jtagdp_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
@@ -247,12 +249,12 @@ int cc3200_jtagdp_APACC_pipeline_read(uint8_t addr, uint32_t len, uint32_t* dst)
     }
 
     for(int j = 0; j<len; j++){
-
-        if(cc3200_jtagdp_accResponseRead(&response, &(dst[j]), JTAG_STATE_SCAN_PAUSE) == RET_FAILURE){
-            RETURN_ERROR(ERROR_UNKNOWN);
+        for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && response == CC3200_JTAGDP_WAIT; i++){
+            if(cc3200_jtagdp_accResponseRead(&response, &(dst[j]), JTAG_STATE_SCAN_PAUSE) == RET_FAILURE){
+                RETURN_ERROR(ERROR_UNKNOWN);
+            }
+            if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) RETURN_ERROR(ERROR_UNKNOWN); //invalid response
         }
-
-        if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) RETURN_ERROR(ERROR_UNKNOWN); //invalid response
     }
 
     uint32_t csr;

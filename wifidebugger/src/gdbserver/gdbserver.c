@@ -13,6 +13,7 @@
 #include "gdbserver.h"
 #include "target_al.h"
 #include "gdb_helpers.h"
+#include "breakpoint.h"
 #include "common.h"
 #include "error.h"
 #include "mem_log.h"
@@ -92,11 +93,6 @@ const char* gdbserver_query_strings[] = {
     "Attached"
 };
 
-enum gdbserver_stop_reason{
-    STOPREASON_UNKNOWN = 0,
-    STOPREASON_INTERRUPT
-};
-
 struct gdbserver_state_t{
     int initialized;
     enum gdbserver_packet_phase packet_phase;
@@ -106,8 +102,10 @@ struct gdbserver_state_t{
     char cur_packet[GDBSERVER_MAX_PACKET_LEN_RX];
     char cur_checksum[2];
     int cur_packet_index;
-    enum gdbserver_stop_reason stop_reason;
+    enum stop_reason stop_reason;
     struct target_al_interface *target;
+    struct breakpoint breakpoints[GDBSERVER_NUM_BKPT];
+    uint8_t halted;
 };
 struct gdbserver_state_t gdbserver_state = {
     .initialized = 0,
@@ -118,29 +116,25 @@ struct gdbserver_state_t gdbserver_state = {
     .cur_checksum = {0},
     .cur_packet_index = 0,
     .stop_reason = STOPREASON_UNKNOWN,
-    .gdb_connected = 0
+    .gdb_connected = 0,
+    .breakpoints = {0},
+    .halted = 0
 };
 
-int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), struct target_al_interface *target)
+int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target)
 {
-    if(gdb_helpers_init((void*)pPutChar, (void*)pGetChar) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(gdb_helpers_init((void*)pPutChar, (void*)pGetChar, (void*)pGetCharsAvail) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
     gdbserver_state.target = target;
 
-    if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OInitializing JTAG target...");
-
     if((*target->target_init)() == RET_FAILURE){
-        if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OFailed!");
         RETURN_ERROR(ERROR_UNKNOWN);
     }
-
-    if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OHalting target...");
-
     if((*target->target_halt)() == RET_FAILURE){
-        if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OFailed!");
         RETURN_ERROR(ERROR_UNKNOWN);
     }
 
-    if(gdbserver_state.gdb_connected) gdbserver_TransmitPacket("OReady.");
+    if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
 
     gdbserver_state.initialized = 1;
     return RET_SUCCESS;
@@ -163,6 +157,15 @@ void gdbserver_Interrupt(uint8_t signal)
 {
     if((*gdbserver_state.target->target_halt)() == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
+        error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+    }
+    if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE){
+        gdbserver_TransmitPacket("OError halting target!");
+        error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+    }
+    if(!gdbserver_state.halted){
+        gdbserver_TransmitPacket("OError halting target!");
+        error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
     }
     gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
     char reply[4];
@@ -210,6 +213,8 @@ int gdbserver_processChar(void)
             break;
         case CTRL_C:
             gdbserver_Interrupt(SIGINT);
+            if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+            if(!gdbserver_state.halted) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
             break;
         default:
             switch(gdbserver_state.packet_phase){
@@ -271,10 +276,15 @@ int gdbserver_processGeneralQuery(char* queryString)
     enum gdbserver_query_name qname = gdbserver_getGeneralQueryName(queryString);
     if(qname == QUERY_ERROR) RETURN_ERROR(ERROR_UNKNOWN);
 
+    char response[50];
+
     switch(qname){
     case QUERY_SUPPORTED: //ask whether certain packet types are supported
-        //for now, respond as if we don't know of the existence of any features at all.
-        gdbserver_TransmitPacket("");
+        wfd_strncpy(response, "PacketSize=xxxx", 15);
+        gdb_helpers_byteToHex((uint8_t)GDBSERVER_MAX_PACKET_LEN_RX, &(response[13]));
+        gdb_helpers_byteToHex((uint8_t)(GDBSERVER_MAX_PACKET_LEN_RX/256), &(response[11]));
+        response[15]=0;
+        gdbserver_TransmitPacket(response);
         break;
     case QUERY_TSTATUS: //ask whether a trace experiment is currently running.
         gdbserver_TransmitPacket("");
@@ -359,26 +369,35 @@ int gdbserver_processPacket(void)
         }
         break;
     case 'M': //write memory
-        if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
+        if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1]), 0) == RET_FAILURE){
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         }
         break;
     case 'c': //continue
-        //we discard the signal number.
-        if(wfd_strlen(gdbserver_state.cur_packet) == 6){
-            //there is an address to go to.
-            uint32_t addr = gdb_helpers_hexToInt(&(gdbserver_state.cur_packet[4]));
-            if((*gdbserver_state.target->target_set_pc)(addr)
-                    == RET_FAILURE){
-                error_add(__FILE__,__LINE__,addr);
-                gdbserver_TransmitPacket("E0");
-            }
+        if(wfd_strlen(gdbserver_state.cur_packet) != 1){
+            //there is an address to go to. unsupported
+            error_add(__FILE__,__LINE__,0);
+            gdbserver_TransmitPacket("E0");
         }
         if((*gdbserver_state.target->target_continue)()
                 == RET_FAILURE){
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
             gdbserver_TransmitPacket("E0");
         }
+        gdbserver_state.halted = 0; //force halted off so polling starts
+        break;
+    case 's': //single step
+        if(wfd_strlen(gdbserver_state.cur_packet) != 1){
+            //there is an address to go to. unsupported
+            error_add(__FILE__,__LINE__,0);
+            gdbserver_TransmitPacket("E0");
+        }
+        if((*gdbserver_state.target->target_step)()
+                == RET_FAILURE){
+            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            gdbserver_TransmitPacket("E0");
+        }
+        gdbserver_state.halted = 0; //force halted off so polling starts
         break;
     default:
         gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
@@ -432,6 +451,39 @@ int gdbserver_readMemory(char* argstring)
     return RET_SUCCESS;
 }
 
+//TODO: this function is untested (and so far unneccessary: GDB seems to be able to do
+//SW breakpoints by using just memory access functions.
+int gdbserver_setSWBreakpoint(uint32_t addr, uint8_t len_bytes)
+{
+    //find a free breakpoint location
+    struct breakpoint *bkpt = 0;
+    for(int bkpt_index=0; bkpt_index<GDBSERVER_NUM_BKPT; bkpt_index++){
+        if(!gdbserver_state.breakpoints[bkpt_index].valid){
+            bkpt = &(gdbserver_state.breakpoints[bkpt_index]);
+            break;
+        }
+    }
+    if(bkpt == 0){ //none found
+        return RET_FAILURE;
+    }
+
+    bkpt->addr = addr;
+    bkpt->len_bytes = len_bytes;
+    bkpt->type = BKPT_SOFTWARE;
+
+    //get the original instruction
+    uint32_t inst;
+    if((*gdbserver_state.target->target_mem_block_read)(addr, len_bytes, (uint8_t*)(&inst)) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    bkpt->ori_instr = inst;
+
+    //place the breakpoint
+    if((*gdbserver_state.target->target_set_sw_bkpt)(addr, len_bytes) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    bkpt->active = 1;
+    bkpt->valid = 1;
+    return RET_SUCCESS;
+}
+
 int gdbserver_doMemCRC(char* argstring)
 {
     //First, get the arguments
@@ -475,7 +527,7 @@ int gdbserver_doMemCRC(char* argstring)
     return RET_SUCCESS;
 }
 
-int gdbserver_writeMemory(char* argstring)
+int gdbserver_writeMemory(char* argstring, uint8_t binary_format)
 {
     //First, get the arguments
     char* addrstring;
@@ -506,8 +558,15 @@ int gdbserver_writeMemory(char* argstring)
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(len);
 
     //convert data
-    for(int i=0; i<len; i++){
-        data[i] = gdb_helpers_hexToByte(&(datastring[i*2]));
+    if(binary_format){
+        for(int i=0; i<len; i++){
+            data[i] = (uint8_t)datastring[i];
+        }
+    }
+    else{
+        for(int i=0; i<len; i++){
+            data[i] = gdb_helpers_hexToByte(&(datastring[i*2]));
+        }
     }
 
     if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
@@ -520,10 +579,49 @@ int gdbserver_writeMemory(char* argstring)
 int gdbserver_loop(void)
 {
     while(1){
-        gdbserver_processChar();
+        if(!gdbserver_state.halted) gdbserver_pollTarget();
+        if(gdb_helpers_CharsAvaliable()){
+            gdbserver_processChar();
+            while(gdbserver_state.packet_phase != PACKET_NONE){
+                gdbserver_processChar();
+            }
+        }
     };
 
     return RET_SUCCESS;
+}
+
+int gdbserver_pollTarget(void)
+{
+    int old_halted = gdbserver_state.halted;
+    if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(old_halted && !gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!old_halted && gdbserver_state.halted){
+        if(gdbserver_handleHalt() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        char reply[4];
+        reply[0] = 'S';
+        reply[3] = 0;
+        switch(gdbserver_state.stop_reason){
+        case STOPREASON_BREAKPOINT:
+            gdb_helpers_byteToHex(SIGTRAP, &(reply[1]));
+            gdbserver_TransmitPacket(reply);
+            break;
+        case STOPREASON_INTERRUPT:
+            gdb_helpers_byteToHex(SIGINT, &(reply[1]));
+            gdbserver_TransmitPacket(reply);
+            break;
+        case STOPREASON_UNKNOWN:
+        default:
+            gdbserver_TransmitPacket("OError: unknown halt reason!");
+            break;
+        }
+    }
+    return RET_SUCCESS;
+}
+
+int gdbserver_handleHalt(void)
+{
+    return (*gdbserver_state.target->target_handleHalt)(&gdbserver_state.stop_reason);
 }
 
 void gdbserver_TransmitStopReason(void){

@@ -28,7 +28,10 @@ struct target_al_interface cc3200_interface = {
     .target_mem_block_read = &cc3200_mem_block_read,
     .target_mem_block_write = &cc3200_mem_block_write,
     .target_get_gdb_reg_string = &cc3200_get_gdb_reg_string,
-    .target_put_gdb_reg_string = &cc3200_put_gdb_reg_string
+    .target_put_gdb_reg_string = &cc3200_put_gdb_reg_string,
+    .target_set_sw_bkpt = &cc3200_set_sw_bkpt,
+    .target_poll_halted = &cc3200_poll_halted,
+    .target_handleHalt = &cc3200_handleHalt
 };
 
 struct cc3200_state_t{
@@ -109,6 +112,31 @@ int cc3200_step(void)
     return cc3200_core_debug_step();
 }
 
+int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes)
+{
+    if(len_bytes != 2) RETURN_ERROR(ERROR_UNKNOWN); //only support 2-byte breakpoints
+    if(addr&1) RETURN_ERROR(ERROR_UNKNOWN); //non-aligned
+
+    //get word at that memory location
+    uint32_t ori;
+    if(cc3200_core_read_mem_addr(addr&0xFFFFFFFC, &ori) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    //modify word
+    if(addr&0x02){
+        ori &= 0x0000FFFF;
+        ori |= (CC3200_OPCODE_BKPT << 16);
+    }
+    else{
+        ori &= 0xFFFF0000;
+        ori |= CC3200_OPCODE_BKPT;
+    }
+
+    //write back
+    if(cc3200_core_write_mem_addr(addr&0xFFFFFFFC, ori) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    return RET_SUCCESS;
+}
+
 int cc3200_mem_read(uint32_t addr, uint32_t* dst)
 {
     return cc3200_core_read_mem_addr(addr, dst);
@@ -164,25 +192,25 @@ int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
     uint32_t data;
     uint8_t *data_bytes = (uint8_t*)&data;
 
+    /* TODO: this code is buggy due to buggy pipelined read access.
     if((bytes%4 ==0) && (addr%4 ==0)){ //word-aligned full-word reads
         if(cc3200_core_pipeline_read_mem_addr(addr, bytes/4, (uint32_t*) dst) == RET_FAILURE){
             RETURN_ERROR(ERROR_UNKNOWN);
         }
     }
-    else{ //non-word-aligned or incomplete words
+    else*/
+    //non-word-aligned or incomplete words
 
-        uint32_t last_read_addr = addr & 0xFFFFFFFC;
-        if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    uint32_t last_read_addr = addr & 0xFFFFFFFC;
+    if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
-        int out_byte = 0;
-        for(int i=0; i<bytes; i++){
-            if((addr+i)/4 != last_read_addr/4){ //different word?
-                last_read_addr = (addr+i)& 0xFFFFFFFC;
-                if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-            }
-            dst[out_byte++] = data_bytes[(addr+i)%4];
+    int out_byte = 0;
+    for(int i=0; i<bytes; i++){
+        if((addr+i)/4 != last_read_addr/4){ //different word?
+            last_read_addr = (addr+i)& 0xFFFFFFFC;
+            if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
         }
-
+        dst[out_byte++] = data_bytes[(addr+i)%4];
     }
 
     return RET_SUCCESS;
@@ -229,6 +257,21 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
 int cc3200_set_pc(uint32_t addr)
 {
     return cc3200_core_set_pc(addr);
+}
+
+int cc3200_poll_halted(uint8_t *result)
+{
+    return cc3200_core_poll_halted(result);
+}
+
+int cc3200_handleHalt(enum stop_reason *reason)
+{
+    uint32_t dfsr;
+    if(cc3200_core_getDFSR(&dfsr) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if(dfsr & CC3200_CORE_DFSR_BKPT) *reason = STOPREASON_BREAKPOINT;
+    else *reason = STOPREASON_INTERRUPT;
+    return RET_SUCCESS;
 }
 
 

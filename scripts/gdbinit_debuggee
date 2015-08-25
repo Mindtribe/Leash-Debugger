@@ -2,4 +2,17 @@ set serial baud 115200
 #set debug serial 1
 #set debug remote 1
 set remotetimeout 120
-#target remote /dev/ttyUSB1
+
+#connect to serial link
+target remote /dev/ttyUSB1
+
+#load the program
+load
+
+#initialize PC, SP
+set $sp = g_pfnVectors[0]
+set $pc = g_pfnVectors[1]
+
+#set breakpoint and start
+break main
+continue

@@ -78,6 +78,7 @@ extern void ClearTerm(void);
 extern void Message(const char *str);
 void TermPutChar(char c);
 void TermGetChar(char* c);
+int TermCharsAvailable(void);
 
 //*****************************************************************************
 //

@@ -15,11 +15,9 @@ OBJDIR := ./obj
 
 #project parameters
 program_NAME := wifidebugger
-program_SOURCE_DIRS := $(SRC) $(SRC)/vendor $(SRC)/target $(SRC)/target/cc3200 $(SRC)/interface/jtag $(SRC)/gdbserver $(SRC)/thirdparty
+program_SOURCE_DIRS := $(SRC) $(SRC)/vendor $(SRC)/target $(SRC)/target/cc3200 $(SRC)/interface/jtag $(SRC)/gdbserver $(SRC)/thirdparty $(SRC)/common
 program_INCLUDE_DIRS := $(subst $(SRC), $(INC), $(program_SOURCE_DIRS)) $(SDK_DIR)/inc $(SDK_DIR)/driverlib $(SDK_DIR)
 program_LIBRARY_DIRS := ./lib ./lib/vendor $(SDK_DIR)/driverlib/gcc/exe
-#program_C_SRCS := $(wildcard ./src/*.c) $(wildcard ./src/vendor/*.c) $(wildcard ./src/target/cc3200/*.c)
-#program_CXX_SRCS := $(wildcard ./src/*.cpp) $(wildcard ./src/vendor/*.cpp)
 program_C_SRCS := $(foreach dir, $(program_SOURCE_DIRS), $(wildcard $(dir)/*.c))
 program_CXX_SRCS := $(foreach dir, $(program_SOURCE_DIRS), $(wildcard $(dir)/*.cpp))
 program_C_OBJS := ${program_C_SRCS:.c=.o}

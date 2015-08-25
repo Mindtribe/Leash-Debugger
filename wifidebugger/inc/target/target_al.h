@@ -17,7 +17,14 @@
 
 #include <stdint.h>
 
+enum stop_reason{
+    STOPREASON_UNKNOWN = 0,
+    STOPREASON_INTERRUPT,
+    STOPREASON_BREAKPOINT
+};
+
 struct target_al_interface{
+    //function pointers
     int (*target_init)(void);
     int (*target_reset)(void);
     int (*target_halt)(void);
@@ -30,6 +37,9 @@ struct target_al_interface{
     int (*target_get_gdb_reg_string)(char*);
     int (*target_put_gdb_reg_string)(char*);
     int (*target_set_pc)(uint32_t);
+    int (*target_set_sw_bkpt)(uint32_t, uint8_t);
+    int (*target_poll_halted)(uint8_t*);
+    int (*target_handleHalt)(enum stop_reason *);
 };
 
 #endif

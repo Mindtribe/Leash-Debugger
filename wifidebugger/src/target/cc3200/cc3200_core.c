@@ -266,7 +266,6 @@ int cc3200_core_debug_continue(void)
     uint32_t temp;
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
             &temp) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(temp & CC3200_CORE_MEM_DHCSR_S_HALT) RETURN_ERROR(temp);
 
     cc3200_core_state.halted = 0;
 
@@ -435,4 +434,25 @@ int cc3200_core_set_pc(uint32_t addr)
     if(!cc3200_core_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
 
     return cc3200_core_write_reg(CC3200_REG_PC, addr);
+}
+
+int cc3200_core_poll_halted(uint8_t *result)
+{
+    uint32_t temp;
+    if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
+            &temp) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(temp & CC3200_CORE_MEM_DHCSR_S_HALT){
+        *result = cc3200_core_state.halted = 1;
+    }
+    else{
+        *result = cc3200_core_state.halted = 0;
+    }
+    return RET_SUCCESS;
+}
+
+int cc3200_core_getDFSR(uint32_t *result)
+{
+    if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DFSR,
+            result) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    return RET_SUCCESS;
 }

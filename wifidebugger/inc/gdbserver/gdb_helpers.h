@@ -20,7 +20,7 @@
 
 #define CRC32_POLY 0x04C11DB7
 
-int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*));
+int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void));
 
 void gdb_helpers_PutChar(char c);
 
@@ -49,5 +49,7 @@ int gdb_helpers_isHex(char c);
 char gdb_helpers_toUpperCaseHex(char c);
 
 uint32_t gdb_helpers_hexToInt_LE(char* src);
+
+int gdb_helpers_CharsAvaliable(void);
 
 #endif

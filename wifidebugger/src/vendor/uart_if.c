@@ -144,3 +144,9 @@ void TermGetChar(char* c)
     *c = (char) MAP_UARTCharGet(CONSOLE);
     return;
 }
+
+int TermCharsAvailable(void)
+{
+    if(MAP_UARTCharsAvail(CONSOLE)) return 1;
+    return 0;
+}

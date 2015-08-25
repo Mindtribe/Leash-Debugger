@@ -17,6 +17,8 @@
 
 #include "target_al.h"
 
+#define CC3200_OPCODE_BKPT 0b1011111000000000
+
 extern struct target_al_interface cc3200_interface;
 
 int cc3200_init(void);
@@ -42,5 +44,11 @@ int cc3200_get_gdb_reg_string(char* string);
 int cc3200_put_gdb_reg_string(char* string);
 
 int cc3200_set_pc(uint32_t addr);
+
+int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes);
+
+int cc3200_poll_halted(uint8_t *result);
+
+int cc3200_handleHalt(enum stop_reason *reason);
 
 #endif
