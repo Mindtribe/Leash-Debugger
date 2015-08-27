@@ -102,7 +102,7 @@ int cc3200_icepick_connect(void)
     //note: the reason for using these specific ICEPICK commands can be found in TI's ICEPICK type C technical reference manual.
 
     if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(jtag_scan_shiftDR(0b10001001, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftDR(0x89, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     cc3200_icepick_state.connected = 1;
     return RET_SUCCESS;
@@ -115,7 +115,7 @@ int cc3200_icepick_disconnect(void)
     //note: the reason for using these specific ICEPICK commands can be found in TI's ICEPICK type C technical reference manual.
 
     if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(jtag_scan_shiftDR(0b10000110, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftDR(0x86, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     cc3200_icepick_state.connected = 0;
     return RET_SUCCESS;
@@ -164,8 +164,8 @@ int cc3200_icepick_configure(void)
 
     //TODO: this shouldn't be necessary, but it has been observed that the IR only starts working again after a double dummy write for some reason.
     //Figure out why!
-    if(jtag_scan_shiftIR(0b1111111111, 10, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(jtag_scan_shiftIR(0b1111111111, 10, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftIR(0x3FF, 10, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_scan_shiftIR(0x3FF, 10, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     cc3200_icepick_state.configured = 1;
     return RET_SUCCESS;

@@ -248,7 +248,7 @@ int cc3200_jtagdp_APACC_pipeline_read(uint8_t addr, uint32_t len, uint32_t* dst)
         if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) RETURN_ERROR(ERROR_UNKNOWN); //invalid response
     }
 
-    for(int j = 0; j<len; j++){
+    for(uint32_t j = 0; j<len; j++){
         for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && response == CC3200_JTAGDP_WAIT; i++){
             if(cc3200_jtagdp_accResponseRead(&response, &(dst[j]), JTAG_STATE_SCAN_PAUSE) == RET_FAILURE){
                 RETURN_ERROR(ERROR_UNKNOWN);
@@ -276,7 +276,7 @@ int cc3200_jtagdp_APACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* val
             JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
 
-    for(int j = 0; j<len; j++){
+    for(uint32_t j = 0; j<len; j++){
         shift_command = ((addr&0x0C) >> 1) | ((uint64_t) values[j]) << 3;
         response = CC3200_JTAGDP_WAIT;
 

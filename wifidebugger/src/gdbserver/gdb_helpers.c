@@ -24,41 +24,8 @@ struct gdb_helpers_state_t{
     int (*pGetCharsAvail)(void);
 };
 struct gdb_helpers_state_t gdb_helpers_state = {
-    .initialized = 0,
-    .pPutChar = &default_PutChar,
-    .pGetChar = &default_GetChar,
-    .pGetCharsAvail = &default_GetCharsAvailable
+    .initialized = 0
 };
-
-int default_GetCharsAvailable(void)
-{
-    //if we reach here, someone tried to do stuff
-    //before proper pointer initialization.
-    //throw an error!
-    WAIT_ERROR(ERROR_UNKNOWN);
-
-    return RET_FAILURE;
-}
-
-void default_PutChar(char c)
-{
-    //if we reach here, someone tried to send messages
-    //before proper pointer initialization.
-    //throw an error!
-    WAIT_ERROR(ERROR_UNKNOWN);
-
-    return;
-}
-
-void default_GetChar(char* c)
-{
-    //if we reach here, someone tried to receive messages
-    //before proper pointer initialization.
-    //throw an error!
-    WAIT_ERROR(ERROR_UNKNOWN);
-
-    return;
-}
 
 int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void))
 {
@@ -116,31 +83,18 @@ uint8_t gdb_helpers_getChecksum(char* data)
     return checksum;
 }
 
-void gdb_helpers_byteToHex(uint8_t byte, char* dst)
-{
-    wfd_byteToHex(byte, dst);
-}
-
-void gdb_helpers_wordToHex(uint32_t word, char* dst)
-{
-    wfd_wordToHex(word, dst);
-}
-
-uint8_t gdb_helpers_hexToByte(char* src){
-
-    return wfd_hexToByte(src);
-}
-
+/*
 void gdb_helpers_toHex(char* src, char* dst)
 {
     int i;
     for(i=0; src[i] != 0; i++){
-        gdb_helpers_byteToHex((uint8_t)src[i], &(dst[2*i]));
+        wfd_byteToHex((uint8_t)src[i], &(dst[2*i]));
     }
     dst[2*i] = 0;
 
     return;
 }
+*/
 
 void gdb_helpers_TransmitPacket(char* packet_data)
 {
@@ -153,7 +107,7 @@ void gdb_helpers_TransmitPacket(char* packet_data)
     gdb_helpers_state.pPutChar('#');
     //put the checksum
     char chksm_nibbles[2];
-    gdb_helpers_byteToHex(checksum, chksm_nibbles);
+    wfd_byteToHex(checksum, chksm_nibbles);
     gdb_helpers_state.pPutChar(chksm_nibbles[0]);
     gdb_helpers_state.pPutChar(chksm_nibbles[1]);
 
@@ -164,26 +118,3 @@ int gdb_helpers_isInitialized(void){
     return gdb_helpers_state.initialized;
 }
 
-int gdb_helpers_isHex(char c)
-{
-    if((c>='0') && (c<='9')) return 1;
-    if((c>='A') && (c<='F')) return 1;
-    if((c>='a') && (c<='f')) return 1;
-    return -1;
-}
-
-char gdb_helpers_toUpperCaseHex(char c)
-{
-    return wfd_toUpperCaseHex(c);
-}
-
-uint32_t gdb_helpers_hexToInt(char* src)
-{
-    return wfd_hexToInt(src);
-}
-
-uint32_t gdb_helpers_hexToInt_LE(char* src)
-{
-    uint32_t data = wfd_hexToInt(src);
-    return flip_endian(data);
-}

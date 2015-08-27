@@ -70,7 +70,7 @@ int main(void)
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
     GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
 
-    gdbserver_init((void*) &TermPutChar, (void*) &TermGetChar, (void*) &TermCharsAvailable, &cc3200_interface);
+    gdbserver_init(&TermPutChar, &TermGetChar, &TermCharsAvailable, &cc3200_interface);
     mem_log_add("Init",0);
     gdbserver_loop();
 

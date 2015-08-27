@@ -32,26 +32,10 @@ void gdb_helpers_Nack(void);
 
 uint8_t gdb_helpers_getChecksum(char* data);
 
-void gdb_helpers_byteToHex(uint8_t byte, char* dst);
-
-uint8_t gdb_helpers_hexToByte(char* src);
-
-uint32_t gdb_helpers_hexToInt(char* src);
-
-void gdb_helpers_toHex(char* src, char* dst);
-
 void gdb_helpers_TransmitPacket(char* packet_data);
 
 int gdb_helpers_isInitialized(void);
 
-int gdb_helpers_isHex(char c);
-
-char gdb_helpers_toUpperCaseHex(char c);
-
-uint32_t gdb_helpers_hexToInt_LE(char* src);
-
 int gdb_helpers_CharsAvaliable(void);
-
-void gdb_helpers_wordToHex(uint32_t word, char* dst);
 
 #endif

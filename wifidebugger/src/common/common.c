@@ -21,7 +21,6 @@ uint32_t flip_endian(uint32_t input){
 void wfd_itoa(int num, char* string)
 {
     int i = 0, temp_num = num, length = 0;
-    int neg = 0;
 
     if(num < 0){
         num = -1 * num;
@@ -135,4 +134,12 @@ char wfd_toUpperCaseHex(char c)
 unsigned long long wfd_crc32(uint8_t *buf, uint32_t bufLen, unsigned long long crc)
 {
     return crc32(buf, bufLen, crc);
+}
+
+int wfd_isHex(char c)
+{
+    if((c>='0') && (c<='9')) return 1;
+    if((c>='A') && (c<='F')) return 1;
+    if((c>='a') && (c<='f')) return 1;
+    return -1;
 }

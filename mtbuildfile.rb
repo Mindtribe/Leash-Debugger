@@ -9,5 +9,8 @@ workspace :wifidebugger, File.dirname(__FILE__) do |w|
 
 	w.add_project('cc3200-sdk')
 	w.add_project('testapp')
+	w.add_project('wifidebugger')
+
+	w.add_default_tasks(['testapp:Debug', 'wifidebugger:Debug'])
 end
 

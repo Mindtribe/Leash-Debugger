@@ -38,5 +38,6 @@ uint32_t wfd_strlen(char* src);
 uint32_t wfd_hexToInt(char* src);
 unsigned long long wfd_crc32(uint8_t *buf, uint32_t bufLen, unsigned long long crc);
 void wfd_wordToHex(uint32_t word, char* dst);
+int wfd_isHex(char c);
 
 #endif

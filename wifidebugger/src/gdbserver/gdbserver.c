@@ -113,6 +113,10 @@ struct gdbserver_state_t{
     uint8_t gave_info;
     struct fileio_state_t fileio_state;
 };
+
+//disable GCC warning - braces bug 53119 in GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-braces"
 struct gdbserver_state_t gdbserver_state = {
     .initialized = 0,
     .packet_phase = PACKET_NONE,
@@ -128,10 +132,11 @@ struct gdbserver_state_t gdbserver_state = {
     .gave_info = 0,
     .fileio_state = 0
 };
+#pragma GCC diagnostic pop
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target)
 {
-    if(gdb_helpers_init((void*)pPutChar, (void*)pGetChar, (void*)pGetCharsAvail) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(gdb_helpers_init(pPutChar, pGetChar, pGetCharsAvail) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
     gdbserver_state.target = target;
 
     if((*target->target_init)() == RET_FAILURE){
@@ -164,7 +169,7 @@ void gdbserver_TransmitPacket(char* packet_data)
     gdb_helpers_PutChar('#');
     //put the checksum
     char chksm_nibbles[2];
-    gdb_helpers_byteToHex(checksum, chksm_nibbles);
+    wfd_byteToHex(checksum, chksm_nibbles);
     gdb_helpers_PutChar(chksm_nibbles[0]);
     gdb_helpers_PutChar(chksm_nibbles[1]);
 
@@ -188,7 +193,7 @@ void gdbserver_TransmitDebugMsgPacket(char* packet_data)
     gdb_helpers_PutChar('O');
     checksum += 'O';
     for(int i=0; packet_data[i] != 0; i++){
-        gdb_helpers_byteToHex((uint8_t)packet_data[i], hexval);
+        wfd_byteToHex((uint8_t)packet_data[i], hexval);
         gdb_helpers_PutChar(hexval[0]);
         gdb_helpers_PutChar(hexval[1]);
         checksum += hexval[0];
@@ -197,7 +202,7 @@ void gdbserver_TransmitDebugMsgPacket(char* packet_data)
     gdb_helpers_PutChar('#');
     //put the checksum
     char chksm_nibbles[2];
-    gdb_helpers_byteToHex(checksum, chksm_nibbles);
+    wfd_byteToHex(checksum, chksm_nibbles);
     gdb_helpers_PutChar(chksm_nibbles[0]);
     gdb_helpers_PutChar(chksm_nibbles[1]);
 
@@ -229,7 +234,7 @@ void gdbserver_Interrupt(uint8_t signal)
     gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
     char reply[4];
     reply[0] = 'S';
-    gdb_helpers_byteToHex(signal, &(reply[1]));
+    wfd_byteToHex(signal, &(reply[1]));
     reply[3] = 0;
     gdbserver_TransmitPacket(reply);
     return;
@@ -282,7 +287,7 @@ int gdbserver_processChar(void)
                 //gdbserver_reset_error(__LINE__, c); break; //invalid character at this point.
                 break;
             case PACKET_CHECKSUM:
-                if(!gdb_helpers_isHex(c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
+                if(!wfd_isHex(c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
                 if(gdbserver_state.cur_packet_index == 0) {
                     gdbserver_state.cur_checksum[0] = c;
                     gdbserver_state.cur_packet_index++;
@@ -343,8 +348,8 @@ int gdbserver_processGeneralQuery(char* queryString)
     switch(qname){
     case QUERY_SUPPORTED: //ask whether certain packet types are supported
         wfd_strncpy(response, "PacketSize=xxxx", 15);
-        gdb_helpers_byteToHex((uint8_t)GDBSERVER_MAX_PACKET_LEN_RX, &(response[13]));
-        gdb_helpers_byteToHex((uint8_t)(GDBSERVER_MAX_PACKET_LEN_RX/256), &(response[11]));
+        wfd_byteToHex((uint8_t)GDBSERVER_MAX_PACKET_LEN_RX, &(response[13]));
+        wfd_byteToHex((uint8_t)(GDBSERVER_MAX_PACKET_LEN_RX/256), &(response[11]));
         response[15]=0;
         gdbserver_TransmitPacket(response);
         break;
@@ -385,8 +390,8 @@ void gdbserver_sendInfo(void)
 int gdbserver_processPacket(void)
 {
     //check the checksum
-    if(gdb_helpers_hexToByte(gdbserver_state.cur_checksum) != gdb_helpers_getChecksum(gdbserver_state.cur_packet)){
-        gdbserver_reset_error(__LINE__, gdb_helpers_hexToByte(gdbserver_state.cur_checksum));
+    if(wfd_hexToByte(gdbserver_state.cur_checksum) != gdb_helpers_getChecksum(gdbserver_state.cur_packet)){
+        gdbserver_reset_error(__LINE__, wfd_hexToByte(gdbserver_state.cur_checksum));
         gdb_helpers_Nack();
         return RET_SUCCESS;
     }
@@ -512,8 +517,8 @@ int gdbserver_readMemory(char* argstring)
         if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no comma found
     }
 
-    uint32_t addr = gdb_helpers_hexToInt(addrstring);
-    uint32_t len = gdb_helpers_hexToInt(lenstring);
+    uint32_t addr = wfd_hexToInt(addrstring);
+    uint32_t len = wfd_hexToInt(lenstring);
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(ERROR_UNKNOWN);
@@ -522,9 +527,9 @@ int gdbserver_readMemory(char* argstring)
 
     //construct the answer string
     char retstring[GDBSERVER_MAX_PACKET_LEN_TX];
-    int i;
+    uint32_t i;
     for(i=0; i<len; i++){
-        gdb_helpers_byteToHex(data[i], &(retstring[i*2]));
+        wfd_byteToHex(data[i], &(retstring[i*2]));
     }
     retstring[i*2] = 0; //terminate
 
@@ -581,8 +586,8 @@ int gdbserver_doMemCRC(char* argstring)
         if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no comma found
     }
 
-    uint32_t addr = gdb_helpers_hexToInt(addrstring);
-    uint32_t len = gdb_helpers_hexToInt(lenstring);
+    uint32_t addr = wfd_hexToInt(addrstring);
+    uint32_t len = wfd_hexToInt(lenstring);
     uint32_t bytes_left = len;
 
     unsigned long long crc32 = 0xFFFFFFFF;
@@ -598,7 +603,7 @@ int gdbserver_doMemCRC(char* argstring)
     //construct the answer string
     char retstring[10];
     retstring[0] = 'C';
-    gdb_helpers_wordToHex(crc32, &(retstring[1]));
+    wfd_wordToHex(crc32, &(retstring[1]));
     retstring[9] = 0;
 
     gdbserver_TransmitPacket(retstring);
@@ -630,21 +635,21 @@ int gdbserver_writeMemory(char* argstring, uint8_t binary_format)
         if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no colon found
     }
 
-    uint32_t addr = gdb_helpers_hexToInt(addrstring);
-    uint32_t len = gdb_helpers_hexToInt(lenstring);
+    uint32_t addr = wfd_hexToInt(addrstring);
+    uint32_t len = wfd_hexToInt(lenstring);
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(len);
 
     //convert data
     if(binary_format){
-        for(int i=0; i<len; i++){
+        for(uint32_t i=0; i<len; i++){
             data[i] = (uint8_t)datastring[i];
         }
     }
     else{
-        for(int i=0; i<len; i++){
-            data[i] = gdb_helpers_hexToByte(&(datastring[i*2]));
+        for(uint32_t i=0; i<len; i++){
+            data[i] = wfd_hexToByte(&(datastring[i*2]));
         }
     }
 
@@ -692,11 +697,11 @@ int gdbserver_pollTarget(void)
             }
             break;
         case STOPREASON_BREAKPOINT:
-            gdb_helpers_byteToHex(SIGTRAP, &(reply[1]));
+            wfd_byteToHex(SIGTRAP, &(reply[1]));
             gdbserver_TransmitPacket(reply);
             break;
         case STOPREASON_INTERRUPT:
-            gdb_helpers_byteToHex(SIGINT, &(reply[1]));
+            wfd_byteToHex(SIGINT, &(reply[1]));
             gdbserver_TransmitPacket(reply);
             break;
         case STOPREASON_UNKNOWN:
@@ -733,9 +738,9 @@ int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
 
     char msg[] = "Fwrite,XX,XXXXXXXX,XXXXXXXX";
 
-    gdb_helpers_byteToHex(descriptor, &(msg[7]));
-    gdb_helpers_wordToHex((uint32_t)buf, &(msg[10]));
-    gdb_helpers_wordToHex(count, &(msg[19]));
+    wfd_byteToHex(descriptor, &(msg[7]));
+    wfd_wordToHex((uint32_t)buf, &(msg[10]));
+    wfd_wordToHex(count, &(msg[19]));
 
     gdbserver_TransmitPacket(msg);
     gdbserver_state.fileio_state.fileio_waiting = 1;

@@ -61,6 +61,10 @@ struct cc3200_core_state_t{
     //debug status
     uint8_t halted;
 };
+
+//disable GCC warning - braces bug 53119 in GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-braces"
 struct cc3200_core_state_t cc3200_core_state = {
     .initialized = 0,
     .detected = 0,
@@ -92,6 +96,7 @@ struct cc3200_core_state_t cc3200_core_state = {
     .romtable = {0},
     .halted = 0
 };
+#pragma GCC diagnostic pop
 
 int cc3200_core_init(void)
 {

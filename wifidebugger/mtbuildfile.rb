@@ -1,15 +1,12 @@
 application_project :wifidebugger, File.dirname(__FILE__) do |app|
 
   app.add_configuration :Debug,
-    sources: ['src/*.c'],
+    sources: ['src/**/*.c'],
     toolchain: toolchain(:arm_none_eabi_gcc,
-      cppflags: "-Dgcc",
-      cflags: '-std=c99 -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -ffunction-sections -fdata-sections -Wall -Werror -Wextra -pedantic-errors',
-      cxxflags: '-std=c++03 -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -ffunction-sections -fdata-sections -Wall -Werror -Wextra -pedantic-errors',
-      ldflags: '-Wl,--entry,ResetISR -Wl,--gc-sections',
-      linker_script: 'src/blinky.ld'
-    )
-
-    
+      linker_script: 'linker.ld',
+      include_paths: ['src', 'src/vendor', 'src/target', 'src/target/cc3200', 'src/common', 'src/interface', 'src/interface/jtag', 'src/gdbserver', 'src/thirdparty']
+    ),dependencies: [
+      'CC3200_SDK:SDK'
+    ]
 
 end
