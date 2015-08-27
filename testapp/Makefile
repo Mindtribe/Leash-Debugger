@@ -11,7 +11,7 @@ program_CXX_SRCS := $(wildcard ./src/*.cpp) $(wildcard ./src/vendor/*.cpp)
 program_C_OBJS := ${program_C_SRCS:.c=.o}
 program_CXX_OBJS := ${program_CXX_SRCS:.cpp=.o}
 program_OBJS := $(program_C_OBJS) $(program_CXX_OBJS)
-program_INCLUDE_DIRS := ./inc ./inc/vendor $(SDK_DIR)/inc $(SDK_DIR)/driverlib $(SDK_DIR)
+program_INCLUDE_DIRS := ./src ./src/vendor $(SDK_DIR)/inc $(SDK_DIR)/driverlib $(SDK_DIR)
 program_LIBRARY_DIRS := ./lib ./lib/vendor $(SDK_DIR)/driverlib/gcc/exe
 program_LIBRARIES :=
 program_STATIC_LIBS := $(SDK_DIR)/driverlib/gcc/exe/libdriver.a
@@ -26,7 +26,7 @@ OBJCOPY=arm-none-eabi-objcopy
 
 #flags
 CPPFLAGS += $(foreach includedir,$(program_INCLUDE_DIRS),-I$(includedir)) \
-	-mthumb -mcpu=cortex-m4 -ffunction-sections -fdata-sections -MD -std=c99 -g -Dgcc -O0 -c
+	-mthumb -mcpu=cortex-m4 -ffunction-sections -fdata-sections -MD -std=gnu99 -g -Dgcc -O0 -c
 #LDFLAGS += --specs=nosys.specs
 LDFLAGS += --gc-sections
 LDFLAGS += -Map=$(MAPFILE)
@@ -58,6 +58,7 @@ $(program_NAME): $(program_OBJS)
 clean:
 	@- $(RM) $(EXE)/$(program_NAME).axf
 	@- $(RM) $(EXE)/$(program_NAME).bin
+	@- $(RM) -rf $(EXE)
 	@- $(RM) $(MAPFILE)
 	@- $(RM) $(program_OBJS)
 

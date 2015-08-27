@@ -18,6 +18,15 @@
 
 #define MIN(X, Y) ((X > Y) ? Y : X)
 
+#define WFD_NAME_STRING ""\
+    "\n"\
+    "------------------------------------------\n"\
+    "CC3200 Wi-Fi Debugger v0.1\n"\
+    "Copyright 2015, MindTribe inc.\n"\
+    "------------------------------------------\n"\
+    "\n"
+
+
 uint32_t flip_endian(uint32_t input);
 void wfd_itoa(int num, char* string);
 int wfd_strncpy(char* dest, char* src, int max_size);
@@ -28,5 +37,6 @@ char wfd_toUpperCaseHex(char c);
 uint32_t wfd_strlen(char* src);
 uint32_t wfd_hexToInt(char* src);
 unsigned long long wfd_crc32(uint8_t *buf, uint32_t bufLen, unsigned long long crc);
+void wfd_wordToHex(uint32_t word, char* dst);
 
 #endif

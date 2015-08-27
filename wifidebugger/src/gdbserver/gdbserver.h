@@ -62,4 +62,8 @@ int gdbserver_pollTarget(void);
 
 int gdbserver_handleHalt(void);
 
+int gdbserver_continue(void);
+
+int gdbserver_handleSemiHosting(void);
+
 #endif

@@ -16,7 +16,7 @@ OBJDIR := ./obj
 #project parameters
 program_NAME := wifidebugger
 program_SOURCE_DIRS := $(SRC) $(SRC)/vendor $(SRC)/target $(SRC)/target/cc3200 $(SRC)/interface/jtag $(SRC)/gdbserver $(SRC)/thirdparty $(SRC)/common
-program_INCLUDE_DIRS := $(subst $(SRC), $(INC), $(program_SOURCE_DIRS)) $(SDK_DIR)/inc $(SDK_DIR)/driverlib $(SDK_DIR)
+program_INCLUDE_DIRS := $(program_SOURCE_DIRS) $(SDK_DIR)/inc $(SDK_DIR)/driverlib $(SDK_DIR)
 program_LIBRARY_DIRS := ./lib ./lib/vendor $(SDK_DIR)/driverlib/gcc/exe
 program_C_SRCS := $(foreach dir, $(program_SOURCE_DIRS), $(wildcard $(dir)/*.c))
 program_CXX_SRCS := $(foreach dir, $(program_SOURCE_DIRS), $(wildcard $(dir)/*.cpp))
@@ -75,6 +75,7 @@ $(program_NAME): $(program_OBJS)
 clean:
 	@- $(RM) $(EXE)/$(program_NAME).axf
 	@- $(RM) $(EXE)/$(program_NAME).bin
+	@- $(RM) -rf $(EXE)
 	@- $(RM) $(MAPFILE)
 	@- $(RM) $(addprefix $(OBJDIR)/, $(notdir $(program_OBJS)))
 	@- $(RM) $(addprefix $(OBJDIR)/, $(notdir $(program_OBJS:.o=.d)))

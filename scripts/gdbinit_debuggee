@@ -13,6 +13,11 @@ load
 set $sp = g_pfnVectors[0]
 set $pc = g_pfnVectors[1]
 
-#set breakpoint and start
+#set breakpoint
 break main
+
+#enable semihosting
+#monitor semihosting enable
+#set mem inaccessible-by-default off
+
 continue

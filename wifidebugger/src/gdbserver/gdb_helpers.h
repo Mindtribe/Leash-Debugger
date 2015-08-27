@@ -52,4 +52,6 @@ uint32_t gdb_helpers_hexToInt_LE(char* src);
 
 int gdb_helpers_CharsAvaliable(void);
 
+void gdb_helpers_wordToHex(uint32_t word, char* dst);
+
 #endif

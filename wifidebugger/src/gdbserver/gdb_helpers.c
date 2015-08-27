@@ -121,6 +121,11 @@ void gdb_helpers_byteToHex(uint8_t byte, char* dst)
     wfd_byteToHex(byte, dst);
 }
 
+void gdb_helpers_wordToHex(uint32_t word, char* dst)
+{
+    wfd_wordToHex(word, dst);
+}
+
 uint8_t gdb_helpers_hexToByte(char* src){
 
     return wfd_hexToByte(src);

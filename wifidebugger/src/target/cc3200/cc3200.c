@@ -31,7 +31,9 @@ struct target_al_interface cc3200_interface = {
     .target_put_gdb_reg_string = &cc3200_put_gdb_reg_string,
     .target_set_sw_bkpt = &cc3200_set_sw_bkpt,
     .target_poll_halted = &cc3200_poll_halted,
-    .target_handleHalt = &cc3200_handleHalt
+    .target_handleHalt = &cc3200_handleHalt,
+    .target_read_register = &cc3200_reg_read,
+    .target_write_register = &cc3200_reg_write
 };
 
 struct cc3200_state_t{
@@ -259,6 +261,11 @@ int cc3200_set_pc(uint32_t addr)
     return cc3200_core_set_pc(addr);
 }
 
+int cc3200_get_pc(uint32_t* dst)
+{
+    return cc3200_core_get_pc(dst);
+}
+
 int cc3200_poll_halted(uint8_t *result)
 {
     return cc3200_core_poll_halted(result);
@@ -269,8 +276,62 @@ int cc3200_handleHalt(enum stop_reason *reason)
     uint32_t dfsr;
     if(cc3200_core_getDFSR(&dfsr) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
-    if(dfsr & CC3200_CORE_DFSR_BKPT) *reason = STOPREASON_BREAKPOINT;
+    if(dfsr & CC3200_CORE_DFSR_BKPT){
+        uint16_t instruction;
+        uint32_t pc;
+        if(cc3200_get_pc(&pc) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(cc3200_mem_block_read(pc, 2, (uint8_t*)&instruction) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+        //double-check that this is a BKPT instruction
+        if((instruction & 0xFFFF0000) != CC3200_OPCODE_BKPT) RETURN_ERROR(ERROR_UNKNOWN);
+
+        //0xAB is a special BKPT for semi-hosting
+        if((instruction & 0x0000FFFF) == 0xAB) *reason = STOPREASON_SEMIHOSTING;
+        else *reason = STOPREASON_BREAKPOINT;
+    }
     else *reason = STOPREASON_INTERRUPT;
+    return RET_SUCCESS;
+}
+
+int cc3200_reg_read(uint8_t regnum, uint32_t *dst)
+{
+    return cc3200_core_read_reg((enum cc3200_reg_index) regnum, dst);
+}
+
+int cc3200_reg_write(uint8_t regnum, uint32_t value)
+{
+    return cc3200_core_write_reg((enum cc3200_reg_index) regnum, value);
+}
+
+int cc3200_querySemiHostOp(struct semihost_operation *op)
+{
+    //determine what kind of semihosting operation is required.
+    //TODO: expand support.
+
+    uint32_t r0, r1;
+    if(cc3200_reg_read(CC3200_REG_0, &r0) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_reg_read(CC3200_REG_1, &r1) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    switch(r0){
+    case CC3200_SEMIHOST_WRITE0:
+        op->opcode = SEMIHOST_WRITECONSOLE;
+        //find out the length of the semihosting string (including trailing 0)
+        uint32_t len = 0;
+        uint8_t c = 1;
+        for(uint32_t addr = r1; c != 0 ;len++){
+            if(cc3200_mem_block_read(addr++, 1, &c) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        }
+        op->param1 = r1; //pointer to the string
+        op->param2 = len; //length of the string
+        break;
+    case CC3200_SEMIHOST_READ:
+        op->opcode = SEMIHOST_READCONSOLE;
+        break;
+    default:
+        op->opcode = SEMIHOST_UNKNOWN;
+        break;
+    }
+
     return RET_SUCCESS;
 }
 

@@ -82,6 +82,14 @@ void wfd_byteToHex(uint8_t byte, char* dst)
     return;
 }
 
+void wfd_wordToHex(uint32_t word, char* dst)
+{
+    wfd_byteToHex((uint8_t)(word>>24), &(dst[0]));
+    wfd_byteToHex((uint8_t)(word>>16), &(dst[2]));
+    wfd_byteToHex((uint8_t)(word>>8), &(dst[4]));
+    wfd_byteToHex((uint8_t)(word>>0), &(dst[6]));
+}
+
 uint8_t wfd_hexToByte(char* src)
 {
 

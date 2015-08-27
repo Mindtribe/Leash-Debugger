@@ -20,7 +20,20 @@
 enum stop_reason{
     STOPREASON_UNKNOWN = 0,
     STOPREASON_INTERRUPT,
-    STOPREASON_BREAKPOINT
+    STOPREASON_BREAKPOINT,
+    STOPREASON_SEMIHOSTING
+};
+
+enum semihost_opcode{
+    SEMIHOST_READCONSOLE = 0,
+    SEMIHOST_WRITECONSOLE,
+    SEMIHOST_UNKNOWN
+};
+
+struct semihost_operation{
+    enum semihost_opcode opcode;
+    uint32_t param1;
+    uint32_t param2;
 };
 
 struct target_al_interface{
@@ -36,10 +49,13 @@ struct target_al_interface{
     int (*target_mem_block_write)(uint32_t, uint32_t, uint8_t*);
     int (*target_get_gdb_reg_string)(char*);
     int (*target_put_gdb_reg_string)(char*);
+    int (*target_read_register)(uint8_t, uint32_t*);
+    int (*target_write_register)(uint8_t, uint32_t);
     int (*target_set_pc)(uint32_t);
     int (*target_set_sw_bkpt)(uint32_t, uint8_t);
     int (*target_poll_halted)(uint8_t*);
     int (*target_handleHalt)(enum stop_reason *);
+    int (*target_querySemiHostOp)(struct semihost_operation *op);
 };
 
 #endif

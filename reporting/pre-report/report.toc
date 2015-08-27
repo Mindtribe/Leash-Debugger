@@ -1,0 +1,13 @@
+\select@language {english}
+\contentsline {section}{\numberline {1}Introduction}{1}
+\contentsline {section}{\numberline {2}Part 1: Literature Research}{2}
+\contentsline {subsection}{\numberline {2.1}Common Debugging Technologies}{2}
+\contentsline {subsubsection}{\numberline {2.1.1}System Observation}{2}
+\contentsline {subsubsection}{\numberline {2.1.2}Symbolic Debuggers}{2}
+\contentsline {subsection}{\numberline {2.2}Emerging Debugging Technologies}{2}
+\contentsline {subsubsection}{\numberline {2.2.1}Back-in-time Debugging}{2}
+\contentsline {subsubsection}{\numberline {2.2.2}Automatic Fault Localization}{2}
+\contentsline {subsection}{\numberline {2.3}Debugging of Embedded Systems}{2}
+\contentsline {subsubsection}{\numberline {2.3.1}Remote Symbolic Debugging}{2}
+\contentsline {subsubsection}{\numberline {2.3.2}Device-specific Debugging Features}{3}
+\contentsline {subsection}{\numberline {2.4}The Practice of Debugging}{3}

@@ -66,6 +66,7 @@ void error_add(char* file, int line, uint32_t error_code)
     msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].linechar, 100);
     //msgi += wfd_strncpy(&(msg[msgi]), "\n\r", 100);
 
+    /*
     if(!gdb_helpers_isInitialized()){
         Message(&(msg[2]));
         Message("\n\r");
@@ -73,6 +74,7 @@ void error_add(char* file, int line, uint32_t error_code)
     else{
         gdb_helpers_TransmitPacket(msg);
     }
+    */
 
     return;
 }

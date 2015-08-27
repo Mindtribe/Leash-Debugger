@@ -436,6 +436,14 @@ int cc3200_core_set_pc(uint32_t addr)
     return cc3200_core_write_reg(CC3200_REG_PC, addr);
 }
 
+int cc3200_core_get_pc(uint32_t *dst)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!cc3200_core_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+
+    return cc3200_core_read_reg(CC3200_REG_PC, dst);
+}
+
 int cc3200_core_poll_halted(uint8_t *result)
 {
     uint32_t temp;

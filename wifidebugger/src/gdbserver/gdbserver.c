@@ -93,6 +93,10 @@ const char* gdbserver_query_strings[] = {
     "Attached"
 };
 
+struct fileio_state_t{
+    uint8_t fileio_waiting;
+};
+
 struct gdbserver_state_t{
     int initialized;
     enum gdbserver_packet_phase packet_phase;
@@ -106,6 +110,8 @@ struct gdbserver_state_t{
     struct target_al_interface *target;
     struct breakpoint breakpoints[GDBSERVER_NUM_BKPT];
     uint8_t halted;
+    uint8_t gave_info;
+    struct fileio_state_t fileio_state;
 };
 struct gdbserver_state_t gdbserver_state = {
     .initialized = 0,
@@ -118,7 +124,9 @@ struct gdbserver_state_t gdbserver_state = {
     .stop_reason = STOPREASON_UNKNOWN,
     .gdb_connected = 0,
     .breakpoints = {0},
-    .halted = 0
+    .halted = 0,
+    .gave_info = 0,
+    .fileio_state = 0
 };
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target)
@@ -136,13 +144,64 @@ int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCh
     if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
     if(!gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
 
+    //TODO: report the halted state to GDB
+
+    gdbserver_state.gave_info = 0;
+    gdbserver_state.fileio_state.fileio_waiting = 0;
     gdbserver_state.initialized = 1;
     return RET_SUCCESS;
 }
 
 void gdbserver_TransmitPacket(char* packet_data)
 {
-    gdb_helpers_TransmitPacket(packet_data);
+    //do the transmission
+    uint8_t checksum = 0;
+    gdb_helpers_PutChar('$');
+    for(int i=0; packet_data[i] != 0; i++){
+        gdb_helpers_PutChar(packet_data[i]);
+        checksum += packet_data[i];
+    }
+    gdb_helpers_PutChar('#');
+    //put the checksum
+    char chksm_nibbles[2];
+    gdb_helpers_byteToHex(checksum, chksm_nibbles);
+    gdb_helpers_PutChar(chksm_nibbles[0]);
+    gdb_helpers_PutChar(chksm_nibbles[1]);
+
+    //update state
+    gdbserver_state.awaiting_ack = 1;
+
+#ifdef GDBSERVER_LOG_PACKETS
+    //log the packet
+    mem_log_add(packet_data, 1);
+#endif
+
+    return;
+}
+
+void gdbserver_TransmitDebugMsgPacket(char* packet_data)
+{
+    //do the transmission
+    uint8_t checksum = 0;
+    gdb_helpers_PutChar('$');
+    char hexval[3];
+    gdb_helpers_PutChar('O');
+    checksum += 'O';
+    for(int i=0; packet_data[i] != 0; i++){
+        gdb_helpers_byteToHex((uint8_t)packet_data[i], hexval);
+        gdb_helpers_PutChar(hexval[0]);
+        gdb_helpers_PutChar(hexval[1]);
+        checksum += hexval[0];
+        checksum += hexval[1];
+    }
+    gdb_helpers_PutChar('#');
+    //put the checksum
+    char chksm_nibbles[2];
+    gdb_helpers_byteToHex(checksum, chksm_nibbles);
+    gdb_helpers_PutChar(chksm_nibbles[0]);
+    gdb_helpers_PutChar(chksm_nibbles[1]);
+
+    //update state
     gdbserver_state.awaiting_ack = 1;
 
 #ifdef GDBSERVER_LOG_PACKETS
@@ -274,7 +333,10 @@ enum gdbserver_query_name gdbserver_getGeneralQueryName(char* query)
 int gdbserver_processGeneralQuery(char* queryString)
 {
     enum gdbserver_query_name qname = gdbserver_getGeneralQueryName(queryString);
-    if(qname == QUERY_ERROR) RETURN_ERROR(ERROR_UNKNOWN);
+    if(qname == QUERY_ERROR){
+        error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        gdbserver_TransmitPacket("");
+    }
 
     char response[50];
 
@@ -313,6 +375,13 @@ int gdbserver_processGeneralQuery(char* queryString)
     return RET_SUCCESS;
 }
 
+void gdbserver_sendInfo(void)
+{
+    gdbserver_TransmitDebugMsgPacket(WFD_NAME_STRING);
+
+    return;
+}
+
 int gdbserver_processPacket(void)
 {
     //check the checksum
@@ -330,6 +399,17 @@ int gdbserver_processPacket(void)
     mem_log_add(gdbserver_state.cur_packet, 0);
 #endif
 
+    //special case: waiting for File I/O response
+    if(gdbserver_state.fileio_state.fileio_waiting){
+        if(gdbserver_state.cur_packet[0] != 'F') error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        else{
+            //TODO: handle all cases properly.
+            gdbserver_state.fileio_state.fileio_waiting = 0;
+            gdbserver_continue();
+        }
+        return RET_SUCCESS;
+    }
+
     //process the packet based on header character
     switch(gdbserver_state.cur_packet[0]){
     case 'q': //general query
@@ -345,6 +425,10 @@ int gdbserver_processPacket(void)
         gdbserver_TransmitPacket("OK"); //reply OK
         break;
     case '?': //ask for the reason why execution has stopped
+        if(!gdbserver_state.gave_info){
+            gdbserver_sendInfo();
+            gdbserver_state.gave_info = 1;
+        }
         gdbserver_TransmitStopReason();
         break;
     case 'g': //request the register status
@@ -379,12 +463,9 @@ int gdbserver_processPacket(void)
             error_add(__FILE__,__LINE__,0);
             gdbserver_TransmitPacket("E0");
         }
-        if((*gdbserver_state.target->target_continue)()
-                == RET_FAILURE){
+        if(gdbserver_continue() == RET_FAILURE){
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
-            gdbserver_TransmitPacket("E0");
         }
-        gdbserver_state.halted = 0; //force halted off so polling starts
         break;
     case 's': //single step
         if(wfd_strlen(gdbserver_state.cur_packet) != 1){
@@ -399,6 +480,10 @@ int gdbserver_processPacket(void)
         }
         gdbserver_state.halted = 0; //force halted off so polling starts
         break;
+    case 'F': //reply to File I/O
+        //file I/O is handled above - if we get here it's bad news.
+        error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        break;
     default:
         gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
         //error_add(__FILE__,__LINE__, gdbserver_state.cur_packet[0]);
@@ -406,9 +491,6 @@ int gdbserver_processPacket(void)
     }
 
     if(!gdbserver_state.gdb_connected){
-        //TODO: this never actually gets displayed... O packets only allowed while running.
-        gdbserver_TransmitPacket("OCC3200 Wi-Fi debugger v0.1");
-        gdbserver_TransmitPacket("OCopyright 2015, Mindtribe Product Engineering");
         gdbserver_state.gdb_connected = 1;
     }
 
@@ -516,10 +598,7 @@ int gdbserver_doMemCRC(char* argstring)
     //construct the answer string
     char retstring[10];
     retstring[0] = 'C';
-    gdb_helpers_byteToHex((uint8_t)(((uint32_t)crc32)>>24), &(retstring[1]));
-    gdb_helpers_byteToHex((uint8_t)(((uint32_t)crc32)>>16), &(retstring[3]));
-    gdb_helpers_byteToHex((uint8_t)(((uint32_t)crc32)>>8), &(retstring[5]));
-    gdb_helpers_byteToHex((uint8_t)(((uint32_t)crc32)>>0), &(retstring[7]));
+    gdb_helpers_wordToHex(crc32, &(retstring[1]));
     retstring[9] = 0;
 
     gdbserver_TransmitPacket(retstring);
@@ -602,6 +681,16 @@ int gdbserver_pollTarget(void)
         reply[0] = 'S';
         reply[3] = 0;
         switch(gdbserver_state.stop_reason){
+        case STOPREASON_SEMIHOSTING:
+            //semihosting is special: we don't report a stop to GDB, but instead
+            //perform the semihosting action and continue
+            if(gdbserver_handleSemiHosting() == RET_FAILURE){
+                error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            }
+            if(gdbserver_continue() == RET_FAILURE){
+                error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            }
+            break;
         case STOPREASON_BREAKPOINT:
             gdb_helpers_byteToHex(SIGTRAP, &(reply[1]));
             gdbserver_TransmitPacket(reply);
@@ -612,7 +701,7 @@ int gdbserver_pollTarget(void)
             break;
         case STOPREASON_UNKNOWN:
         default:
-            gdbserver_TransmitPacket("OError: unknown halt reason!");
+            error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
             break;
         }
     }
@@ -625,10 +714,64 @@ int gdbserver_handleHalt(void)
 }
 
 void gdbserver_TransmitStopReason(void){
+    if(!gdbserver_state.halted){
+        return; //don't reply anything - still running
+    }
+
     switch(gdbserver_state.stop_reason){
     default:
     case STOPREASON_UNKNOWN:
         gdbserver_TransmitPacket("T00");
         break;
     }
+}
+
+int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
+{
+    //we must wait for the previous file I/O to finish
+    if(gdbserver_state.fileio_state.fileio_waiting) RETURN_ERROR(ERROR_UNKNOWN);
+
+    char msg[] = "Fwrite,XX,XXXXXXXX,XXXXXXXX";
+
+    gdb_helpers_byteToHex(descriptor, &(msg[7]));
+    gdb_helpers_wordToHex((uint32_t)buf, &(msg[10]));
+    gdb_helpers_wordToHex(count, &(msg[19]));
+
+    gdbserver_TransmitPacket(msg);
+    gdbserver_state.fileio_state.fileio_waiting = 1;
+
+    return RET_SUCCESS;
+}
+
+int gdbserver_continue(void)
+{
+    if(!gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+
+    if((*gdbserver_state.target->target_continue)()
+            == RET_FAILURE){
+        gdbserver_TransmitPacket("E0");
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+    gdbserver_state.halted = 0; //force halted off so polling starts
+
+    return RET_SUCCESS;
+}
+
+int gdbserver_handleSemiHosting(void)
+{
+    //a semihosting operation is supposed to happen. Find out which one
+    struct semihost_operation s;
+    if((*gdbserver_state.target->target_querySemiHostOp)(&s) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    switch(s.opcode){
+    case SEMIHOST_WRITECONSOLE:
+        if(gdbserver_TransmitFileIOWrite(0, (char*)s.param1, s.param2) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        break;
+    default:
+        //TODO: reply
+        return RET_SUCCESS;
+        break;
+    }
+
+    return RET_SUCCESS;
 }

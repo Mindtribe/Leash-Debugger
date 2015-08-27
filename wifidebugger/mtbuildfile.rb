@@ -10,6 +10,6 @@ application_project :wifidebugger, File.dirname(__FILE__) do |app|
       linker_script: 'src/blinky.ld'
     )
 
-    app.add_default_tasks('WirelessDebugger:Debug')
+    
 
 end

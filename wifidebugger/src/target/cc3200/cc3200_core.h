@@ -152,4 +152,7 @@ int cc3200_core_poll_halted(uint8_t *result);
 //get the DFSR register to examine halt reason
 int cc3200_core_getDFSR(uint32_t *result);
 
+//get the program counter.
+int cc3200_core_get_pc(uint32_t *dst);
+
 #endif
