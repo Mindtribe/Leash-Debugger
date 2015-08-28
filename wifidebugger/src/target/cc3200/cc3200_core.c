@@ -460,6 +460,7 @@ int cc3200_core_poll_halted(uint8_t *result)
     else{
         *result = cc3200_core_state.halted = 0;
     }
+
     return RET_SUCCESS;
 }
 

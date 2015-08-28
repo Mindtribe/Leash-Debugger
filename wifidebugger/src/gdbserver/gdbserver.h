@@ -50,7 +50,7 @@ void gdbserver_TransmitStopReason(void);
 
 int gdbserver_readMemory(char* argstring);
 
-int gdbserver_writeMemory(char* argstring, uint8_t binary_format);
+int gdbserver_writeMemory(char* argstring);
 
 void gdbserver_Interrupt(uint8_t signal);
 

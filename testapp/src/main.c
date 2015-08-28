@@ -43,9 +43,10 @@ static int BoardInit(void)
 void semihost_printstr(char* msg)
 {
     //set the arguments
-    asm volatile("mov R0,#0x04");
-    asm volatile("mov R1,%[message]" : : [message]"r" (msg));
-    asm volatile("BKPT 0xAB");
+    //asm volatile("mov R0,#0x04");
+    //asm volatile("mov R1,%[message]" : : [message]"r" (msg));
+    msg[0] = 0;
+    //asm volatile("BKPT 0x01");
 
     return;
 }
@@ -69,7 +70,7 @@ int main(void)
         j++;
         if(j%100 == 0) GPIO_IF_LedToggle(MCU_RED_LED_GPIO);
 
-        semihost_printstr("I exist!\n");
+        //semihost_printstr("I exist!\n");
 
     };
 

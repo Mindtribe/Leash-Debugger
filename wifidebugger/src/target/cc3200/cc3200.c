@@ -283,7 +283,7 @@ int cc3200_handleHalt(enum stop_reason *reason)
         if(cc3200_mem_block_read(pc, 2, (uint8_t*)&instruction) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
         //double-check that this is a BKPT instruction
-        if((instruction & 0xFFFF0000) != CC3200_OPCODE_BKPT) RETURN_ERROR(ERROR_UNKNOWN);
+        if((instruction & 0xFF00) != CC3200_OPCODE_BKPT) RETURN_ERROR(ERROR_UNKNOWN);
 
         //0xAB is a special BKPT for semi-hosting
         if((instruction & 0x0000FFFF) == 0xAB) *reason = STOPREASON_SEMIHOSTING;

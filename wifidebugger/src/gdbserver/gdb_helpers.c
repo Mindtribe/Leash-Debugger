@@ -13,10 +13,6 @@
 #include "error.h"
 #include "gdb_helpers.h"
 
-void default_PutChar(char c);
-void default_GetChar(char* c);
-int default_GetCharsAvailable(void);
-
 struct gdb_helpers_state_t{
     int initialized;
     void (*pPutChar)(char);

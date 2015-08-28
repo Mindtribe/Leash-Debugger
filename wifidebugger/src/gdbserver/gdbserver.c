@@ -431,7 +431,7 @@ int gdbserver_processPacket(void)
         break;
     case '?': //ask for the reason why execution has stopped
         if(!gdbserver_state.gave_info){
-            gdbserver_sendInfo();
+            //gdbserver_sendInfo();
             gdbserver_state.gave_info = 1;
         }
         gdbserver_TransmitStopReason();
@@ -458,7 +458,7 @@ int gdbserver_processPacket(void)
         }
         break;
     case 'M': //write memory
-        if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1]), 0) == RET_FAILURE){
+        if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         }
         break;
@@ -483,7 +483,10 @@ int gdbserver_processPacket(void)
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
             gdbserver_TransmitPacket("E0");
         }
-        gdbserver_state.halted = 0; //force halted off so polling starts
+        gdbserver_state.halted = 1; //still halted
+        char reply[4] = "Sxx";
+        wfd_byteToHex(SIGTRAP, &(reply[1]));
+        gdbserver_TransmitPacket(reply);
         break;
     case 'F': //reply to File I/O
         //file I/O is handled above - if we get here it's bad news.
@@ -611,7 +614,7 @@ int gdbserver_doMemCRC(char* argstring)
     return RET_SUCCESS;
 }
 
-int gdbserver_writeMemory(char* argstring, uint8_t binary_format)
+int gdbserver_writeMemory(char* argstring)
 {
     //First, get the arguments
     char* addrstring;
@@ -642,15 +645,8 @@ int gdbserver_writeMemory(char* argstring, uint8_t binary_format)
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(len);
 
     //convert data
-    if(binary_format){
-        for(uint32_t i=0; i<len; i++){
-            data[i] = (uint8_t)datastring[i];
-        }
-    }
-    else{
-        for(uint32_t i=0; i<len; i++){
-            data[i] = wfd_hexToByte(&(datastring[i*2]));
-        }
+    for(uint32_t i=0; i<len; i++){
+        data[i] = wfd_hexToByte(&(datastring[i*2]));
     }
 
     if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
@@ -726,7 +722,7 @@ void gdbserver_TransmitStopReason(void){
     switch(gdbserver_state.stop_reason){
     default:
     case STOPREASON_UNKNOWN:
-        gdbserver_TransmitPacket("T00");
+        gdbserver_TransmitPacket("S02");
         break;
     }
 }
