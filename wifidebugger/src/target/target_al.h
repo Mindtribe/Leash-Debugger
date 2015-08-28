@@ -52,6 +52,7 @@ struct target_al_interface{
     int (*target_read_register)(uint8_t, uint32_t*);
     int (*target_write_register)(uint8_t, uint32_t);
     int (*target_set_pc)(uint32_t);
+    int (*target_get_pc)(uint32_t*);
     int (*target_set_sw_bkpt)(uint32_t, uint8_t);
     int (*target_poll_halted)(uint8_t*);
     int (*target_handleHalt)(enum stop_reason *);

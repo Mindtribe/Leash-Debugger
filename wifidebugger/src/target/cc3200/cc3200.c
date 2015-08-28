@@ -33,7 +33,10 @@ struct target_al_interface cc3200_interface = {
     .target_poll_halted = &cc3200_poll_halted,
     .target_handleHalt = &cc3200_handleHalt,
     .target_read_register = &cc3200_reg_read,
-    .target_write_register = &cc3200_reg_write
+    .target_write_register = &cc3200_reg_write,
+    .target_querySemiHostOp = &cc3200_querySemiHostOp,
+    .target_set_pc = &cc3200_set_pc,
+    .target_get_pc = &cc3200_get_pc
 };
 
 struct cc3200_state_t{
@@ -194,7 +197,7 @@ int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
     uint32_t data;
     uint8_t *data_bytes = (uint8_t*)&data;
 
-    /* TODO: this code is buggy due to buggy pipelined read access.
+    /* TODO: this code is buggy due to buggy pipelined read access. (unreliable)
     if((bytes%4 ==0) && (addr%4 ==0)){ //word-aligned full-word reads
         if(cc3200_core_pipeline_read_mem_addr(addr, bytes/4, (uint32_t*) dst) == RET_FAILURE){
             RETURN_ERROR(ERROR_UNKNOWN);
@@ -226,10 +229,12 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
     uint8_t *src_bytes = src;
 
     //aligned, word-sized accesses
+    //TODO: pipelined accesses have proven unreliable. Needs to be improved before we can enable this again!
+    /*
     if((bytes%4 == 0) && (addr%4 == 0)){
         return cc3200_core_pipeline_write_mem_addr(addr, bytes/4, (uint32_t*)src);
     }
-    else{
+    else{*/
         //BELOW IS THE SLOW METHOD FOR BLOCKS THAT ARE (PARTIALLY) UNALIGNED OR NON-WORD-SIZED
         for(uint32_t cur_addr = addr - (addr%4); cur_addr <= (addr+bytes); cur_addr+=4){
             if(bytes_left>=4 && cur_addr >= addr){ //aligned, whole-word write
@@ -251,7 +256,7 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
             }
             data = 0;
         }
-    }
+    //}
 
     return RET_SUCCESS;
 }
@@ -286,7 +291,7 @@ int cc3200_handleHalt(enum stop_reason *reason)
         if((instruction & 0xFF00) != CC3200_OPCODE_BKPT) RETURN_ERROR(ERROR_UNKNOWN);
 
         //0xAB is a special BKPT for semi-hosting
-        if((instruction & 0x0000FFFF) == 0xAB) *reason = STOPREASON_SEMIHOSTING;
+        if((instruction & 0x00FF) == 0xAB) *reason = STOPREASON_SEMIHOSTING;
         else *reason = STOPREASON_BREAKPOINT;
     }
     else *reason = STOPREASON_INTERRUPT;

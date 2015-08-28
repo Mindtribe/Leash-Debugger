@@ -32,8 +32,6 @@
 
 #define GDBSERVER_POLL_INTERVAL 100
 
-#define CTRL_C 0x03 //interrupt character.
-
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target);
 
 int gdbserver_processChar(void);
@@ -65,5 +63,9 @@ int gdbserver_handleHalt(void);
 int gdbserver_continue(void);
 
 int gdbserver_handleSemiHosting(void);
+
+void gdbserver_sendInfo(void);
+
+int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count);
 
 #endif

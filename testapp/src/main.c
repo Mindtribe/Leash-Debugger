@@ -43,10 +43,9 @@ static int BoardInit(void)
 void semihost_printstr(char* msg)
 {
     //set the arguments
-    //asm volatile("mov R0,#0x04");
-    //asm volatile("mov R1,%[message]" : : [message]"r" (msg));
-    msg[0] = 0;
-    //asm volatile("BKPT 0x01");
+    asm volatile("mov R0,#0x04");
+    asm volatile("mov R1,%[message]" : : [message]"r" (msg));
+    asm volatile("BKPT 0xAB");
 
     return;
 }
@@ -61,6 +60,9 @@ int main(void)
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
+    //Semihosting call to say hello
+    semihost_printstr("\n\nTestApp: I am alive! :)\nNow, let me echo you.\n>");
+
     unsigned int j = 0;
     while(1){
         for(int i=0; i<40000; i++){};
@@ -69,8 +71,6 @@ int main(void)
 
         j++;
         if(j%100 == 0) GPIO_IF_LedToggle(MCU_RED_LED_GPIO);
-
-        //semihost_printstr("I exist!\n");
 
     };
 

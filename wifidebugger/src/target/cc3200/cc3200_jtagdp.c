@@ -219,7 +219,11 @@ int cc3200_jtagdp_DPACC_write(uint8_t addr, uint32_t value, uint8_t check_respon
 
     uint32_t csr;
     cc3200_jtagdp_checkCSR(&csr);
-    if(csr & CC3200_JTAGDP_STICKYERR) RETURN_ERROR(csr);
+    if(csr & CC3200_JTAGDP_STICKYERR){
+        //clear the sticky flag
+        cc3200_jtagdp_clearCSR();
+        RETURN_ERROR(csr);
+    }
 
     return RET_SUCCESS;
 }
@@ -259,7 +263,11 @@ int cc3200_jtagdp_APACC_pipeline_read(uint8_t addr, uint32_t len, uint32_t* dst)
 
     uint32_t csr;
     cc3200_jtagdp_checkCSR(&csr);
-    if(csr & CC3200_JTAGDP_STICKYERR) RETURN_ERROR(csr);
+    if(csr & CC3200_JTAGDP_STICKYERR) {
+        //clear the sticky flag
+        cc3200_jtagdp_clearCSR();
+        RETURN_ERROR(csr);
+    }
 
     return RET_SUCCESS;
 }
@@ -277,10 +285,10 @@ int cc3200_jtagdp_APACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* val
 
 
     for(uint32_t j = 0; j<len; j++){
-        shift_command = ((addr&0x0C) >> 1) | ((uint64_t) values[j]) << 3;
+        shift_command = ((addr&0x0C) >> 1) | ((uint64_t)(values[j])) << 3;
         response = CC3200_JTAGDP_WAIT;
 
-        for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && response == CC3200_JTAGDP_WAIT; i++){
+        for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && (response == CC3200_JTAGDP_WAIT); i++){
             if(cc3200_jtagdp_shiftDR(shift_command, CC3200_JTAGDP_APACC_LEN,
                     JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
@@ -298,7 +306,11 @@ int cc3200_jtagdp_APACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* val
 
     uint32_t csr;
     cc3200_jtagdp_checkCSR(&csr);
-    if(csr & CC3200_JTAGDP_STICKYERR) RETURN_ERROR(csr);
+    if(csr & CC3200_JTAGDP_STICKYERR) {
+        //clear the sticky flag
+        cc3200_jtagdp_clearCSR();
+        RETURN_ERROR(csr);
+    }
 
     return RET_SUCCESS;
 }
@@ -325,7 +337,11 @@ int cc3200_jtagdp_DPACC_read(uint8_t addr, uint32_t* result, uint8_t check_respo
 
     uint32_t csr;
     cc3200_jtagdp_checkCSR(&csr);
-    if(csr & CC3200_JTAGDP_STICKYERR) RETURN_ERROR(csr);
+    if(csr & CC3200_JTAGDP_STICKYERR) {
+        //clear the sticky flag
+        cc3200_jtagdp_clearCSR();
+        RETURN_ERROR(csr);
+    }
 
     return RET_SUCCESS;
 }
@@ -352,7 +368,11 @@ int cc3200_jtagdp_APACC_write(uint8_t addr, uint32_t value, uint8_t check_respon
 
     uint32_t csr;
     cc3200_jtagdp_checkCSR(&csr);
-    if(csr & CC3200_JTAGDP_STICKYERR) RETURN_ERROR(csr);
+    if(csr & CC3200_JTAGDP_STICKYERR){
+        //clear the sticky flag
+        cc3200_jtagdp_clearCSR();
+        RETURN_ERROR(csr);
+    }
 
     return RET_SUCCESS;
 }
@@ -379,7 +399,11 @@ int cc3200_jtagdp_APACC_read(uint8_t addr, uint32_t* result, uint8_t check_respo
 
     uint32_t csr;
     cc3200_jtagdp_checkCSR(&csr);
-    if(csr & CC3200_JTAGDP_STICKYERR) RETURN_ERROR(csr);
+    if(csr & CC3200_JTAGDP_STICKYERR){
+        //clear the sticky flag
+        cc3200_jtagdp_clearCSR();
+        RETURN_ERROR(csr);
+    }
 
     return RET_SUCCESS;
 }

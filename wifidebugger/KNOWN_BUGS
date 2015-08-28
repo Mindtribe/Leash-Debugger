@@ -1,0 +1,21 @@
+KNOWN BUGS:
+
+- The amount of binary files tested is very, very small. There are known to be data-dependent issues.
+For example, compiling testapp using the Makefile outputs a .axf which works fine, however compiling using MTBUILD
+produces a .elf which does not get correctly loaded into the target.
+
+KNOWN WEAKNESSES:
+
+- relatively slow memory loading (2KB/s over UART vs. 63KB/s when using OpenOCD)
+- many operations are relatively slow due to missing implementations of certain performance-enhancing GDB protocol features, such as:
+ 	- Only support reading/writing ALL registers at once, as opposed to one at a time
+ 	- No support for pipelined memory reads over JTAG (slow memory reading)
+ 	- No in-adapter implementation of software/hardware breakpoints (GDB does this remotely by manipulating memory)
+ 	- No support for binary data transfer packets
+ 	
+- tested only with Launchpad XL, using "GNU gdb (7.6.50.20131218-0ubuntu1+1) 7.6.50.20131218-cvs" as host, on Ubuntu 64-bit.
+ 	
+KNOWN CODE 'TODO's':
+
+Please search for '//TODO' across the project to find these. Typically they point to unimplemented behaviour, or code
+workarounds that work for unexplained reasons which should be fleshed out.

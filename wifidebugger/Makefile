@@ -39,7 +39,7 @@ OBJCOPY=arm-none-eabi-objcopy
 
 #flags
 CPPFLAGS += $(foreach includedir,$(program_INCLUDE_DIRS),-I$(includedir)) \
-	-mthumb -mcpu=cortex-m4 -ffunction-sections -fdata-sections -MD -std=c99 -g -Dgcc -O0 -c -Wall -Werror -Wextra -pedantic-errors
+	-mthumb -mcpu=cortex-m4 -ffunction-sections -fdata-sections -MD -std=gnu99 -g -Dgcc -O0 -c -Wall -Werror -Wextra -pedantic-errors
 #LDFLAGS += --specs=nosys.specs
 LDFLAGS += --gc-sections
 LDFLAGS += -Map=$(MAPFILE)

@@ -17,6 +17,7 @@
 #include "common.h"
 #include "error.h"
 #include "mem_log.h"
+#include "special_chars.h"
 
 #ifdef GDBSERVER_KEEP_CHARS
 char lastChars[GDBSERVER_KEEP_CHARS_NUM];
@@ -130,7 +131,7 @@ struct gdbserver_state_t gdbserver_state = {
     .breakpoints = {0},
     .halted = 0,
     .gave_info = 0,
-    .fileio_state = 0
+    .fileio_state = {0}
 };
 #pragma GCC diagnostic pop
 
@@ -207,7 +208,7 @@ void gdbserver_TransmitDebugMsgPacket(char* packet_data)
     gdb_helpers_PutChar(chksm_nibbles[1]);
 
     //update state
-    gdbserver_state.awaiting_ack = 1;
+    //gdbserver_state.awaiting_ack = 1;
 
 #ifdef GDBSERVER_LOG_PACKETS
     //log the packet
@@ -275,7 +276,7 @@ int gdbserver_processChar(void)
             gdbserver_state.packet_phase = PACKET_DATA;
             gdbserver_state.cur_packet_index = 0;
             break;
-        case CTRL_C:
+        case CHAR_END_TEXT:
             gdbserver_Interrupt(SIGINT);
             if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
             if(!gdbserver_state.halted) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
@@ -382,6 +383,7 @@ int gdbserver_processGeneralQuery(char* queryString)
 
 void gdbserver_sendInfo(void)
 {
+    //gdbserver_TransmitFileIOWrite(0, WFD_NAME_STRING, wfd_strlen(WFD_NAME_STRING));
     gdbserver_TransmitDebugMsgPacket(WFD_NAME_STRING);
 
     return;
@@ -404,17 +406,6 @@ int gdbserver_processPacket(void)
     mem_log_add(gdbserver_state.cur_packet, 0);
 #endif
 
-    //special case: waiting for File I/O response
-    if(gdbserver_state.fileio_state.fileio_waiting){
-        if(gdbserver_state.cur_packet[0] != 'F') error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
-        else{
-            //TODO: handle all cases properly.
-            gdbserver_state.fileio_state.fileio_waiting = 0;
-            gdbserver_continue();
-        }
-        return RET_SUCCESS;
-    }
-
     //process the packet based on header character
     switch(gdbserver_state.cur_packet[0]){
     case 'q': //general query
@@ -430,10 +421,6 @@ int gdbserver_processPacket(void)
         gdbserver_TransmitPacket("OK"); //reply OK
         break;
     case '?': //ask for the reason why execution has stopped
-        if(!gdbserver_state.gave_info){
-            //gdbserver_sendInfo();
-            gdbserver_state.gave_info = 1;
-        }
         gdbserver_TransmitStopReason();
         break;
     case 'g': //request the register status
@@ -454,11 +441,13 @@ int gdbserver_processPacket(void)
         break;
     case 'm': //read memory
         if(gdbserver_readMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
+            gdbserver_TransmitPacket("E00");
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         }
         break;
     case 'M': //write memory
         if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
+            gdbserver_TransmitPacket("E00");
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         }
         break;
@@ -489,8 +478,14 @@ int gdbserver_processPacket(void)
         gdbserver_TransmitPacket(reply);
         break;
     case 'F': //reply to File I/O
-        //file I/O is handled above - if we get here it's bad news.
-        error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        //TODO: handle all cases properly.
+        if(!gdbserver_state.fileio_state.fileio_waiting) error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        gdbserver_state.fileio_state.fileio_waiting = 0;
+        //increment the PC to pass the BKPT instruction for continuing.
+        uint32_t pc;
+        if((*gdbserver_state.target->target_get_pc)(&pc) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if((*gdbserver_state.target->target_set_pc)(pc+2) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        gdbserver_continue();
         break;
     default:
         gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
@@ -684,11 +679,8 @@ int gdbserver_pollTarget(void)
         switch(gdbserver_state.stop_reason){
         case STOPREASON_SEMIHOSTING:
             //semihosting is special: we don't report a stop to GDB, but instead
-            //perform the semihosting action and continue
+            //perform the semihosting action.
             if(gdbserver_handleSemiHosting() == RET_FAILURE){
-                error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
-            }
-            if(gdbserver_continue() == RET_FAILURE){
                 error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
             }
             break;
@@ -748,6 +740,11 @@ int gdbserver_continue(void)
 {
     if(!gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
 
+    if(!gdbserver_state.gave_info){
+        gdbserver_sendInfo();
+        gdbserver_state.gave_info = 1;
+    }
+
     if((*gdbserver_state.target->target_continue)()
             == RET_FAILURE){
         gdbserver_TransmitPacket("E0");
@@ -766,7 +763,7 @@ int gdbserver_handleSemiHosting(void)
 
     switch(s.opcode){
     case SEMIHOST_WRITECONSOLE:
-        if(gdbserver_TransmitFileIOWrite(0, (char*)s.param1, s.param2) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(gdbserver_TransmitFileIOWrite(1, (char*)s.param1, s.param2) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
         break;
     default:
         //TODO: reply

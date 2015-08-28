@@ -24,6 +24,9 @@
     "CC3200 Wi-Fi Debugger v0.1\n"\
     "Copyright 2015, MindTribe inc.\n"\
     "------------------------------------------\n"\
+    "\n"\
+    "Note: this is a work-in-progress.\n"\
+    "Please see KNOWN_BUGS before using.\n"\
     "\n"
 
 

@@ -165,7 +165,7 @@ int cc3200_core_pipeline_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, 
     if(!cc3200_core_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
 
     if(!cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_jtagdp_APACC_pipeline_write(regaddr & 0xF, len/4, values, 1) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_APACC_pipeline_write(regaddr & 0xF, len, values, 1) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     return RET_SUCCESS;
 }
