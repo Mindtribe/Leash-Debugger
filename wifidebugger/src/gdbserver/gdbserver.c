@@ -507,6 +507,7 @@ int gdbserver_processPacket(void)
         int return_code;
         switch(gdbserver_state.fileio_state.last_semihost_op.opcode){
         case SEMIHOST_WRITECONSOLE:
+            //no steps are required.
             break;
         case SEMIHOST_READCONSOLE:
             //handle first argument: return code.
