@@ -12,6 +12,8 @@
 #include "uart_if.h"
 
 #include "common.h"
+#include "wfd_string.h"
+#include "wfd_conversions.h"
 #include "gdb_helpers.h"
 
 struct mem_log_entry{

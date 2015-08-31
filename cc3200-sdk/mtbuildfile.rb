@@ -1,8 +1,6 @@
 static_library_project :CC3200_SDK, File.dirname(__FILE__) do |lib|
 
-  lib.add_api_headers 'driverlib'
-  lib.add_api_headers 'inc'
-  lib.add_api_headers '.'
+  lib.add_api_headers ['driverlib', 'inc', '.']
 
   lib.add_configuration :SDK,
     sources: ['driverlib/*.c'],

@@ -16,6 +16,7 @@
 #include "cc3200_icepick.h"
 #include "cc3200_core.h"
 #include "cc3200_jtagdp.h"
+#include "wfd_conversions.h"
 
 struct target_al_interface cc3200_interface = {
     .target_init = &cc3200_init,
@@ -62,34 +63,34 @@ int cc3200_init(void)
     jtag_scan_hardRst();
 
     //ICEPICK router detection and configuration
-    if(cc3200_icepick_init() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_icepick_detect() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_icepick_connect() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_icepick_configure() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_icepick_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_connect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_configure() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     mem_log_add("CC3200 - ICEPICK OK.", 0);
 
     //ARM core debug interface (JTAG-DP) detection
-    if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_jtagdp_detect() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_jtagdp_clearCSR() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_clearCSR() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     uint32_t csr;
-    if(cc3200_jtagdp_checkCSR(&csr) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_checkCSR(&csr) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     mem_log_add("CC3200 - JTAG-DP OK.", 0);
 
     //powerup
-    if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     mem_log_add("CC3200 - Powerup OK.", 0);
 
-    if(cc3200_jtagdp_readAPs() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_jtagdp_readAPs() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     mem_log_add("CC3200 - IDCODEs OK.", 0);
 
     //core module
-    if(cc3200_core_init() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_core_detect() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     mem_log_add("CC3200 - MEM-AP OK.", 0);
 
     //enable debug
-    if(cc3200_core_debug_enable() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_debug_enable() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     mem_log_add("CC3200 - Debug Enabled.", 0);
 
     return RET_SUCCESS;
@@ -119,12 +120,12 @@ int cc3200_step(void)
 
 int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes)
 {
-    if(len_bytes != 2) RETURN_ERROR(ERROR_UNKNOWN); //only support 2-byte breakpoints
-    if(addr&1) RETURN_ERROR(ERROR_UNKNOWN); //non-aligned
+    if(len_bytes != 2) {RETURN_ERROR(ERROR_UNKNOWN);} //only support 2-byte breakpoints
+    if(addr&1) {RETURN_ERROR(ERROR_UNKNOWN);} //non-aligned
 
     //get word at that memory location
     uint32_t ori;
-    if(cc3200_core_read_mem_addr(addr&0xFFFFFFFC, &ori) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_read_mem_addr(addr&0xFFFFFFFC, &ori) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //modify word
     if(addr&0x02){
@@ -137,7 +138,7 @@ int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes)
     }
 
     //write back
-    if(cc3200_core_write_mem_addr(addr&0xFFFFFFFC, ori) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_write_mem_addr(addr&0xFFFFFFFC, ori) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     return RET_SUCCESS;
 }
@@ -157,7 +158,7 @@ int cc3200_get_gdb_reg_string(char* string)
     struct cc3200_reg_list reglst;
 
     for(uint32_t i=0; i<=(uint32_t)CC3200_REG_LAST; i++){
-        if(cc3200_core_read_reg(i, &(((uint32_t *)&reglst)[i])) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(cc3200_core_read_reg(i, &(((uint32_t *)&reglst)[i])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     }
 
     string[8*CC3200_REG_LAST] = 0; //zero-terminate
@@ -178,8 +179,8 @@ int cc3200_put_gdb_reg_string(char* string)
     //TODO: string validity tests
 
     for(int i = 0; string[i] != 0 && i<CC3200_REG_LAST; i++){
-        if(string[i*8] == 'x') continue; //skip this register
-        if(i==CC3200_REG_XPSR) continue; //TODO: writing to XPSR seems to cause faults every time. Investigate.
+        if(string[i*8] == 'x') {continue;} //skip this register
+        if(i==CC3200_REG_XPSR) {continue;} //TODO: writing to XPSR seems to cause faults every time. Investigate.
 
         uint32_t reg = 0; //the register value
         reg |= (cc3200_hexToByte(&(string[i*8+0])) << 0);
@@ -187,7 +188,7 @@ int cc3200_put_gdb_reg_string(char* string)
         reg |= (cc3200_hexToByte(&(string[i*8+4])) << 16);
         reg |= (cc3200_hexToByte(&(string[i*8+6])) << 24);
 
-        if(cc3200_core_write_reg(i, reg) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(cc3200_core_write_reg(i, reg) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     }
     return RET_SUCCESS;
 }
@@ -200,20 +201,20 @@ int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
     /* TODO: this code is buggy due to buggy pipelined read access. (unreliable)
     if((bytes%4 ==0) && (addr%4 ==0)){ //word-aligned full-word reads
         if(cc3200_core_pipeline_read_mem_addr(addr, bytes/4, (uint32_t*) dst) == RET_FAILURE){
-            RETURN_ERROR(ERROR_UNKNOWN);
+            {RETURN_ERROR(ERROR_UNKNOWN);}
         }
     }
     else*/
     //non-word-aligned or incomplete words
 
     uint32_t last_read_addr = addr & 0xFFFFFFFC;
-    if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     int out_byte = 0;
     for(uint32_t i=0; i<bytes; i++){
         if((addr+i)/4 != last_read_addr/4){ //different word?
             last_read_addr = (addr+i)& 0xFFFFFFFC;
-            if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+            if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         }
         dst[out_byte++] = data_bytes[(addr+i)%4];
     }
@@ -239,12 +240,12 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
     for(uint32_t cur_addr = addr - (addr%4); cur_addr <= (addr+bytes); cur_addr+=4){
         if(bytes_left>=4 && cur_addr >= addr){ //aligned, whole-word write
             for(int i=0; i<4; i++){ data_bytes[i] = src_bytes[i]; } //prepare the word
-            if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //write the word
+            if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //write the word
             bytes_left -= 4;
             src_bytes = &(src_bytes[4]);
         }
         else{ //non-aligned and/or partial word access - read-modify-write required
-            if(cc3200_core_read_mem_addr(cur_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //read original
+            if(cc3200_core_read_mem_addr(cur_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //read original
             for(uint32_t i=0; i<4; i++){
                 if(cur_addr+i >= addr && bytes_left > 0){
                     data_bytes[i] = src_bytes[0];
@@ -252,7 +253,7 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
                     src_bytes = &(src_bytes[1]);
                 }
             }
-            if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //write modified value
+            if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //write modified value
         }
         data = 0;
     }
@@ -279,19 +280,19 @@ int cc3200_poll_halted(uint8_t *result)
 int cc3200_handleHalt(enum stop_reason *reason)
 {
     uint32_t dfsr;
-    if(cc3200_core_getDFSR(&dfsr) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_core_getDFSR(&dfsr) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     if(dfsr & CC3200_CORE_DFSR_BKPT){
         uint16_t instruction;
         uint32_t pc;
-        if(cc3200_get_pc(&pc) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-        if(cc3200_mem_block_read(pc, 2, (uint8_t*)&instruction) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(cc3200_get_pc(&pc) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_mem_block_read(pc, 2, (uint8_t*)&instruction) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
         //double-check that this is a BKPT instruction
-        if((instruction & 0xFF00) != CC3200_OPCODE_BKPT) RETURN_ERROR(ERROR_UNKNOWN);
+        if((instruction & 0xFF00) != CC3200_OPCODE_BKPT) {RETURN_ERROR(ERROR_UNKNOWN);}
 
         //0xAB is a special BKPT for semi-hosting
-        if((instruction & 0x00FF) == 0xAB) *reason = STOPREASON_SEMIHOSTING;
+        if((instruction & 0x00FF) == 0xAB) {*reason = STOPREASON_SEMIHOSTING;}
         else *reason = STOPREASON_BREAKPOINT;
     }
     else *reason = STOPREASON_INTERRUPT;
@@ -314,8 +315,8 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
     //TODO: expand support.
 
     uint32_t r0, r1;
-    if(cc3200_reg_read(CC3200_REG_0, &r0) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(cc3200_reg_read(CC3200_REG_1, &r1) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(cc3200_reg_read(CC3200_REG_0, &r0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_reg_read(CC3200_REG_1, &r1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     switch(r0){
     case CC3200_SEMIHOST_WRITE0: //write a 0-terminated string
@@ -324,7 +325,7 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
         uint32_t len = 0;
         uint8_t c = 1;
         for(uint32_t addr = r1; c != 0 ;len++){
-            if(cc3200_mem_block_read(addr++, 1, &c) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+            if(cc3200_mem_block_read(addr++, 1, &c) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         }
         op->param1 = r1; //pointer to the string
         op->param2 = len; //length of the string
@@ -332,7 +333,7 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
     case CC3200_SEMIHOST_READ: //read characters
         op->opcode = SEMIHOST_READCONSOLE;
         uint32_t args[3];
-        if(cc3200_mem_block_read(r1, 12, (uint8_t*)args) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(cc3200_mem_block_read(r1, 12, (uint8_t*)args) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         op->param1 = args[0]; //file descriptor
         op->param2 = args[1]; //buffer pointer
         op->param3 = args[2]; //character count

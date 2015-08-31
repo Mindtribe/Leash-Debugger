@@ -40,6 +40,9 @@ LDSCRIPT=linker.ld
 #base directory
 BASE_DIR = $(shell pwd)
 
+#include dependencies
+-include $(program_OBJS:.o=.d)
+
 #rules
 .PHONY: all clean distclean dirmake driverlib
 

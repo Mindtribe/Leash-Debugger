@@ -31,22 +31,19 @@ static unsigned int crc32_table[256] =
 unsigned long long crc32 (uint8_t* data, int len, unsigned int crc)
 {
     uint8_t *bytes = data;
-    if (!crc32_table[1])
-    {
+    if (!crc32_table[1]){
         /* Initialize the CRC table and the decoding table.  */
         int i, j;
         unsigned int c;
 
-        for (i = 0; i < 256; i++)
-        {
+        for (i = 0; i < 256; i++){
             for (c = i << 24, j = 8; j > 0; --j)
                 c = c & 0x80000000 ? (c << 1) ^ 0x04c11db7 : (c << 1);
             crc32_table[i] = c;
         }
     }
 
-    while (len--)
-    {
+    while (len--){
         crc = (crc << 8) ^ crc32_table[((crc >> 24) ^ bytes[0]) & 255];
         bytes = &(bytes[1]);
     }

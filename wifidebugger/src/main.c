@@ -44,6 +44,23 @@
 
 static int BoardInit(void);
 
+int main(void)
+{
+    BoardInit();
+
+    //(error) logging in memory init
+    clear_errors();
+    mem_log_clear();
+
+    GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
+
+    gdbserver_init(&TermPutChar, &TermGetChar, &TermCharsAvailable, &cc3200_interface);
+    mem_log_add("Init",0);
+    gdbserver_loop();
+
+    return RET_SUCCESS;
+}
+
 static int BoardInit(void)
 {
     MAP_IntMasterEnable();
@@ -51,40 +68,13 @@ static int BoardInit(void)
 
     PRCMCC3200MCUInit();
 
-    return RET_SUCCESS;
-}
-
-int main(void)
-{
-    BoardInit();
-
     //UART terminal
     InitTerm();
     PinMuxConfig();
 
-    //(error) logging in memory init
-    clear_errors();
-    mem_log_clear();
-
     GPIO_IF_LedConfigure(LED1|LED2|LED3);
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
     GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
-
-    gdbserver_init(&TermPutChar, &TermGetChar, &TermCharsAvailable, &cc3200_interface);
-    mem_log_add("Init",0);
-    gdbserver_loop();
-
-    //Some tests.
-    struct target_al_interface *target_if = &cc3200_interface;
-
-    if((*target_if->target_init)() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    //turn LED off:
-    if((*target_if->target_mem_write)(0x0000000020005270, 0) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    if((*target_if->target_halt)() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-
-    GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
-
-    while(1){};
 
     return RET_SUCCESS;
 }

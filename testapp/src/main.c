@@ -35,16 +35,40 @@ struct semihostArg{
     uint32_t word4;
 };
 
-
-volatile int doLED = 1;
-
 static int BoardInit(void);
+void semihost_printstr(char* msg);
+uint32_t semihost_getinput(char* buf, uint32_t len);
+
+int main(void)
+{
+    BoardInit();
+
+    GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
+
+    semihost_printstr("\n\nTestApp: I am alive! :)\nNow, let me echo you.\n>");
+
+    char buffer[256];
+
+    for(;;){
+        GPIO_IF_LedToggle(MCU_RED_LED_GPIO);
+
+        semihost_getinput(buffer, 256);
+        semihost_printstr(buffer);
+        semihost_printstr("\n>");
+    }
+
+    return 1;
+}
 
 static int BoardInit(void)
 {
     MAP_IntMasterEnable();
     MAP_IntEnable(FAULT_SYSTICK);
     PRCMCC3200MCUInit();
+
+    PinMuxConfig();
+    GPIO_IF_LedConfigure(LED1|LED2|LED3);
+    GPIO_IF_LedOff(MCU_ALL_LED_IND);
 
     return 1;
 }
@@ -83,40 +107,4 @@ uint32_t semihost_getinput(char* buf, uint32_t len)
     asm volatile("mov %[result], R0" : [result]"=r" (response));
 
     return response;
-}
-
-int main(void)
-{
-    BoardInit();
-
-    PinMuxConfig();
-    GPIO_IF_LedConfigure(LED1|LED2|LED3);
-    GPIO_IF_LedOff(MCU_ALL_LED_IND);
-
-    GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
-
-    //Semihosting call to say hello
-    semihost_printstr("\n\nTestApp: I am alive! :)\nNow, let me echo you.\n>");
-
-    char buffer[256];
-
-    while(1){
-        GPIO_IF_LedToggle(MCU_ORANGE_LED_GPIO);
-        semihost_getinput(buffer, 256);
-        semihost_printstr(buffer);
-        semihost_printstr("\n>");
-    }
-
-    unsigned int j = 0;
-    while(1){
-        for(int i=0; i<40000; i++){};
-        if(doLED) GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
-        else GPIO_IF_LedOff(MCU_ORANGE_LED_GPIO);
-
-        j++;
-        if(j%100 == 0) GPIO_IF_LedToggle(MCU_RED_LED_GPIO);
-
-    };
-
-    return 1;
 }

@@ -18,6 +18,8 @@
 #include "error.h"
 #include "mem_log.h"
 #include "special_chars.h"
+#include "wfd_conversions.h"
+#include "wfd_string.h"
 
 #ifdef GDBSERVER_KEEP_CHARS
 char lastChars[GDBSERVER_KEEP_CHARS_NUM];
@@ -137,7 +139,7 @@ struct gdbserver_state_t gdbserver_state = {
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target)
 {
-    if(gdb_helpers_init(pPutChar, pGetChar, pGetCharsAvail) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(gdb_helpers_init(pPutChar, pGetChar, pGetCharsAvail) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     gdbserver_state.target = target;
 
     if((*target->target_init)() == RET_FAILURE){
@@ -147,8 +149,8 @@ int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCh
         RETURN_ERROR(ERROR_UNKNOWN);
     }
 
-    if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(!gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!gdbserver_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //TODO: report the halted state to GDB
 
@@ -278,8 +280,8 @@ int gdbserver_processChar(void)
             break;
         case CHAR_END_TEXT:
             gdbserver_Interrupt(SIGINT);
-            if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
-            if(!gdbserver_state.halted) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+            if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) { error_add(__FILE__, __LINE__, ERROR_UNKNOWN); }
+            if(!gdbserver_state.halted) { error_add(__FILE__, __LINE__, ERROR_UNKNOWN); }
             break;
         default:
             switch(gdbserver_state.packet_phase){
@@ -371,7 +373,7 @@ int gdbserver_processGeneralQuery(char* queryString)
         gdbserver_TransmitPacket("1");
         break;
     case QUERY_CRC: //get a CRC checksum of memory region to verify memory
-        if(gdbserver_doMemCRC(&(queryString[4])) == RET_FAILURE) error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        if(gdbserver_doMemCRC(&(queryString[4])) == RET_FAILURE) { error_add(__FILE__,__LINE__,ERROR_UNKNOWN); }
         break;
     default:
         gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
@@ -483,8 +485,8 @@ int gdbserver_processPacket(void)
         gdbserver_state.fileio_state.fileio_waiting = 0;
         //increment the PC to pass the BKPT instruction for continuing.
         uint32_t pc;
-        if((*gdbserver_state.target->target_get_pc)(&pc) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-        if((*gdbserver_state.target->target_set_pc)(pc+2) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if((*gdbserver_state.target->target_get_pc)(&pc) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if((*gdbserver_state.target->target_set_pc)(pc+2) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         gdbserver_continue();
         break;
     default:
@@ -512,16 +514,16 @@ int gdbserver_readMemory(char* argstring)
             lenstring = &(argstring[i+1]);
             break;
         }
-        if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no comma found
+        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no comma found
     }
 
     uint32_t addr = wfd_hexToInt(addrstring);
     uint32_t len = wfd_hexToInt(lenstring);
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
-    if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(ERROR_UNKNOWN);
+    if(len>GDBSERVER_MAX_BLOCK_ACCESS) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    if((*gdbserver_state.target->target_mem_block_read)(addr, len, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*gdbserver_state.target->target_mem_block_read)(addr, len, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //construct the answer string
     char retstring[GDBSERVER_MAX_PACKET_LEN_TX];
@@ -558,11 +560,11 @@ int gdbserver_setSWBreakpoint(uint32_t addr, uint8_t len_bytes)
 
     //get the original instruction
     uint32_t inst;
-    if((*gdbserver_state.target->target_mem_block_read)(addr, len_bytes, (uint8_t*)(&inst)) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*gdbserver_state.target->target_mem_block_read)(addr, len_bytes, (uint8_t*)(&inst)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     bkpt->ori_instr = inst;
 
     //place the breakpoint
-    if((*gdbserver_state.target->target_set_sw_bkpt)(addr, len_bytes) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*gdbserver_state.target->target_set_sw_bkpt)(addr, len_bytes) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     bkpt->active = 1;
     bkpt->valid = 1;
@@ -581,7 +583,7 @@ int gdbserver_doMemCRC(char* argstring)
             lenstring = &(argstring[i+1]);
             break;
         }
-        if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no comma found
+        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no comma found
     }
 
     uint32_t addr = wfd_hexToInt(addrstring);
@@ -592,7 +594,7 @@ int gdbserver_doMemCRC(char* argstring)
 
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
     while(bytes_left){
-        if((*gdbserver_state.target->target_mem_block_read)(addr, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //get some bytes
+        if((*gdbserver_state.target->target_mem_block_read)(addr, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //get some bytes
         crc32 = wfd_crc32(data, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), crc32);
         bytes_left-=MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left);
         addr+=GDBSERVER_MAX_BLOCK_ACCESS;
@@ -622,7 +624,7 @@ int gdbserver_writeMemory(char* argstring)
             lenstring = &(argstring[i+1]);
             break;
         }
-        if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no comma found
+        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no comma found
     }
     for(int i=0; i<30; i++){
         if(lenstring[i] == ':'){
@@ -630,7 +632,7 @@ int gdbserver_writeMemory(char* argstring)
             datastring = &(lenstring[i+1]);
             break;
         }
-        if(i>=29) RETURN_ERROR(ERROR_UNKNOWN); //no colon found
+        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no colon found
     }
 
     uint32_t addr = wfd_hexToInt(addrstring);
@@ -644,7 +646,7 @@ int gdbserver_writeMemory(char* argstring)
         data[i] = wfd_hexToByte(&(datastring[i*2]));
     }
 
-    if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     gdbserver_TransmitPacket("OK");
 
@@ -669,10 +671,10 @@ int gdbserver_loop(void)
 int gdbserver_pollTarget(void)
 {
     int old_halted = gdbserver_state.halted;
-    if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
-    if(old_halted && !gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(old_halted && !gdbserver_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(!old_halted && gdbserver_state.halted){
-        if(gdbserver_handleHalt() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(gdbserver_handleHalt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         char reply[4];
         reply[0] = 'S';
         reply[3] = 0;
@@ -722,7 +724,7 @@ void gdbserver_TransmitStopReason(void){
 int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
 {
     //we must wait for the previous file I/O to finish
-    if(gdbserver_state.fileio_state.fileio_waiting) RETURN_ERROR(ERROR_UNKNOWN);
+    if(gdbserver_state.fileio_state.fileio_waiting) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     char msg[] = "Fwrite,XX,XXXXXXXX,XXXXXXXX";
 
@@ -739,7 +741,7 @@ int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
 int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t count)
 {
     //we must wait for the previous file I/O to finish
-    if(gdbserver_state.fileio_state.fileio_waiting) RETURN_ERROR(ERROR_UNKNOWN);
+    if(gdbserver_state.fileio_state.fileio_waiting) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     char msg[] = "Fread,XX,XXXXXXXX,XXXXXXXX";
 
@@ -755,7 +757,7 @@ int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t count)
 
 int gdbserver_continue(void)
 {
-    if(!gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!gdbserver_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     if(!gdbserver_state.gave_info){
         gdbserver_sendInfo();
@@ -776,14 +778,14 @@ int gdbserver_handleSemiHosting(void)
 {
     //a semihosting operation is supposed to happen. Find out which one
     struct semihost_operation s;
-    if((*gdbserver_state.target->target_querySemiHostOp)(&s) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if((*gdbserver_state.target->target_querySemiHostOp)(&s) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     switch(s.opcode){
     case SEMIHOST_WRITECONSOLE:
-        if(gdbserver_TransmitFileIOWrite(1, (char*)s.param1, s.param2) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(gdbserver_TransmitFileIOWrite(1, (char*)s.param1, s.param2) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         break;
     case SEMIHOST_READCONSOLE:
-        if(gdbserver_TransmitFileIORead(s.param1, (char*)s.param2, s.param3) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        if(gdbserver_TransmitFileIORead(s.param1, (char*)s.param2, s.param3) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         break;
     default:
         //TODO: reply

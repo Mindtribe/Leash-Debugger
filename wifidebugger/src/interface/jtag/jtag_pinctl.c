@@ -122,21 +122,29 @@ int jtag_pinctl_assertPins(uint8_t pins)
 {
     if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN); //not initialized
 
-    if(pins & JTAG_RST) GPIO_IF_Set(RSTLocation.ucPin,
-            RSTLocation.uiGPIOPort,
-            RSTLocation.ucGPIOPin, 0);
+    if(pins & JTAG_RST) {
+        GPIO_IF_Set(RSTLocation.ucPin,
+                RSTLocation.uiGPIOPort,
+                RSTLocation.ucGPIOPin, 0);
+    }
 
-    if(pins & JTAG_TMS) GPIO_IF_Set(TMSLocation.ucPin,
-            TMSLocation.uiGPIOPort,
-            TMSLocation.ucGPIOPin, 1);
+    if(pins & JTAG_TMS) {
+        GPIO_IF_Set(TMSLocation.ucPin,
+                TMSLocation.uiGPIOPort,
+                TMSLocation.ucGPIOPin, 1);
+    }
 
-    if(pins & JTAG_TDI) GPIO_IF_Set(TDILocation.ucPin,
-            TDILocation.uiGPIOPort,
-            TDILocation.ucGPIOPin, 1);
+    if(pins & JTAG_TDI){
+        GPIO_IF_Set(TDILocation.ucPin,
+                TDILocation.uiGPIOPort,
+                TDILocation.ucGPIOPin, 1);
+    }
 
-    if(pins & JTAG_TCK) GPIO_IF_Set(TCKLocation.ucPin,
-            TCKLocation.uiGPIOPort,
-            TCKLocation.ucGPIOPin, 1);
+    if(pins & JTAG_TCK){
+        GPIO_IF_Set(TCKLocation.ucPin,
+                TCKLocation.uiGPIOPort,
+                TCKLocation.ucGPIOPin, 1);
+    }
 
     return RET_SUCCESS;
 
@@ -146,21 +154,29 @@ int jtag_pinctl_deAssertPins(uint8_t pins)
 {
     if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN); //not initialized
 
-    if(pins & JTAG_RST) GPIO_IF_Set(RSTLocation.ucPin,
-            RSTLocation.uiGPIOPort,
-            RSTLocation.ucGPIOPin, 1);
+    if(pins & JTAG_RST) {
+        GPIO_IF_Set(RSTLocation.ucPin,
+                RSTLocation.uiGPIOPort,
+                RSTLocation.ucGPIOPin, 1);
+    }
 
-    if(pins & JTAG_TMS) GPIO_IF_Set(TMSLocation.ucPin,
-            TMSLocation.uiGPIOPort,
-            TMSLocation.ucGPIOPin, 0);
+    if(pins & JTAG_TMS) {
+        GPIO_IF_Set(TMSLocation.ucPin,
+                TMSLocation.uiGPIOPort,
+                TMSLocation.ucGPIOPin, 0);
+    }
 
-    if(pins & JTAG_TDI) GPIO_IF_Set(TDILocation.ucPin,
-            TDILocation.uiGPIOPort,
-            TDILocation.ucGPIOPin, 0);
+    if(pins & JTAG_TDI) {
+        GPIO_IF_Set(TDILocation.ucPin,
+                TDILocation.uiGPIOPort,
+                TDILocation.ucGPIOPin, 0);
+    }
 
-    if(pins & JTAG_TCK) GPIO_IF_Set(TCKLocation.ucPin,
-            TCKLocation.uiGPIOPort,
-            TCKLocation.ucGPIOPin, 0);
+    if(pins & JTAG_TCK) {
+        GPIO_IF_Set(TCKLocation.ucPin,
+                TCKLocation.uiGPIOPort,
+                TCKLocation.ucGPIOPin, 0);
+    }
 
     return RET_SUCCESS;
 }
@@ -168,7 +184,7 @@ int jtag_pinctl_deAssertPins(uint8_t pins)
 //asserts JTAG clock with the specified pins active.
 int jtag_pinctl_doClock(uint8_t active_pins)
 {
-    if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN); //not initialized
+    if(!jtag_pinctl_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);} //not initialized
 
     //determine which pins to set
     unsigned char TMS, TDI, RST;

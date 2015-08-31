@@ -14,6 +14,8 @@
 #include "gdb_helpers.h"
 #include "error.h"
 #include "common.h"
+#include "wfd_conversions.h"
+#include "wfd_string.h"
 
 struct error_log{
     int line;

@@ -32,7 +32,7 @@ int jtag_scan_init(void)
 {
     if(jtag_scan_state.initialized) return RET_SUCCESS;
 
-    if(jtag_pinctl_init() == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(jtag_pinctl_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     jtag_scan_state.initialized = 1;
     return RET_SUCCESS;
@@ -40,7 +40,7 @@ int jtag_scan_init(void)
 
 int jtag_scan_hardRst(void)
 {
-    if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //hardware reset using the reset pin
     jtag_pinctl_assertPins(JTAG_RST);
@@ -53,18 +53,20 @@ int jtag_scan_hardRst(void)
 
 int jtag_scan_rstStateMachine(void)
 {
-    if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //five consecutive TMS 1's will reset the JTAG state machine of everything
     //in the chain.
-    for(int i=0; i<5; i++) jtag_pinctl_doClock(JTAG_TMS);
+    for(int i=0; i<5; i++) {
+        jtag_pinctl_doClock(JTAG_TMS);
+    }
 
     return RET_SUCCESS;
 }
 
 int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 {
-    if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     jtag_scan_state.shift_out = 0;
 
@@ -80,7 +82,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x07, 5);
         break;
     default:
-        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
         break;
     }
 
@@ -100,7 +102,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         if(jtag_statemachine_getState() != JTAG_STATE_PAUSEDR) RETURN_ERROR(jtag_statemachine_getState());
         break;
     default:
-        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
         break;
     }
 
@@ -109,7 +111,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 
 int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 {
-    if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     jtag_scan_state.shift_out = 0;
 
@@ -125,7 +127,7 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x0F, 6);
         break;
     default:
-        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
         break;
     }
 
@@ -137,14 +139,14 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     switch(toState){
     case JTAG_STATE_SCAN_RUNIDLE:
         jtag_scan_doStateMachine(0x01, 2);
-        if(jtag_statemachine_getState() != JTAG_STATE_RTI) RETURN_ERROR(ERROR_UNKNOWN);
+        if(jtag_statemachine_getState() != JTAG_STATE_RTI) {RETURN_ERROR(ERROR_UNKNOWN);}
         break;
     case JTAG_STATE_SCAN_PAUSE:
         jtag_scan_doStateMachine(0x00, 1);
-        if(jtag_statemachine_getState() != JTAG_STATE_PAUSEIR) RETURN_ERROR(ERROR_UNKNOWN);
+        if(jtag_statemachine_getState() != JTAG_STATE_PAUSEIR) {RETURN_ERROR(ERROR_UNKNOWN);}
         break;
     default:
-        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
         break;
     }
 
@@ -153,8 +155,8 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 
 int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
 {
-    if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
-    if(num_clk>=32) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(num_clk>=32) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     for(unsigned int i=0; i<num_clk; i++){
         jtag_pinctl_doClock((tms_bits_lsb_first&(1<<i)) ? JTAG_TMS : JTAG_NONE);
@@ -165,8 +167,8 @@ int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
 
 int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
 {
-    if(!jtag_scan_state.initialized) RETURN_ERROR(ERROR_UNKNOWN);
-    if(num_clk>64) RETURN_ERROR(ERROR_UNKNOWN);
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(num_clk>64) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     jtag_scan_state.shift_out = 0;
 
