@@ -1,0 +1,21 @@
+\t (00:00:25) allegro 16.6 S019 (v16-6-112BG) Windows 32
+\t (00:00:25)     Journal start - Wed Sep 03 15:19:35 2014
+\t (00:00:25)         Host=A0876544LT User=a0876544 Pid=7536 CPUs=4
+\t (00:00:25) 
+\t (00:00:32) Starting new design...
+\i (00:00:32) trapsize 796
+\i (00:00:32) trapsize 778
+\i (00:00:32) trapsize 799
+\i (00:00:33) trapsize 686
+\i (00:00:33) trapsize 1362
+\i (00:00:34) generaledit 
+\i (00:04:50) open 
+\i (00:04:54) fillin "menu_cancel"
+\i (00:04:54) generaledit 
+\i (00:19:20) open 
+\i (00:19:23) fillin "D:\Sol-Del\CC31XX\Boards\CC31XX_BP\Rev4.0\A\REL-2\CC3100BOOST_BRD_Rev4p0.brd"
+\i (00:19:23) cd "D:\Sol-Del\CC31XX\Boards\CC31XX_BP\Rev4.0\A\REL-2"
+\t (00:19:23) Opening existing design...
+\i (00:19:24) fillin yes 
+\i (00:19:25) trapsize 407079
+\t (00:19:25)     Journal end - Wed Sep 03 15:38:36 2014

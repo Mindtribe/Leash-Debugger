@@ -1,0 +1,15 @@
+\t (00:00:00) allegro_free_viewer 16.6 S002 (v16-6-0A) Windows 32
+\t (00:00:00)     Journal start - Thu Dec 11 16:15:40 2014
+\t (00:00:00)         Host=A0876544LT User=a0876544 Pid=1420 CPUs=4
+\t (00:00:00) 
+\t (00:00:00) Starting new design...
+\i (00:00:00) trapsize 892
+\i (00:00:00) trapsize 870
+\i (00:00:00) trapsize 723
+\i (00:00:00) trapsize 1216
+\i (00:00:07) open 
+\i (00:00:09) fillin "D:\Sol-Del\CC31XX\Customer\Misc\sensi mini CR test_TI_wifi.brd"
+\i (00:00:09) cd "D:\Sol-Del\CC31XX\Customer\Misc"
+\t (00:00:09) Opening existing design...
+\i (00:00:09) trapsize 30
+\t (00:00:09)     Journal end - Thu Dec 11 16:15:49 2014

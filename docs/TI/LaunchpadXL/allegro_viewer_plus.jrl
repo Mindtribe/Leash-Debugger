@@ -1,0 +1,18 @@
+\t (00:00:05) allegro_viewer_plus 16.6 S017 (v16-6-112BB) Windows 32
+\t (00:00:05)     Journal start - Thu Jul 17 12:35:58 2014
+\t (00:00:05)         Host=A0876544LT User=a0876544 Pid=4832 CPUs=4
+\t (00:00:05) 
+\t (00:00:06) Starting new design...
+\i (00:00:07) trapsize 796
+\i (00:00:07) trapsize 778
+\i (00:00:07) trapsize 799
+\i (00:00:07) trapsize 686
+\i (00:00:07) trapsize 1362
+\i (00:00:09) open 
+\i (00:00:29) fillin "D:\Sol-Del\CC31XX\Boards\CC31XX_BP\Rev3.2\Rev-A\CC3100BOOST_BRD_Rev3p2.brd"
+\i (00:00:29) cd "D:\Sol-Del\CC31XX\Boards\CC31XX_BP\Rev3.2\Rev-A"
+\t (00:00:29) Opening existing design...
+\w (00:00:29) WARNING(SPMHDB-212): This design has functionality disabled due to the current product plus options selected. The following features are disabled: Constraint Regions. DRC set "out of date". [help]
+\i (00:00:31) fillin confirm
+\i (00:00:31) trapsize 801282
+\t (00:00:31)     Journal end - Thu Jul 17 12:36:24 2014

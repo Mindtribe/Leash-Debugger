@@ -1,0 +1,39 @@
+CC3200 Tool availability
+
+Introduction
+
+TI suggests a few different toolchains to use with the CC3200:
+- Code Composer Studio
+- Energia platform
+- GCC+GDB toolchain with Eclipse
+
+These platforms all have their individual ways to work with the Launchpad boards.
+
+CODE COMPOSER STUDIO
+
+- is TI's Eclipse-based IDE
+- integrates functionality from TI
+	- Programming CC3200 on LaunchpadXL (how?)
+	- Debugging CC3200 on LaunchpadXL (how?)
+
+ENERGIA
+
+- Partner of TI
+- Simplified Arduino programming model
+- integrates functionality from TI
+	- Programming (how?)
+	- Debugging (how?)
+
+GCC+GDB TOOLCHAIN
+
+- Open-source
+- Only one example from TI (blinky)
+	- Debugging possible using OpenOCD
+	- Programming only possible using TI Uniflash (which sucks)
+
+THOUGHTS
+
+There is a gap in toolchain support for open-source tools: flashing is very cumbersome (also to automate!).
+External flash can be programmed directly for products, but this is not a desirable prototyping workflow.
+List some advantages of open-source tools.
+List the pain it takes to get OpenOCD working at all.

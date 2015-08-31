@@ -1,0 +1,15 @@
+\t (00:00:00) allegro_free_viewer 16.6 S002 (v16-6-0A) Windows 32
+\t (00:00:00)     Journal start - Tue Dec 09 19:16:59 2014
+\t (00:00:00)         Host=A0876544LT User=a0876544 Pid=5460 CPUs=4
+\t (00:00:00) 
+\t (00:00:00) Starting new design...
+\i (00:00:00) trapsize 892
+\i (00:00:00) trapsize 870
+\i (00:00:00) trapsize 723
+\i (00:00:00) trapsize 1216
+\i (00:00:02) open 
+\i (00:00:12) fillin "D:\Sol-Del\CC31XX\Module\Module_BP\For_TIS\CC3100MODBOOST-BRD-REV1.0.brd"
+\i (00:00:12) cd "D:\Sol-Del\CC31XX\Module\Module_BP\For_TIS"
+\t (00:00:12) Opening existing design...
+\i (00:00:13) trapsize 5737
+\t (00:00:13)     Journal end - Tue Dec 09 19:17:11 2014
