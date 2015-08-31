@@ -10,7 +10,7 @@ The repo lives here: https://github.com/Mindtribe/Wi-Fi-Debug-Adapter
 
 # Instructions for building and running #
 
-Install arm-none-eabi-gcc. Project should then compile.
+Install arm-none-eabi-gcc. Project should then compile using either MTBuild or make in the top-level directory.
 The most straightforward way to run this on the board is using OpenOCD+GDB (see below).
 
 To test the OpenOCD connection to the target board, try the following:
@@ -22,12 +22,14 @@ cd scripts
 
 if successful, this should lead to OpenOCD reporting a connection to the device, and giving information about it (number of break/watchpoints etc).
 
-To debug an .axf file (the debugger code), try:
+To load the debug adapter code, try:
 
 ```
 cd scripts
-./gdb_debug_debugger ./../wifidebugger/exe/wifidebugger.axf
+./gdb_debug_debugger
 ```
+
+Note: this uses the .elf file produced through MTBuild. If you prefer to use make, open this script and change the filename to ./../wifidebugger/exe/wifidebugger.axf instead.
 
 this should start a GDB debugging session using openOCD, running the debug adapter code on the board.
 
@@ -35,19 +37,10 @@ Starting a session to debug the target via the running debugger can be done by h
 
 ```
 cd scripts
-./gdb_debug_debuggee ./../testapp/exe/testapp.axf
+./gdb_debug_debuggee
 ```
 
-...After which GDB commands have to be used to actually load code, set pc/sp and execute:
-
-```
-(gdb) target remote /dev/ttyUSB1
-(gdb) load
-(gdb) compare-sections
-(gdb) set $sp = g_pfnVectors[0]
-(gdb) set $pc = g_pfnVectors[1]
-(gdb) continue
-```
+Note: this uses the .elf file produced through MTBuild. If you prefer to use make, open this script and change the filename to ./../testapp/exe/testapp.axf instead.
 
 NOTE: in order to gain non-root access to ttyUSB for debugging, add your user to the dialout group:
 
@@ -82,14 +75,14 @@ Also it uses UART to communicate with GDB using a basic GDBserver stub. Packet s
 - register read/write (although xPSR register writes are ignored - they seem to lead to hard faults when writing to them)
 - interrupt/continue
 - CRC checks on memory regions (allowing GDB to verify RAM loads)
+- single cycle step
 
 The main missing ones are:
-- step
 - reset
 
 With the current functionality, it is able to load a program into RAM, set stack pointer/program counter and execute it.
 
-RAM loading is slow: less than 300 Bytes/s.
+RAM loading is slow: less than 300 Bytes/s. Some code for faster, pipelined JTAG accesses is there, but disabled because it is unreliable.
 
 Future steps:
 - Wi-Fi serial link to/from host PC using same abstraction layer as direct link.
