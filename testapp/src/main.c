@@ -10,6 +10,7 @@
 
 
 #include <stdio.h>
+#include <stdint.h>
 
 #include "hw_types.h"
 #include "hw_ints.h"
@@ -26,6 +27,14 @@
 
 #include "gpio_if.h"
 #include "pin_mux_config.h"
+
+struct semihostArg{
+    uint32_t word1;
+    uint32_t word2;
+    uint32_t word3;
+    uint32_t word4;
+};
+
 
 volatile int doLED = 1;
 
@@ -45,9 +54,35 @@ void semihost_printstr(char* msg)
     //set the arguments
     asm volatile("mov R0,#0x04");
     asm volatile("mov R1,%[message]" : : [message]"r" (msg));
+
+    //break and let debugger do its magic
     asm volatile("BKPT 0xAB");
 
+    //TODO: if wanting to error-check, read R0 here
+
     return;
+}
+
+uint32_t semihost_getinput(char* buf, uint32_t len)
+{
+    struct semihostArg arg;
+    arg.word1 = 0;
+    arg.word2 = (uint32_t)buf;
+    arg.word3 = len;
+
+    uint32_t response = 0;
+
+    //set the arguments
+    asm volatile("mov R0, #0x06");
+    asm volatile("mov R1, %[arguments]" : : [arguments]"r" (&arg));
+
+    //break and let the debugger do its magic
+    asm volatile("BKPT 0xAB");
+
+    //read the response
+    asm volatile("mov %[result], R0" : [result]"=r" (response));
+
+    return response;
 }
 
 int main(void)
@@ -62,6 +97,15 @@ int main(void)
 
     //Semihosting call to say hello
     semihost_printstr("\n\nTestApp: I am alive! :)\nNow, let me echo you.\n>");
+
+    char buffer[256];
+
+    while(1){
+        GPIO_IF_LedToggle(MCU_ORANGE_LED_GPIO);
+        semihost_getinput(buffer, 256);
+        semihost_printstr(buffer);
+        semihost_printstr("\n>");
+    }
 
     unsigned int j = 0;
     while(1){

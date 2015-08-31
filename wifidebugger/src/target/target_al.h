@@ -34,6 +34,7 @@ struct semihost_operation{
     enum semihost_opcode opcode;
     uint32_t param1;
     uint32_t param2;
+    uint32_t param3;
 };
 
 struct target_al_interface{

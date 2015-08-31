@@ -736,6 +736,23 @@ int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
     return RET_SUCCESS;
 }
 
+int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t count)
+{
+    //we must wait for the previous file I/O to finish
+    if(gdbserver_state.fileio_state.fileio_waiting) RETURN_ERROR(ERROR_UNKNOWN);
+
+    char msg[] = "Fread,XX,XXXXXXXX,XXXXXXXX";
+
+    wfd_byteToHex(descriptor, &(msg[6]));
+    wfd_wordToHex((uint32_t)buf, &(msg[9]));
+    wfd_wordToHex(count, &(msg[18]));
+
+    gdbserver_TransmitPacket(msg);
+    gdbserver_state.fileio_state.fileio_waiting = 1;
+
+    return RET_SUCCESS;
+}
+
 int gdbserver_continue(void)
 {
     if(!gdbserver_state.halted) RETURN_ERROR(ERROR_UNKNOWN);
@@ -764,6 +781,9 @@ int gdbserver_handleSemiHosting(void)
     switch(s.opcode){
     case SEMIHOST_WRITECONSOLE:
         if(gdbserver_TransmitFileIOWrite(1, (char*)s.param1, s.param2) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        break;
+    case SEMIHOST_READCONSOLE:
+        if(gdbserver_TransmitFileIORead(s.param1, (char*)s.param2, s.param3) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
         break;
     default:
         //TODO: reply

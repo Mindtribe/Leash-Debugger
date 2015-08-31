@@ -235,27 +235,27 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
         return cc3200_core_pipeline_write_mem_addr(addr, bytes/4, (uint32_t*)src);
     }
     else{*/
-        //BELOW IS THE SLOW METHOD FOR BLOCKS THAT ARE (PARTIALLY) UNALIGNED OR NON-WORD-SIZED
-        for(uint32_t cur_addr = addr - (addr%4); cur_addr <= (addr+bytes); cur_addr+=4){
-            if(bytes_left>=4 && cur_addr >= addr){ //aligned, whole-word write
-                for(int i=0; i<4; i++){ data_bytes[i] = src_bytes[i]; } //prepare the word
-                if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //write the word
-                bytes_left -= 4;
-                src_bytes = &(src_bytes[4]);
-            }
-            else{ //non-aligned and/or partial word access - read-modify-write required
-                if(cc3200_core_read_mem_addr(cur_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //read original
-                for(uint32_t i=0; i<4; i++){
-                    if(cur_addr+i >= addr && bytes_left > 0){
-                        data_bytes[i] = src_bytes[0];
-                        bytes_left--;
-                        src_bytes = &(src_bytes[1]);
-                    }
-                }
-                if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //write modified value
-            }
-            data = 0;
+    //BELOW IS THE SLOW METHOD FOR BLOCKS THAT ARE (PARTIALLY) UNALIGNED OR NON-WORD-SIZED
+    for(uint32_t cur_addr = addr - (addr%4); cur_addr <= (addr+bytes); cur_addr+=4){
+        if(bytes_left>=4 && cur_addr >= addr){ //aligned, whole-word write
+            for(int i=0; i<4; i++){ data_bytes[i] = src_bytes[i]; } //prepare the word
+            if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //write the word
+            bytes_left -= 4;
+            src_bytes = &(src_bytes[4]);
         }
+        else{ //non-aligned and/or partial word access - read-modify-write required
+            if(cc3200_core_read_mem_addr(cur_addr, &data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //read original
+            for(uint32_t i=0; i<4; i++){
+                if(cur_addr+i >= addr && bytes_left > 0){
+                    data_bytes[i] = src_bytes[0];
+                    bytes_left--;
+                    src_bytes = &(src_bytes[1]);
+                }
+            }
+            if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN); //write modified value
+        }
+        data = 0;
+    }
     //}
 
     return RET_SUCCESS;
@@ -318,7 +318,7 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
     if(cc3200_reg_read(CC3200_REG_1, &r1) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
 
     switch(r0){
-    case CC3200_SEMIHOST_WRITE0:
+    case CC3200_SEMIHOST_WRITE0: //write a 0-terminated string
         op->opcode = SEMIHOST_WRITECONSOLE;
         //find out the length of the semihosting string (including trailing 0)
         uint32_t len = 0;
@@ -329,8 +329,13 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
         op->param1 = r1; //pointer to the string
         op->param2 = len; //length of the string
         break;
-    case CC3200_SEMIHOST_READ:
+    case CC3200_SEMIHOST_READ: //read characters
         op->opcode = SEMIHOST_READCONSOLE;
+        uint32_t args[3];
+        if(cc3200_mem_block_read(r1, 12, (uint8_t*)args) == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+        op->param1 = args[0]; //file descriptor
+        op->param2 = args[1]; //buffer pointer
+        op->param3 = args[2]; //character count
         break;
     default:
         op->opcode = SEMIHOST_UNKNOWN;
