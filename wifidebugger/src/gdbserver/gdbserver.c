@@ -98,6 +98,8 @@ const char* gdbserver_query_strings[] = {
 
 struct fileio_state_t{
     uint8_t fileio_waiting;
+    struct semihost_operation last_semihost_op;
+    int count;
 };
 
 struct gdbserver_state_t{
@@ -278,7 +280,7 @@ int gdbserver_processChar(void)
             gdbserver_state.packet_phase = PACKET_DATA;
             gdbserver_state.cur_packet_index = 0;
             break;
-        case CHAR_END_TEXT:
+        case CHAR_END_TEXT: //CTRL-C in GDB
             gdbserver_Interrupt(SIGINT);
             if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) { error_add(__FILE__, __LINE__, ERROR_UNKNOWN); }
             if(!gdbserver_state.halted) { error_add(__FILE__, __LINE__, ERROR_UNKNOWN); }
@@ -480,19 +482,71 @@ int gdbserver_processPacket(void)
         gdbserver_TransmitPacket(reply);
         break;
     case 'F': //reply to File I/O
-        //TODO: handle all cases properly.
         if(!gdbserver_state.fileio_state.fileio_waiting) error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         gdbserver_state.fileio_state.fileio_waiting = 0;
+
+        int continue_exec = 1;
+        int num_return_args = 1;
+        int arg_locations[3] = {0};
+        int cur_arg = 1;
+
+        //scan for comma argument separators and replace them with 0's
+        for(int i=0; ;i++){
+            if(gdbserver_state.cur_packet[i+1] == ','){
+                gdbserver_state.cur_packet[i+1] = 0;
+                arg_locations[cur_arg++] = i+1;
+                num_return_args++;
+            }
+            else if(gdbserver_state.cur_packet[i+1] == ';' ||
+                    gdbserver_state.cur_packet[i+1] == 0){
+                gdbserver_state.cur_packet[i+1] = 0;
+                break;
+            }
+        }
+
+        int return_code;
+        switch(gdbserver_state.fileio_state.last_semihost_op.opcode){
+        case SEMIHOST_WRITECONSOLE:
+            //no steps are required.
+            break;
+        case SEMIHOST_READCONSOLE:
+            //handle first argument: return code.
+            return_code = wfd_hexToInt(&(gdbserver_state.cur_packet[arg_locations[0]+1]));
+            if(return_code == -1){ //error
+                if((*gdbserver_state.target->target_write_register)(0, (uint32_t)return_code) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            }
+            else{ //number of bytes read
+                if((*gdbserver_state.target->target_write_register)(
+                        0, gdbserver_state.fileio_state.count - return_code) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            }
+            break;
+        default:
+            //TODO: reply
+            return RET_SUCCESS;
+            break;
+        }
         //increment the PC to pass the BKPT instruction for continuing.
         uint32_t pc;
         if((*gdbserver_state.target->target_get_pc)(&pc) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         if((*gdbserver_state.target->target_set_pc)(pc+2) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-        gdbserver_continue();
+
+        //handle 3rd argument if necessary: CTRL-C flag
+        if((num_return_args >= 3) && (gdbserver_state.cur_packet[arg_locations[2]+1] == 'C')){
+            continue_exec = 0;
+        }
+        if(continue_exec){
+            gdbserver_continue();
+        }
+        else{
+            gdbserver_TransmitPacket("S02"); //interrupt packet
+        }
+
+
         break;
-    default:
-        gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
-        //error_add(__FILE__,__LINE__, gdbserver_state.cur_packet[0]);
-        break;
+        default:
+            gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
+            //error_add(__FILE__,__LINE__, gdbserver_state.cur_packet[0]);
+            break;
     }
 
     if(!gdbserver_state.gdb_connected){
@@ -734,6 +788,7 @@ int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
 
     gdbserver_TransmitPacket(msg);
     gdbserver_state.fileio_state.fileio_waiting = 1;
+    gdbserver_state.fileio_state.count = count;
 
     return RET_SUCCESS;
 }
@@ -751,6 +806,7 @@ int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t count)
 
     gdbserver_TransmitPacket(msg);
     gdbserver_state.fileio_state.fileio_waiting = 1;
+    gdbserver_state.fileio_state.count = count;
 
     return RET_SUCCESS;
 }
@@ -777,15 +833,22 @@ int gdbserver_continue(void)
 int gdbserver_handleSemiHosting(void)
 {
     //a semihosting operation is supposed to happen. Find out which one
-    struct semihost_operation s;
-    if((*gdbserver_state.target->target_querySemiHostOp)(&s) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((*gdbserver_state.target->target_querySemiHostOp)(
+            &(gdbserver_state.fileio_state.last_semihost_op)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    switch(s.opcode){
+    switch(gdbserver_state.fileio_state.last_semihost_op.opcode){
     case SEMIHOST_WRITECONSOLE:
-        if(gdbserver_TransmitFileIOWrite(1, (char*)s.param1, s.param2) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(gdbserver_TransmitFileIOWrite(1,
+                (char*)gdbserver_state.fileio_state.last_semihost_op.param1,
+                gdbserver_state.fileio_state.last_semihost_op.param2)
+                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         break;
     case SEMIHOST_READCONSOLE:
-        if(gdbserver_TransmitFileIORead(s.param1, (char*)s.param2, s.param3) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(gdbserver_TransmitFileIORead(
+                gdbserver_state.fileio_state.last_semihost_op.param1,
+                (char*)gdbserver_state.fileio_state.last_semihost_op.param2,
+                gdbserver_state.fileio_state.last_semihost_op.param3)
+                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         break;
     default:
         //TODO: reply
