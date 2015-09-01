@@ -32,6 +32,8 @@
 
 #define GDBSERVER_POLL_INTERVAL 100
 
+#define GDBSERVER_TASK_STACK_SIZE 2048
+
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target);
 
 int gdbserver_processChar(void);
@@ -40,7 +42,7 @@ int gdbserver_processPacket(void);
 
 void gdbserver_reset_error(int line, int error_code);
 
-int gdbserver_loop(void);
+void gdbserver_loop_task(void* params);
 
 void gdbserver_TransmitPacket(char* packet_data);
 
