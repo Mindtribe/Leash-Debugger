@@ -6,7 +6,8 @@ workspace :wifidebugger, File.dirname(__FILE__) do |w|
       			ldflags:['-Wl,--entry,ResetISR', '-Wl,--gc-sections']
     		)
 
-	w.add_project('cc3200-sdk')
+	w.add_project('lib/cc3200-sdk/driverlib')
+	w.add_project('lib/freertos')
 	w.add_project('testapp')
 	w.add_project('wifidebugger')
 
