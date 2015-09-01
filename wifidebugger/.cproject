@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
 	<storageModule moduleId="org.eclipse.cdt.core.settings">
-		<cconfiguration id="0.673698446">
-			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="0.673698446" moduleId="org.eclipse.cdt.core.settings" name="Default">
+		<cconfiguration id="0.1185080347">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="0.1185080347" moduleId="org.eclipse.cdt.core.settings" name="Default">
 				<externalSettings/>
 				<extensions>
 					<extension id="org.eclipse.cdt.core.VCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
@@ -14,62 +14,50 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-<<<<<<< HEAD
-				<configuration buildProperties="" description="" id="0.673698446" name="Default" parent="org.eclipse.cdt.build.core.prefbase.cfg">
-					<folderInfo id="0.673698446." name="/" resourcePath="">
-						<toolChain id="org.eclipse.cdt.build.core.prefbase.toolchain.835929766" name="No ToolChain" resourceTypeBasedDiscovery="false" superClass="org.eclipse.cdt.build.core.prefbase.toolchain">
-							<targetPlatform id="org.eclipse.cdt.build.core.prefbase.toolchain.835929766.1172087247" name=""/>
-							<builder arguments="wifidebugger:wifidebugger:Debug" buildPath="${workspace_loc:/wifidebugger}/../" command="mtbuild" id="org.eclipse.cdt.build.core.settings.default.builder.1199238953" incrementalBuildTarget="" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="org.eclipse.cdt.build.core.settings.default.builder"/>
-							<tool id="org.eclipse.cdt.build.core.settings.holder.libs.1710289091" name="holder for library settings" superClass="org.eclipse.cdt.build.core.settings.holder.libs"/>
-							<tool id="org.eclipse.cdt.build.core.settings.holder.216398390" name="Assembly" superClass="org.eclipse.cdt.build.core.settings.holder">
-								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.1367460890" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/inc"/>
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/driverlib"/>
-=======
-				<configuration buildProperties="" description="" id="0.1347872352" name="Default" parent="org.eclipse.cdt.build.core.prefbase.cfg">
-					<folderInfo id="0.1347872352." name="/" resourcePath="">
-						<toolChain id="org.eclipse.cdt.build.core.prefbase.toolchain.1405467766" name="No ToolChain" resourceTypeBasedDiscovery="false" superClass="org.eclipse.cdt.build.core.prefbase.toolchain">
-							<targetPlatform id="org.eclipse.cdt.build.core.prefbase.toolchain.1405467766.1667227708" name=""/>
-							<builder arguments="wifidebugger:wifidebugger:Debug" buildPath="${workspace_loc:/wifidebugger}/../" cleanBuildTarget="clean" command="mtbuild" enabledIncrementalBuild="true" id="cdt.managedbuild.builder.gnu.cross.1312602510" incrementalBuildTarget="" keepEnvironmentInBuildfile="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
-							<tool id="org.eclipse.cdt.build.core.settings.holder.libs.527997310" name="holder for library settings" superClass="org.eclipse.cdt.build.core.settings.holder.libs"/>
-							<tool id="org.eclipse.cdt.build.core.settings.holder.1869190207" name="Assembly" superClass="org.eclipse.cdt.build.core.settings.holder">
-								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.270310081" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
->>>>>>> freertos
-									<listOptionValue builtIn="false" value="/usr/lib/arm-none-eabi/include"/>
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/inc"/>
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/driverlib"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wifidebugger/src/thirdparty/freertos/include}&quot;"/>
-								</option>
-								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1359255777" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
-							</tool>
-							<tool id="org.eclipse.cdt.build.core.settings.holder.807346763" name="GNU C++" superClass="org.eclipse.cdt.build.core.settings.holder">
-								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.1191811239" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/inc"/>
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/driverlib"/>
-									<listOptionValue builtIn="false" value="/usr/lib/arm-none-eabi/include"/>
-<<<<<<< HEAD
-=======
+				<configuration buildProperties="" description="" id="0.1185080347" name="Default" parent="org.eclipse.cdt.build.core.prefbase.cfg">
+					<folderInfo id="0.1185080347." name="/" resourcePath="">
+						<toolChain id="org.eclipse.cdt.build.core.prefbase.toolchain.1615635613" name="No ToolChain" resourceTypeBasedDiscovery="false" superClass="org.eclipse.cdt.build.core.prefbase.toolchain">
+							<targetPlatform id="org.eclipse.cdt.build.core.prefbase.toolchain.1615635613.1779468063" name=""/>
+							<builder arguments="wifidebugger:wifidebugger:Debug" buildPath="${workspace_loc:/wifidebugger}/../" command="mtbuild" enabledIncrementalBuild="true" id="org.eclipse.cdt.build.core.settings.default.builder.872789924" incrementalBuildTarget="" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="org.eclipse.cdt.build.core.settings.default.builder"/>
+							<tool id="org.eclipse.cdt.build.core.settings.holder.libs.1127193120" name="holder for library settings" superClass="org.eclipse.cdt.build.core.settings.holder.libs"/>
+							<tool id="org.eclipse.cdt.build.core.settings.holder.585107376" name="Assembly" superClass="org.eclipse.cdt.build.core.settings.holder">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.552123765" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wifidebugger/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wifidebugger/src/thirdparty/freertos/include}&quot;"/>
->>>>>>> freertos
-								</option>
-								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1521825043" languageId="org.eclipse.cdt.core.g++" languageName="GNU C++" sourceContentType="org.eclipse.cdt.core.cxxSource,org.eclipse.cdt.core.cxxHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
-							</tool>
-<<<<<<< HEAD
-							<tool id="org.eclipse.cdt.build.core.settings.holder.2049063685" name="GNU C" superClass="org.eclipse.cdt.build.core.settings.holder">
-								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.1731593927" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/inc"/>
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/driverlib"/>
-=======
-							<tool id="org.eclipse.cdt.build.core.settings.holder.1963917984" name="GNU C" superClass="org.eclipse.cdt.build.core.settings.holder">
-								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.2090138629" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
->>>>>>> freertos
 									<listOptionValue builtIn="false" value="/usr/lib/arm-none-eabi/include"/>
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/driverlib"/>
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/cc3200-sdk/inc"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wifidebugger/src/thirdparty/freertos/include}&quot;"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/inc"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/include"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/portable/GCC/ARM_CM4"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/driverlib"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/simplelink/include"/>
 								</option>
-								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1283343050" languageId="org.eclipse.cdt.core.gcc" languageName="GNU C" sourceContentType="org.eclipse.cdt.core.cSource,org.eclipse.cdt.core.cHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
+								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1031260916" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
+							</tool>
+							<tool id="org.eclipse.cdt.build.core.settings.holder.2049986259" name="GNU C++" superClass="org.eclipse.cdt.build.core.settings.holder">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.216656021" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wifidebugger/src}&quot;"/>
+									<listOptionValue builtIn="false" value="/usr/lib/arm-none-eabi/include"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/inc"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/include"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/portable/GCC/ARM_CM4"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/driverlib"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/simplelink/include"/>
+								</option>
+								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.368491355" languageId="org.eclipse.cdt.core.g++" languageName="GNU C++" sourceContentType="org.eclipse.cdt.core.cxxSource,org.eclipse.cdt.core.cxxHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
+							</tool>
+							<tool id="org.eclipse.cdt.build.core.settings.holder.1221720839" name="GNU C" superClass="org.eclipse.cdt.build.core.settings.holder">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.545415748" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wifidebugger/src}&quot;"/>
+									<listOptionValue builtIn="false" value="/usr/lib/arm-none-eabi/include"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/inc"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/include"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/portable/GCC/ARM_CM4"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/driverlib"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/simplelink/include"/>
+								</option>
+								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1849368116" languageId="org.eclipse.cdt.core.gcc" languageName="GNU C" sourceContentType="org.eclipse.cdt.core.cSource,org.eclipse.cdt.core.cHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
 						</toolChain>
 					</folderInfo>
@@ -79,14 +67,11 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="wifidebugger.null.1470669858" name="wifidebugger"/>
+		<project id="wifidebugger.null.1672448159" name="wifidebugger"/>
 	</storageModule>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		<scannerConfigBuildInfo instanceId="0.1347872352">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="0.673698446">
+		<scannerConfigBuildInfo instanceId="0.1185080347">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>

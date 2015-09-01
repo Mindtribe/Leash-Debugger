@@ -6,7 +6,7 @@ application_project :testapp, File.dirname(__FILE__) do |app|
       linker_script: 'linker.ld',
       include_paths: ['src', 'src/vendor']
     ),dependencies: [
-      'CC3200_SDK_driverlib:SDK'
+      'CC3200_SDK_driverlib:SDK', 'CC3200_SDK_inc:SDK'
     ]
 
 end

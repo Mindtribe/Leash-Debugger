@@ -38,3 +38,7 @@
 
 #Dependency files
 *.d
+
+#Eclipse
+.cproject
+.project
