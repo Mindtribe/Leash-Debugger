@@ -88,17 +88,24 @@ uint8_t wfd_hexToByte(char* src)
     return byte;
 }
 
-uint32_t wfd_hexToInt(char* src)
+int wfd_hexToInt(char* src)
 {
-    uint32_t result = 0;
+    int result = 0;
     int len = wfd_strlen(src);
+    int inv = 0;
+
+    if(src[0] == '-'){
+        inv = 1;
+        src = &(src[1]);
+        len--;
+    }
 
     for(int i=0; i<len; i++){
         if((src[i] >= '0') && (src[i] <= '9')) {result += (src[i] - '0')<<(4*(len-i-1)); }
         else if((src[i] >= 'a') && (src[i] <= 'f')) {result += (src[i] - 'a' + 10)<<(4*(len-i-1)); }
-        else {result += (src[i] - 'A' + 10)<<(4*(len-i-1));}
+        else {result += (src[i] - 'A' + 10)<<(4*(len-i-1)); }
     }
-    return result;
+    return inv ? -result : result;
 }
 
 char wfd_toUpperCaseHex(char c)

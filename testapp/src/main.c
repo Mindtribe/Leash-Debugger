@@ -37,7 +37,11 @@ struct semihostArg{
 
 static int BoardInit(void);
 void semihost_printstr(char* msg);
-uint32_t semihost_getinput(char* buf, uint32_t len);
+int semihost_getinput(char* buf, uint32_t len);
+void wfd_wordToHex(uint32_t word, char* dst);
+void wfd_byteToHex(uint8_t byte, char* dst);
+
+#define SEMIHOST_BUF_SIZE 256
 
 int main(void)
 {
@@ -47,14 +51,26 @@ int main(void)
 
     semihost_printstr("\n\nTestApp: I am alive! :)\nNow, let me echo you.\n>");
 
-    char buffer[256];
+    char buffer[SEMIHOST_BUF_SIZE];
+    int result;
 
     for(;;){
         GPIO_IF_LedToggle(MCU_RED_LED_GPIO);
 
-        semihost_getinput(buffer, 256);
-        semihost_printstr(buffer);
-        semihost_printstr("\n>");
+        result = semihost_getinput(buffer, SEMIHOST_BUF_SIZE);
+        char s_codereply[] = "Success ________:\n";
+        char f_codereply[] = "Failed ________!\n>";
+
+        if(result != -1){
+            wfd_wordToHex((uint32_t) result, &(s_codereply[8]));
+            semihost_printstr(s_codereply);
+            semihost_printstr(buffer);
+            semihost_printstr("\n>");
+        }
+        else{
+            wfd_wordToHex((uint32_t) result, &(f_codereply[7]));
+            semihost_printstr(f_codereply);
+        }
     }
 
     return 1;
@@ -87,14 +103,16 @@ void semihost_printstr(char* msg)
     return;
 }
 
-uint32_t semihost_getinput(char* buf, uint32_t len)
+int semihost_getinput(char* buf, uint32_t len)
 {
     struct semihostArg arg;
     arg.word1 = 0;
     arg.word2 = (uint32_t)buf;
     arg.word3 = len;
 
-    uint32_t response = 0;
+    for(uint32_t i=0; i<len; i++) {buf[i]=0;}
+
+    int response = 0;
 
     //set the arguments
     asm volatile("mov R0, #0x06");
@@ -107,4 +125,27 @@ uint32_t semihost_getinput(char* buf, uint32_t len)
     asm volatile("mov %[result], R0" : [result]"=r" (response));
 
     return response;
+}
+
+void wfd_wordToHex(uint32_t word, char* dst)
+{
+    wfd_byteToHex((uint8_t)(word>>24), &(dst[0]));
+    wfd_byteToHex((uint8_t)(word>>16), &(dst[2]));
+    wfd_byteToHex((uint8_t)(word>>8), &(dst[4]));
+    wfd_byteToHex((uint8_t)(word>>0), &(dst[6]));
+}
+
+void wfd_byteToHex(uint8_t byte, char* dst)
+{
+    char* hNibble = dst;
+    char* lNibble = &(dst[1]);
+    uint8_t i_lNibble, i_hNibble;
+    i_lNibble = byte%16;
+    i_hNibble = byte/16;
+
+    if(i_lNibble < 10) *lNibble = '0' + (char)i_lNibble;
+    else *lNibble = 'A' + ((char)i_lNibble-10);
+    if(i_hNibble < 10) *hNibble = '0' + (char)i_hNibble;
+    else *hNibble = 'A' + ((char)i_hNibble-10);
+    return;
 }
