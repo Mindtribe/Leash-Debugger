@@ -41,6 +41,8 @@ int semihost_getinput(char* buf, uint32_t len);
 void wfd_wordToHex(uint32_t word, char* dst);
 void wfd_byteToHex(uint8_t byte, char* dst);
 
+#define SEMIHOST_BUF_SIZE 256
+
 int main(void)
 {
     BoardInit();
@@ -49,13 +51,13 @@ int main(void)
 
     semihost_printstr("\n\nTestApp: I am alive! :)\nNow, let me echo you.\n>");
 
-    char buffer[256];
+    char buffer[SEMIHOST_BUF_SIZE];
     int result;
 
     for(;;){
         GPIO_IF_LedToggle(MCU_RED_LED_GPIO);
 
-        result = semihost_getinput(buffer, 256);
+        result = semihost_getinput(buffer, SEMIHOST_BUF_SIZE);
         char s_codereply[] = "Success ________:\n";
         char f_codereply[] = "Failed ________!\n>";
 
