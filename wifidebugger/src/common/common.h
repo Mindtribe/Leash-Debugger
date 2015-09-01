@@ -16,6 +16,8 @@
 #define RET_SUCCESS (0)
 #define RET_FAILURE (-1)
 
+#define USE_FREERTOS //required for TI's startup file
+
 #define MIN(X, Y) ((X > Y) ? Y : X)
 
 #define WFD_NAME_STRING ""\
@@ -28,5 +30,9 @@
     "Note: this is a work-in-progress.\n"\
     "Please see KNOWN_BUGS before using.\n"\
     "\n"
+
+#ifndef NULL
+#define NULL 0
+#endif
 
 #endif

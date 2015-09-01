@@ -707,7 +707,7 @@ int gdbserver_writeMemory(char* argstring)
     return RET_SUCCESS;
 }
 
-int gdbserver_loop(void)
+void gdbserver_loop_task(void* params)
 {
     while(1){
         if(!gdbserver_state.halted) gdbserver_pollTarget();
@@ -719,7 +719,8 @@ int gdbserver_loop(void)
         }
     };
 
-    return RET_SUCCESS;
+    (void)params; //avoid unused warning
+    return;
 }
 
 int gdbserver_pollTarget(void)
