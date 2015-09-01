@@ -18,7 +18,7 @@
 					<folderInfo id="0.1185080347." name="/" resourcePath="">
 						<toolChain id="org.eclipse.cdt.build.core.prefbase.toolchain.1615635613" name="No ToolChain" resourceTypeBasedDiscovery="false" superClass="org.eclipse.cdt.build.core.prefbase.toolchain">
 							<targetPlatform id="org.eclipse.cdt.build.core.prefbase.toolchain.1615635613.1779468063" name=""/>
-							<builder arguments="wifidebugger:wifidebugger:Debug" buildPath="${workspace_loc:/wifidebugger}/../" command="mtbuild" enabledIncrementalBuild="true" id="org.eclipse.cdt.build.core.settings.default.builder.872789924" incrementalBuildTarget="" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="org.eclipse.cdt.build.core.settings.default.builder"/>
+							<builder arguments="" buildPath="${workspace_loc:/wifidebugger}/../" cleanBuildTarget="clean" command="mtbuild" enabledIncrementalBuild="true" id="org.eclipse.cdt.build.core.settings.default.builder.872789924" incrementalBuildTarget="wifidebugger:wifidebugger:Debug" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="org.eclipse.cdt.build.core.settings.default.builder"/>
 							<tool id="org.eclipse.cdt.build.core.settings.holder.libs.1127193120" name="holder for library settings" superClass="org.eclipse.cdt.build.core.settings.holder.libs"/>
 							<tool id="org.eclipse.cdt.build.core.settings.holder.585107376" name="Assembly" superClass="org.eclipse.cdt.build.core.settings.holder">
 								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.552123765" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">

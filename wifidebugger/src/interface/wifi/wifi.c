@@ -20,6 +20,7 @@
 #include "wifi.h"
 #include "common.h"
 #include "error.h"
+#include "simplelink_defs.h"
 
 #define SPAWNQUEUE_SIZE (3)
 
@@ -41,8 +42,24 @@ QueueHandle_t SLSpawnQueue = NULL;
 //Handle to the spawn task
 TaskHandle_t SLSpawnTask = NULL;
 
+struct wifi_state_t wifi_state ={
+    .version = {
+        .NwpVersion = {0}
+    },
+    .status = 0,
+    .station_IP = 0
+};
+
 int WifiInit(void)
 {
+    if(WifiStartSpawnTask() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    return RET_SUCCESS;
+}
+
+int WifiDeinit(void)
+{
+    if(WifiDeleteSpawnTask() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     return RET_SUCCESS;
 }
 
@@ -83,9 +100,107 @@ int WifiStartSpawnTask(void)
     return RET_SUCCESS;
 }
 
+int WifiStartDefaultSettings(void)
+{
+    long retval = -1;
+    unsigned char status = 0;
+    unsigned char val = 1;
+
+    unsigned char config, config_len;
+
+    //filters
+    _WlanRxFilterOperationCommandBuff_t filter_mask = {
+        .Padding = {0}
+    };
+
+    //initialize the SimpleLink API
+    retval = sl_Start(0,0,0);
+    if(retval < 0){RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //set device in station mode
+    if(retval != ROLE_STA){
+        if(retval == ROLE_AP){ //we need to wait for an event before doing anything
+            while(!IS_IP_ACQUIRED(status)){};
+        }
+        //change mode to Station
+        retval = sl_WlanSetMode(ROLE_STA);
+        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+        //restart
+        retval = sl_Stop(0xFF);
+        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+        retval = sl_Start(0,0,0);
+        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+        if(retval != ROLE_STA) {RETURN_ERROR(ERROR_UNKNOWN);}
+    }
+
+    //get SimpleLink version
+    config = SL_DEVICE_GENERAL_VERSION;
+    config_len = sizeof(SlVersionFull);
+    retval = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &config, &config_len, (unsigned char*)&wifi_state.version);
+    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //default connection policy
+    retval = sl_WlanPolicySet(SL_POLICY_CONNECTION,
+            SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
+            NULL,
+            0);
+    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //delete profiles
+    retval = sl_WlanProfileDel(0xFF);
+    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //disconnect
+    retval = sl_WlanDisconnect();
+    if(retval == 0){ //not yet disconnected
+        while(IS_CONNECTED(status)){};
+    }
+
+    //Enable DHCP client
+    retval = sl_NetCfgSet(SL_IPV4_STA_P2P_CL_DHCP_ENABLE,1,1,&val);
+    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //Disable scan policy
+    config = SL_SCAN_POLICY(0);
+    retval = sl_WlanPolicySet(SL_POLICY_SCAN, config, NULL, 0);
+    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //Set Tx power level for station mode
+    //Number between 0-15, as dB offset from max power - 0 will set max power
+    val = 0;
+    retval = sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+            WLAN_GENERAL_PARAM_OPT_STA_TX_POWER, 1, (unsigned char *)&val);
+    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+
+    // Set PM policy to normal
+    retval = sl_WlanPolicySet(SL_POLICY_PM , SL_NORMAL_POLICY, NULL, 0);
+    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+
+    // Unregister mDNS services
+    retval = sl_NetAppMDNSUnRegisterService(0, 0);
+    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+
+    // Remove  all 64 filters (8*8)
+    memset(filter_mask.FilterIdMask, 0xFF, 8);
+    retval = sl_WlanRxFilterSet(SL_REMOVE_RX_FILTER, (uint8_t*)&filter_mask,
+            sizeof(_WlanRxFilterOperationCommandBuff_t));
+    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+
+    retval = sl_Stop(SL_STOP_TIMEOUT);
+    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+
+    //TODO: (re)set state variables
+
+    return RET_SUCCESS;
+}
+
 void Task_WifiScan(void* params)
 {
     (void)params; //avoid unused error
+
+    if(WifiStartDefaultSettings() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+
     return;
 }
 
@@ -104,7 +219,7 @@ void Task_SLSpawn(void *params)
         ret = xQueueReceive( SLSpawnQueue, &Msg, portMAX_DELAY );
         if(ret == pdPASS)
         {
-                Msg.pEntry(Msg.pValue);
+            Msg.pEntry(Msg.pValue);
         }
     }
 }

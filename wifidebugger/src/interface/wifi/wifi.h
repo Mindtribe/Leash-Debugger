@@ -11,9 +11,22 @@
 #ifndef WIFI_H_
 #define WIFI_H_
 
+#include "simplelink.h"
+
+#define WIFI_TASK_STACK_SIZE 2048
+#define WIFI_TASK_PRIORITY 2
+
+typedef struct wifi_state_t {
+    SlVersionFull version;
+    unsigned char status;
+    unsigned long station_IP;
+}wifi_state_t;
+extern struct wifi_state_t wifi_state;
+
 int WifiInit(void); //initialize and start spawn task
 int WifiDeleteSpawnTask(void); //delete the spawn task and queue
 int WifiStartSpawnTask(void); //create the spawn task and queue
+int WifiStartDefaultSettings(void); //go to default state and given mode
 
 //FreeRTOS tasks
 void Task_WifiScan(void* params); //scan for WiFi networks

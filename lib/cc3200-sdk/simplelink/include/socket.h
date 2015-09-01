@@ -342,6 +342,7 @@ extern "C" {
 
 #ifdef SL_INC_STD_BSD_API_NAMING
 
+#undef FD_SETSIZE
 #define FD_SETSIZE                          SL_FD_SETSIZE        
                                                                        
 #define SOCK_STREAM                         SL_SOCK_STREAM        
@@ -409,11 +410,16 @@ extern "C" {
 #define sockaddr_in                         SlSockAddrIn_t
                                                                        
 #define MSG_DONTWAIT                        SL_MSG_DONTWAIT       
-                                                                       
+             
+#undef FD_SET                                                       
 #define FD_SET                              SL_FD_SET  
-#define FD_CLR                              SL_FD_CLR  
+#undef FD_CLR  
+#define FD_CLR                              SL_FD_CLR
+#undef FD_ISSET    
 #define FD_ISSET                            SL_FD_ISSET
+#undef FD_ZERO  
 #define FD_ZERO                             SL_FD_ZERO 
+#undef fd_set
 #define fd_set                              SlFdSet_t    
 
 #define socket                              sl_Socket

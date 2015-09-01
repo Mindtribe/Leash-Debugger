@@ -33,6 +33,7 @@
 #define GDBSERVER_POLL_INTERVAL 100
 
 #define GDBSERVER_TASK_STACK_SIZE 2048
+#define GDBSERVER_TASK_PRIORITY 1
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target);
 
