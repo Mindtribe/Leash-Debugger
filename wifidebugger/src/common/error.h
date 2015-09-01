@@ -32,6 +32,4 @@ void error_wait(char* file, int line, uint32_t error_code);
 void error_add(char* file, int line, uint32_t error_code);
 void clear_errors(void);
 
-void vApplicationMallocFailedHook(); //for FreeRTOS memory management
-
 #endif
