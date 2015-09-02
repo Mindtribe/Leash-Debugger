@@ -48,6 +48,7 @@
 #include "target_al.h"
 #include "cc3200.h"
 #include "gdbserver.h"
+#include "wifi.h"
 
 extern void (* const g_pfnVectors[])(void);
 
@@ -65,16 +66,29 @@ int main(void)
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
-    gdbserver_init(&TermPutChar, &TermGetChar, &TermCharsAvailable, &cc3200_interface);
+    if(gdbserver_init(&TermPutChar, &TermGetChar, &TermCharsAvailable, &cc3200_interface)
+            == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(WifiInit() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+
     mem_log_add("Init",0);
+
+    //add task for WiFi scan
+    xTaskCreate(Task_WifiScan,
+                "WiFi Scan",
+                WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+                0,
+                WIFI_TASK_PRIORITY,
+                0);
+
 
     //add task for GDBServer
     xTaskCreate(gdbserver_loop_task,
             "GDBServer Main Loop",
-            GDBSERVER_TASK_STACK_SIZE,
+            GDBSERVER_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
             0,
-            1,
+            GDBSERVER_TASK_PRIORITY,
             0);
+
 
     //start FreeRTOS scheduler
     vTaskStartScheduler();

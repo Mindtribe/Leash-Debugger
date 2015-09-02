@@ -41,3 +41,7 @@
 
 #map files
 *.map
+
+#Eclipse
+.cproject
+.project
