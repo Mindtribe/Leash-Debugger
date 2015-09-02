@@ -99,7 +99,20 @@ int cc3200_init(void)
 
 int cc3200_reset(void)
 {
-    return cc3200_init();
+    jtag_scan_init();
+
+    //ICEPICK router detection and configuration
+    if(cc3200_icepick_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_connect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_configure() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    mem_log_add("CC3200 - ICEPICK OK.", 0);
+
+    //warm reset
+    if(cc3200_icepick_warm_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    mem_log_add("CC3200 - Reset done.", 0);
+
+    return RET_SUCCESS;
 }
 
 int cc3200_halt(void)

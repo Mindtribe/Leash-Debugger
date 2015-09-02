@@ -576,9 +576,12 @@ int gdbserver_processPacket(void)
 
 
         break;
+        case 'k': //kill request - we interpret this to be a system reset.
+            if((*gdbserver_state.target->target_reset)() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            gdbserver_state.halted = 0; //assume we are no longer halted after reset
+            break;
         default:
             gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
-            //error_add(__FILE__,__LINE__, gdbserver_state.cur_packet[0]);
             break;
     }
 
