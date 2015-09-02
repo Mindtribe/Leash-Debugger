@@ -10,10 +10,9 @@
 
 #include "mem_log.h"
 
-#include "uart_if.h"
+#include <string.h>
 
-#include "wfd_string.h"
-#include "wfd_conversions.h"
+#include "uart_if.h"
 #include "gdb_helpers.h"
 
 #define MEM_LOG_ENTRIES 512
@@ -22,7 +21,6 @@
 
 struct mem_log_entry{
     char msg[MSG_MAX];
-    char codechar[CODECHAR_MAX];
     int code;
 };
 
@@ -49,24 +47,11 @@ void mem_log_clear(void){
 
 void mem_log_add(char* msg, int code){
     if(mem_log_state.cur_entry < MEM_LOG_ENTRIES){
-        wfd_strncpy(mem_log_state.log[mem_log_state.cur_entry].msg, msg, MSG_MAX);
-        wfd_itoa(code, mem_log_state.log[mem_log_state.cur_entry].codechar);
+        strncpy(mem_log_state.log[mem_log_state.cur_entry].msg, msg, MSG_MAX);
         mem_log_state.log[mem_log_state.cur_entry].code = code;
     }
     else mem_log_state.overflow = 1;
     mem_log_state.cur_entry++;
-
-    char msgs[MSG_MAX];
-    int msgi = 0;
-    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), "O Log:  ", MSG_MAX-msgi-1);                                            }
-    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), mem_log_state.log[mem_log_state.cur_entry-1].msg, MSG_MAX-msgi-1);      }
-    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), " (code ", MSG_MAX-msgi-1);                                             }
-    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), mem_log_state.log[mem_log_state.cur_entry-1].codechar, MSG_MAX-msgi-1); }
-    if(msgi<MSG_MAX-1){msgi += wfd_strncpy(&(msgs[msgi]), ")\n\r", MSG_MAX-msgi-1);                                               }
-
-    if(!gdb_helpers_isInitialized()){
-        Message(&(msgs[2]));
-    }
 
     return;
 }
