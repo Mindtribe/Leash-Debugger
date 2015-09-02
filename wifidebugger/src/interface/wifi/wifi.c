@@ -18,7 +18,6 @@
 
 //project includes
 #include "wifi.h"
-#include "common.h"
 #include "error.h"
 #include "simplelink_defs.h"
 
@@ -233,6 +232,9 @@ void Task_WifiScan(void* params)
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, policy, NULL, 0);
     if(retval<0) {error_add(__FILE__,__LINE__,ERROR_UNKNOWN); return;}
 
+    //exit (delete this task)
+    vTaskDelete(NULL);
+
     return;
 }
 
@@ -254,4 +256,9 @@ void Task_SLSpawn(void *params)
             Msg.pEntry(Msg.pValue);
         }
     }
+
+    //exit (delete this task)
+    vTaskDelete(NULL);
+
+    return;
 }

@@ -9,7 +9,7 @@ application_project :wifidebugger, File.dirname(__FILE__) do |app|
         'src/gdbserver', 'src/thirdparty', 'src/thirdparty/freertos', 'src/thirdparty/freertos/include', 'src/thirdparty/freertos/portable/GCC/ARM_CM4',
         'src/interface/wifi']
     ),dependencies: [
-      'CC3200_SDK_simplelink:SDK', 'CC3200_SDK_driverlib:SDK', 'FreeRTOS:Debug', 'CC3200_SDK_inc:SDK'
+      'CC3200_SDK_simplelink:SDK', 'CC3200_SDK_driverlib:SDK', 'FreeRTOS:Debug', 'CC3200_SDK_inc:SDK', 'CC3200_SDK_oslib:SDK'
     ]
 
 end

@@ -53,7 +53,7 @@
 #include "rom_map.h"
 
 // OS includes
-#if defined(USE_TIRTOS) || defined(USE_FREERTOS) || defined(SL_PLATFORM_MULTI_THREADED)
+#ifdef USE_FREERTOS
 #include <stdlib.h>
 #include "osi.h"
 #endif
@@ -381,7 +381,7 @@ GPIO_IF_ConfigureNIntEnable(unsigned int uiGPIOPort,
     //
     // Register Interrupt handler
     //
-#if defined(USE_TIRTOS) || defined(USE_FREERTOS) || defined(SL_PLATFORM_MULTI_THREADED) 
+#ifdef USE_FREERTOS
     // USE_TIRTOS: if app uses TI-RTOS (either networking/non-networking)
     // USE_FREERTOS: if app uses Free-RTOS (either networking/non-networking)
     // SL_PLATFORM_MULTI_THREADED: if app uses any OS + networking(simplelink)
