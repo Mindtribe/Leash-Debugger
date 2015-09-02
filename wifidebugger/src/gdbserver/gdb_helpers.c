@@ -8,11 +8,11 @@
     Target(s):  ISO/IEC 9899:1999 (target independent)
     --------------------------------------------------------- */
 
+#include "gdb_helpers.h"
 #include <stdint.h>
+#include <stdio.h>
 
 #include "error.h"
-#include "gdb_helpers.h"
-#include "wfd_conversions.h"
 
 struct gdb_helpers_state_t{
     int initialized;
@@ -90,8 +90,8 @@ void gdb_helpers_TransmitPacket(char* packet_data)
     }
     gdb_helpers_state.pPutChar('#');
     //put the checksum
-    char chksm_nibbles[2];
-    wfd_byteToHex(checksum, chksm_nibbles);
+    char chksm_nibbles[3];
+    sprintf(chksm_nibbles, "%02X", checksum);
     gdb_helpers_state.pPutChar(chksm_nibbles[0]);
     gdb_helpers_state.pPutChar(chksm_nibbles[1]);
 

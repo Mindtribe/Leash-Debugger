@@ -41,7 +41,6 @@
 #include "cc3200_jtagdp.h"
 #include "cc3200_core.h"
 #include "jtag_scan.h"
-#include "common.h"
 #include "error.h"
 #include "mem_log.h"
 #include "misc_hal.h"

@@ -8,6 +8,8 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
+#include "jtag_pinctl.h"
+
 #include <stdint.h>
 
 #include "hw_types.h"
@@ -16,9 +18,7 @@
 #include "rom_map.h"
 #include "gpio.h"
 
-#include "jtag_pinctl.h"
 #include "jtag_statemachine.h"
-#include "common.h"
 #include "error.h"
 
 //state struct

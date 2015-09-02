@@ -8,21 +8,24 @@
     Target(s):  ISO/IEC 9899:1999 (target independent)
     --------------------------------------------------------- */
 
+#include "error.h"
+
 #include "gpio_if.h"
 #include "uart_if.h"
 
 #include "gdb_helpers.h"
-#include "error.h"
-#include "common.h"
-#include "wfd_conversions.h"
-#include "wfd_string.h"
+
+#include <string.h>
+
+#define ERROR_CODECHAR_MAX 20
+#define ERROR_LINECHAR_MAX 10
+#define FILE_MAX 100
+#define MAX_ERROR_LOGS 20
 
 struct error_log{
     int line;
     uint32_t code;
     char file[FILE_MAX];
-    char codechar[ERROR_CODECHAR_MAX];
-    char linechar[ERROR_LINECHAR_MAX];
 };
 
 struct error_state_t{
@@ -48,35 +51,13 @@ void error_wait(char* file, int line, uint32_t error_code)
 void error_add(char* file, int line, uint32_t error_code)
 {
     if(error_state.cur_error<MAX_ERROR_LOGS){
-        wfd_strncpy(error_state.errors[error_state.cur_error].file, file, FILE_MAX);
-        wfd_itoa(error_code, error_state.errors[error_state.cur_error].codechar);
-        wfd_itoa(line, error_state.errors[error_state.cur_error].linechar);
+        strncpy(error_state.errors[error_state.cur_error].file, file, FILE_MAX);
         error_state.errors[error_state.cur_error].line = line;
         error_state.errors[error_state.cur_error].code = error_code;
 
         error_state.cur_error++;
     }
     else error_state.overflow = 1;
-
-    char msg[100];
-    int msgi = 0;
-    msgi += wfd_strncpy(&(msg[msgi]), "O Error ", 100);
-    msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].codechar, 100);
-    msgi += wfd_strncpy(&(msg[msgi]), " @ ", 100);
-    msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].file, 100);
-    msgi += wfd_strncpy(&(msg[msgi]), ":", 100);
-    msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].linechar, 100);
-    //msgi += wfd_strncpy(&(msg[msgi]), "\n\r", 100);
-
-    /*
-    if(!gdb_helpers_isInitialized()){
-        Message(&(msg[2]));
-        Message("\n\r");
-    }
-    else{
-        gdb_helpers_TransmitPacket(msg);
-    }
-    */
 
     return;
 }

@@ -8,13 +8,64 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
-#include <stdint.h>
 
 #include "cc3200_jtagdp.h"
+
+#include <stdint.h>
+
 #include "jtag_scan.h"
-#include "common.h"
 #include "error.h"
 #include "mem_log.h"
+
+//instruction register
+#define CC3200_JTAGDP_IR_ABORT 0x08
+#define CC3200_JTAGDP_IR_DPACC 0x0A
+#define CC3200_JTAGDP_IR_APACC 0x0B
+#define CC3200_JTAGDP_IR_IDCODE 0x0E
+#define CC3200_JTAGDP_IR_BYPASS 0x0F
+#define CC3200_JTAGDP_IR_LEN 4
+
+//data register
+#define CC3200_JTAGDP_IDCODE_LEN 32
+#define CC3200_JTAGDP_DPACC_LEN 35
+#define CC3200_JTAGDP_APACC_LEN 35
+
+//properties
+#define CC3200_JTAGDP_DESIGNER_ARM 0x23B
+
+//misc
+#define CC3200_JTAGDP_OKFAULT 0x02
+#define CC3200_JTAGDP_WAIT 0x01
+#define CC3200_JTAGDP_ACC_RETRIES 5
+#define CC3200_JTAGDP_PWRUP_RETRIES 50
+
+//JTAG-DP registers
+#define CC3200_JTAGDP_REG_CSR 0x04
+#define CC3200_JTAGDP_REG_ABORT 0x00
+
+//control/status register
+#define CC3200_JTAGDP_CSYSPWRUPACK (1<<31)
+#define CC3200_JTAGDP_CSYSPWRUPREQ (1<<30)
+#define CC3200_JTAGDP_CDBGPWRUPACK (1<<29)
+#define CC3200_JTAGDP_CDBGPWRUPREQ (1<<28)
+#define CC3200_JTAGDP_CDBGRSTACK (1<<27)
+#define CC3200_JTAGDP_CDBGRSTREQ (1<<26)
+#define CC3200_JTAGDP_TRNCNT_OFFSET 12
+#define CC3200_JTAGDP_TRNCNT_MASK (0x3FF<<CC3200_JTAGDP_TRNCNT_OFFSET)
+#define CC3200_JTAGDP_MASKLANE_OFFSET 8
+#define CC3200_JTAGDP_MASKLANE_MASK (0xF<<CC3200_JTAGDP_MASKLANE_OFFSET)
+#define CC3200_JTAGDP_WDATAERR (1<<7)
+#define CC3200_JTAGDP_READOK (1<<6)
+#define CC3200_JTAGDP_STICKYERR (1<<5)
+#define CC3200_JTAGDP_STICKYCMP (1<<4)
+#define CC3200_JTAGDP_TRNMODE_OFFSET 2
+#define CC3200_JTAGDP_TRNMODE_MASK (0x03<<CC3200_JTAGDP_TRNMODE_OFFSET)
+#define CC3200_JTAGDP_STICKYORUN (1<<1)
+#define CC3200_JTAGDP_ORUNDETECT (1)
+
+//MEM-AP
+#define CC3200_JTAGDP_AP_IDCODE_BANK 0xF
+#define CC3200_JTAGDP_AP_IDCODE_REG 0x0C
 
 //this struct represents an AP connected to the JTAG-DP.
 struct cc3200_jtagdp_ap{

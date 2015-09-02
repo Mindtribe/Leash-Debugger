@@ -13,17 +13,15 @@
  *
  */
 
+#include <stdint.h>
+
 #ifndef ERROR_H_
 #define ERROR_H_
 
-#include "common.h"
-
 #define ERROR_UNKNOWN 1
 
-#define ERROR_CODECHAR_MAX 20
-#define ERROR_LINECHAR_MAX 10
-#define FILE_MAX 100
-#define MAX_ERROR_LOGS 20
+#define RET_SUCCESS (0)
+#define RET_FAILURE (-1)
 
 #define RETURN_ERROR(X) {error_add(__FILE__,__LINE__,X); return RET_FAILURE;}
 #define WAIT_ERROR(X) {error_wait(__FILE__,__LINE__,X);}

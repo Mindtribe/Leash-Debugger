@@ -8,18 +8,34 @@
     Target(s):  ISO/IEC 9899:1999 (target independent)
     --------------------------------------------------------- */
 
-#include <signal.h>
-
 #include "gdbserver.h"
+
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+
 #include "target_al.h"
+
 #include "gdb_helpers.h"
 #include "breakpoint.h"
-#include "common.h"
 #include "error.h"
 #include "mem_log.h"
 #include "special_chars.h"
-#include "wfd_conversions.h"
-#include "wfd_string.h"
+#include "crc32.h"
+
+#define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
+#define GDBSERVER_KEEP_CHARS_NUM 128 //for debugging: number of chars to keep track of
+#define GDBSERVER_LOG_PACKETS
+
+//note: keep <256 or change PacketSize response in gdbserver
+#define GDBSERVER_MAX_PACKET_LEN_RX 256
+#define GDBSERVER_MAX_PACKET_LEN_TX 256
+
+#define GDBSERVER_MAX_BLOCK_ACCESS 256
+#define GDBSERVER_NUM_BKPT 256
+#define GDBSERVER_POLL_INTERVAL 100
 
 #ifdef GDBSERVER_KEEP_CHARS
 char lastChars[GDBSERVER_KEEP_CHARS_NUM];
@@ -31,6 +47,18 @@ enum gdbserver_packet_phase{
     PACKET_DATA,
     PACKET_CHECKSUM
 };
+
+#define WFD_NAME_STRING ""\
+        "\n"\
+        "------------------------------------------\n"\
+        "CC3200 Wi-Fi Debugger v0.1\n"\
+        "Copyright 2015, MindTribe inc.\n"\
+        "------------------------------------------\n"\
+        "\n"\
+        "Note: this is a work-in-progress.\n"\
+        "Please see KNOWN_BUGS before using.\n"\
+                "\n"
+
 
 //NOTE: keep this enum and the following const array synced so that each query type corresponds to its string.
 enum gdbserver_query_name{
@@ -173,8 +201,8 @@ void gdbserver_TransmitPacket(char* packet_data)
     }
     gdb_helpers_PutChar('#');
     //put the checksum
-    char chksm_nibbles[2];
-    wfd_byteToHex(checksum, chksm_nibbles);
+    char chksm_nibbles[3];
+    sprintf(chksm_nibbles, "%02X", checksum);
     gdb_helpers_PutChar(chksm_nibbles[0]);
     gdb_helpers_PutChar(chksm_nibbles[1]);
 
@@ -198,7 +226,7 @@ void gdbserver_TransmitDebugMsgPacket(char* packet_data)
     gdb_helpers_PutChar('O');
     checksum += 'O';
     for(int i=0; packet_data[i] != 0; i++){
-        wfd_byteToHex((uint8_t)packet_data[i], hexval);
+        sprintf(hexval, "%02X", (uint8_t)packet_data[i]);
         gdb_helpers_PutChar(hexval[0]);
         gdb_helpers_PutChar(hexval[1]);
         checksum += hexval[0];
@@ -206,8 +234,8 @@ void gdbserver_TransmitDebugMsgPacket(char* packet_data)
     }
     gdb_helpers_PutChar('#');
     //put the checksum
-    char chksm_nibbles[2];
-    wfd_byteToHex(checksum, chksm_nibbles);
+    char chksm_nibbles[3];
+    sprintf(chksm_nibbles, "%02X", checksum);
     gdb_helpers_PutChar(chksm_nibbles[0]);
     gdb_helpers_PutChar(chksm_nibbles[1]);
 
@@ -239,7 +267,7 @@ void gdbserver_Interrupt(uint8_t signal)
     gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
     char reply[4];
     reply[0] = 'S';
-    wfd_byteToHex(signal, &(reply[1]));
+    sprintf(&(reply[1]), "%02X", signal);
     reply[3] = 0;
     gdbserver_TransmitPacket(reply);
     return;
@@ -292,7 +320,7 @@ int gdbserver_processChar(void)
                 //gdbserver_reset_error(__LINE__, c); break; //invalid character at this point.
                 break;
             case PACKET_CHECKSUM:
-                if(!wfd_isHex(c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
+                if(!isxdigit((int)c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
                 if(gdbserver_state.cur_packet_index == 0) {
                     gdbserver_state.cur_checksum[0] = c;
                     gdbserver_state.cur_packet_index++;
@@ -332,7 +360,7 @@ enum gdbserver_query_name gdbserver_getGeneralQueryName(char* query)
 
     //enumerate the query
     for(enum gdbserver_query_name i = 0; i<QUERY_MAX; i++){
-        if(wfd_stringsEqual(queryName, (char*) gdbserver_query_strings[i])){
+        if(strcmp(queryName, (const char*)gdbserver_query_strings[i]) == 0){
             return (enum gdbserver_query_name) i; //found it
         }
     }
@@ -352,10 +380,7 @@ int gdbserver_processGeneralQuery(char* queryString)
 
     switch(qname){
     case QUERY_SUPPORTED: //ask whether certain packet types are supported
-        wfd_strncpy(response, "PacketSize=xxxx", 15);
-        wfd_byteToHex((uint8_t)GDBSERVER_MAX_PACKET_LEN_RX, &(response[13]));
-        wfd_byteToHex((uint8_t)(GDBSERVER_MAX_PACKET_LEN_RX/256), &(response[11]));
-        response[15]=0;
+        sprintf(response, "PacketSize=%04X", GDBSERVER_MAX_PACKET_LEN_RX);
         gdbserver_TransmitPacket(response);
         break;
     case QUERY_TSTATUS: //ask whether a trace experiment is currently running.
@@ -387,7 +412,6 @@ int gdbserver_processGeneralQuery(char* queryString)
 
 void gdbserver_sendInfo(void)
 {
-    //gdbserver_TransmitFileIOWrite(0, WFD_NAME_STRING, wfd_strlen(WFD_NAME_STRING));
     gdbserver_TransmitDebugMsgPacket(WFD_NAME_STRING);
 
     return;
@@ -396,8 +420,10 @@ void gdbserver_sendInfo(void)
 int gdbserver_processPacket(void)
 {
     //check the checksum
-    if(wfd_hexToByte(gdbserver_state.cur_checksum) != gdb_helpers_getChecksum(gdbserver_state.cur_packet)){
-        gdbserver_reset_error(__LINE__, wfd_hexToByte(gdbserver_state.cur_checksum));
+    unsigned int checksum;
+    sscanf(gdbserver_state.cur_checksum, "%02X", &checksum);
+    if((uint8_t)checksum != gdb_helpers_getChecksum(gdbserver_state.cur_packet)){
+        gdbserver_reset_error(__LINE__, (uint8_t)strtol(gdbserver_state.cur_checksum, NULL, 16));
         gdb_helpers_Nack();
         return RET_SUCCESS;
     }
@@ -456,7 +482,7 @@ int gdbserver_processPacket(void)
         }
         break;
     case 'c': //continue
-        if(wfd_strlen(gdbserver_state.cur_packet) != 1){
+        if(strlen(gdbserver_state.cur_packet) != 1){
             //there is an address to go to. unsupported
             error_add(__FILE__,__LINE__,0);
             gdbserver_TransmitPacket("E0");
@@ -466,7 +492,7 @@ int gdbserver_processPacket(void)
         }
         break;
     case 's': //single step
-        if(wfd_strlen(gdbserver_state.cur_packet) != 1){
+        if(strlen(gdbserver_state.cur_packet) != 1){
             //there is an address to go to. unsupported
             error_add(__FILE__,__LINE__,0);
             gdbserver_TransmitPacket("E0");
@@ -477,8 +503,8 @@ int gdbserver_processPacket(void)
             gdbserver_TransmitPacket("E0");
         }
         gdbserver_state.halted = 1; //still halted
-        char reply[4] = "Sxx";
-        wfd_byteToHex(SIGTRAP, &(reply[1]));
+        char reply[4];
+        sprintf(reply, "S%02X", SIGTRAP);
         gdbserver_TransmitPacket(reply);
         break;
     case 'F': //reply to File I/O
@@ -511,7 +537,7 @@ int gdbserver_processPacket(void)
             break;
         case SEMIHOST_READCONSOLE:
             //handle first argument: return code.
-            return_code = wfd_hexToInt(&(gdbserver_state.cur_packet[arg_locations[0]+1]));
+            sscanf(&(gdbserver_state.cur_packet[arg_locations[0]+1]), "%X", (unsigned int*)&return_code);
             if(return_code == -1){ //error
                 if((*gdbserver_state.target->target_write_register)(0, (uint32_t)return_code) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
             }
@@ -571,8 +597,8 @@ int gdbserver_readMemory(char* argstring)
         if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no comma found
     }
 
-    uint32_t addr = wfd_hexToInt(addrstring);
-    uint32_t len = wfd_hexToInt(lenstring);
+    uint32_t addr = strtol(addrstring, NULL, 16);
+    uint32_t len = strtol(lenstring, NULL, 16);
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -583,7 +609,7 @@ int gdbserver_readMemory(char* argstring)
     char retstring[GDBSERVER_MAX_PACKET_LEN_TX];
     uint32_t i;
     for(i=0; i<len; i++){
-        wfd_byteToHex(data[i], &(retstring[i*2]));
+        sprintf(&(retstring[i*2]), "%02X", data[i]);
     }
     retstring[i*2] = 0; //terminate
 
@@ -640,25 +666,32 @@ int gdbserver_doMemCRC(char* argstring)
         if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no comma found
     }
 
-    uint32_t addr = wfd_hexToInt(addrstring);
-    uint32_t len = wfd_hexToInt(lenstring);
+    uint32_t addr = strtol(addrstring, NULL, 16);
+    uint32_t len = strtol(lenstring, NULL, 16);
     uint32_t bytes_left = len;
 
-    unsigned long long crc32 = 0xFFFFFFFF;
+    unsigned long long crc = 0xFFFFFFFF;
 
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
     while(bytes_left){
-        if((*gdbserver_state.target->target_mem_block_read)(addr, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //get some bytes
-        crc32 = wfd_crc32(data, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), crc32);
-        bytes_left-=MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left);
+        if((*gdbserver_state.target->target_mem_block_read)(addr,
+                (GDBSERVER_MAX_BLOCK_ACCESS < bytes_left) ? GDBSERVER_MAX_BLOCK_ACCESS : bytes_left,
+                        data)
+                        == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //get some bytes
+        crc = crc32(data,
+                (GDBSERVER_MAX_BLOCK_ACCESS < bytes_left) ? GDBSERVER_MAX_BLOCK_ACCESS : bytes_left,
+                        crc);
+        bytes_left-= (GDBSERVER_MAX_BLOCK_ACCESS < bytes_left) ? GDBSERVER_MAX_BLOCK_ACCESS : bytes_left;
         addr+=GDBSERVER_MAX_BLOCK_ACCESS;
     }
 
     //construct the answer string
     char retstring[10];
-    retstring[0] = 'C';
-    wfd_wordToHex(crc32, &(retstring[1]));
-    retstring[9] = 0;
+    sprintf(retstring, "C%02X%02X%02X%02X",
+            (unsigned int) (0xFF & (crc>>24)),
+            (unsigned int) (0xFF & (crc>>16)),
+            (unsigned int) (0xFF & (crc>>8)),
+            (unsigned int) (0xFF & (crc)));
 
     gdbserver_TransmitPacket(retstring);
 
@@ -689,15 +722,17 @@ int gdbserver_writeMemory(char* argstring)
         if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no colon found
     }
 
-    uint32_t addr = wfd_hexToInt(addrstring);
-    uint32_t len = wfd_hexToInt(lenstring);
+    uint32_t addr = strtol(addrstring, NULL, 16);
+    uint32_t len = strtol(lenstring, NULL, 16);
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(len);
 
     //convert data
     for(uint32_t i=0; i<len; i++){
-        data[i] = wfd_hexToByte(&(datastring[i*2]));
+        unsigned int datai;
+        sscanf(&(datastring[i*2]), "%02X", &datai);
+        data[i] = (uint8_t) datai;
     }
 
     if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -723,6 +758,7 @@ void gdbserver_loop_task(void* params)
     return;
 }
 
+
 int gdbserver_pollTarget(void)
 {
     int old_halted = gdbserver_state.halted;
@@ -731,8 +767,6 @@ int gdbserver_pollTarget(void)
     if(!old_halted && gdbserver_state.halted){
         if(gdbserver_handleHalt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         char reply[4];
-        reply[0] = 'S';
-        reply[3] = 0;
         switch(gdbserver_state.stop_reason){
         case STOPREASON_SEMIHOSTING:
             //semihosting is special: we don't report a stop to GDB, but instead
@@ -742,11 +776,11 @@ int gdbserver_pollTarget(void)
             }
             break;
         case STOPREASON_BREAKPOINT:
-            wfd_byteToHex(SIGTRAP, &(reply[1]));
+            sprintf(reply, "S%02X", SIGTRAP);
             gdbserver_TransmitPacket(reply);
             break;
         case STOPREASON_INTERRUPT:
-            wfd_byteToHex(SIGINT, &(reply[1]));
+            sprintf(reply, "S%02X", SIGINT);
             gdbserver_TransmitPacket(reply);
             break;
         case STOPREASON_UNKNOWN:
@@ -781,11 +815,17 @@ int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
     //we must wait for the previous file I/O to finish
     if(gdbserver_state.fileio_state.fileio_waiting) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    char msg[] = "Fwrite,XX,XXXXXXXX,XXXXXXXX";
-
-    wfd_byteToHex(descriptor, &(msg[7]));
-    wfd_wordToHex((uint32_t)buf, &(msg[10]));
-    wfd_wordToHex(count, &(msg[19]));
+    char msg[28];
+    sprintf(msg, "Fwrite,%02X,%02X%02X%02X%02X,%02X%02X%02X%02X",
+            descriptor,
+            (unsigned int)(0xFF & ((uint32_t)buf>>24)),
+            (unsigned int)(0xFF & ((uint32_t)buf>>16)),
+            (unsigned int)(0xFF & ((uint32_t)buf>>8)),
+            (unsigned int)(0xFF & ((uint32_t)buf)),
+            (unsigned int)(0xFF & (count>>24)),
+            (unsigned int)(0xFF & (count>>16)),
+            (unsigned int)(0xFF & (count>>8)),
+            (unsigned int)(0xFF & (count)));
 
     gdbserver_TransmitPacket(msg);
     gdbserver_state.fileio_state.fileio_waiting = 1;
@@ -799,11 +839,17 @@ int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t count)
     //we must wait for the previous file I/O to finish
     if(gdbserver_state.fileio_state.fileio_waiting) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    char msg[] = "Fread,XX,XXXXXXXX,XXXXXXXX";
-
-    wfd_byteToHex(descriptor, &(msg[6]));
-    wfd_wordToHex((uint32_t)buf, &(msg[9]));
-    wfd_wordToHex(count, &(msg[18]));
+    char msg[28];
+    sprintf(msg, "Fread,%02X,%02X%02X%02X%02X,%02X%02X%02X%02X",
+            descriptor,
+            (unsigned int)(0xFF & ((uint32_t)buf>>24)),
+            (unsigned int)(0xFF & ((uint32_t)buf>>16)),
+            (unsigned int)(0xFF & ((uint32_t)buf>>8)),
+            (unsigned int)(0xFF & ((uint32_t)buf)),
+            (unsigned int)(0xFF & (count>>24)),
+            (unsigned int)(0xFF & (count>>16)),
+            (unsigned int)(0xFF & (count>>8)),
+            (unsigned int)(0xFF & (count)));
 
     gdbserver_TransmitPacket(msg);
     gdbserver_state.fileio_state.fileio_waiting = 1;

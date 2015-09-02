@@ -9,14 +9,22 @@
     --------------------------------------------------------- */
 
 #include "cc3200.h"
-#include "common.h"
+
+#include <stdio.h>
+
 #include "error.h"
 #include "mem_log.h"
 #include "jtag_scan.h"
 #include "cc3200_icepick.h"
 #include "cc3200_core.h"
 #include "cc3200_jtagdp.h"
-#include "wfd_conversions.h"
+
+#define CC3200_CORE_DFSR_BKPT (1<<1)
+
+#define CC3200_OPCODE_BKPT 0xBE00
+
+#define CC3200_SEMIHOST_WRITE0 0x04
+#define CC3200_SEMIHOST_READ 0x06
 
 struct target_al_interface cc3200_interface = {
     .target_init = &cc3200_init,
@@ -46,15 +54,6 @@ struct cc3200_state_t{
 struct cc3200_state_t cc3200_state = {
     .regstring = {0}
 };
-
-static void cc3200_byteToHex(uint8_t byte, char* dst)
-{
-    wfd_byteToHex(byte, dst);
-}
-
-static uint8_t cc3200_hexToByte(char* hex){
-    return wfd_hexToByte(hex);
-}
 
 int cc3200_init(void)
 {
@@ -163,12 +162,15 @@ int cc3200_get_gdb_reg_string(char* string)
 
     string[8*CC3200_REG_LAST] = 0; //zero-terminate
 
+    uint32_t *val = (uint32_t*)&reglst;
     for(enum cc3200_reg_index i=0; i<CC3200_REG_LAST; i++){
         //bytewise convert the register to hex characters.
-        cc3200_byteToHex((((uint32_t*)&reglst)[i]>>0) & 0xFF, &(string[8*i+0]));
-        cc3200_byteToHex((((uint32_t*)&reglst)[i]>>8) & 0xFF, &(string[8*i+2]));
-        cc3200_byteToHex((((uint32_t*)&reglst)[i]>>16) & 0xFF, &(string[8*i+4]));
-        cc3200_byteToHex((((uint32_t*)&reglst)[i]>>24) & 0xFF, &(string[8*i+6]));
+        sprintf(&(string[8*i]), "%02X%02X%02X%02X",
+                (unsigned int)(0xFF & (val[i]>>0)),
+                (unsigned int)(0xFF & (val[i]>>8)),
+                (unsigned int)(0xFF & (val[i]>>16)),
+                (unsigned int)(0xFF & (val[i]>>24))
+        );
     }
 
     return RET_SUCCESS;
@@ -183,10 +185,13 @@ int cc3200_put_gdb_reg_string(char* string)
         if(i==CC3200_REG_XPSR) {continue;} //TODO: writing to XPSR seems to cause faults every time. Investigate.
 
         uint32_t reg = 0; //the register value
-        reg |= (cc3200_hexToByte(&(string[i*8+0])) << 0);
-        reg |= (cc3200_hexToByte(&(string[i*8+2])) << 8);
-        reg |= (cc3200_hexToByte(&(string[i*8+4])) << 16);
-        reg |= (cc3200_hexToByte(&(string[i*8+6])) << 24);
+        unsigned int reg0, reg8, reg16, reg24;
+        sscanf(&(string[i*8]), "%02X%02X%02X%02X",
+                &reg0,
+                &reg8,
+                &reg16,
+                &reg24);
+        reg = reg0 | (reg8<<8) | (reg16<<16) | (reg24<<24);
 
         if(cc3200_core_write_reg(i, reg) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     }

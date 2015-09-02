@@ -17,11 +17,6 @@
 
 #include "target_al.h"
 
-#define CC3200_OPCODE_BKPT 0xBE00
-
-#define CC3200_SEMIHOST_WRITE0 0x04
-#define CC3200_SEMIHOST_READ 0x06
-
 extern struct target_al_interface cc3200_interface;
 
 int cc3200_init(void);
