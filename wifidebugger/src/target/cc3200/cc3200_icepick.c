@@ -25,6 +25,21 @@
 
 #define ICEPICKCODE_TYPE_C 0x1CC
 
+#define CC3200_ICEPICK_SCR_FREERUNNINGTCK (1<<12)
+#define CC3200_ICEPICK_SCR_WARMRESET (1)
+
+#define CC3200_ICEPICK_SCR_BLOCK 0
+#define CC3200_ICEPICK_SCR_REG 1
+
+#define CC3200_ICEPICK_SDTAP0_BLOCK 2
+#define CC3200_ICEPICK_SDTAP0_REG 0
+
+#define CC3200_ICEPICK_SDTAP_FORCEACTIVE (1<<3)
+#define CC3200_ICEPICK_SDTAP_FORCEPOWER (1<<6)
+#define CC3200_ICEPICK_SDTAP_INHIBITSLEEP (1<<20)
+#define CC3200_ICEPICK_SDTAP_DEBUGCONNECT (1<<13)
+#define CC3200_ICEPICK_SDTAP_TAPSELECT (1<<8)
+
 struct cc3200_icepick_properties_t{
     uint16_t IDCODE_MANUFACTURER;
     uint16_t IDCODE_PARTNUMBER;
@@ -165,29 +180,52 @@ int cc3200_icepick_configure(void)
     //note: this sequence of commands has been derived from OpenOCD's config file for icepick type c (icepick.cfg).
     //another source for them was not (yet) found.
 
-    //reason for command unclear
-    if(cc3200_icepick_router_command(1, 0, 1, 0x00100, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    //Set free-running TCK mode
+    if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SCR_BLOCK, CC3200_ICEPICK_SCR_REG,
+            CC3200_ICEPICK_SCR_FREERUNNINGTCK, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //enable power/clock of TAP
-    if(cc3200_icepick_router_command(1, 2, 0, 0x100048, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SDTAP0_BLOCK, CC3200_ICEPICK_SDTAP0_REG,
+            (CC3200_ICEPICK_SDTAP_FORCEACTIVE
+                    | CC3200_ICEPICK_SDTAP_FORCEPOWER
+                    | CC3200_ICEPICK_SDTAP_INHIBITSLEEP),
+                    JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //enable debug default mode
-    if(cc3200_icepick_router_command(1, 2, 0, 0x102048, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SDTAP0_BLOCK, CC3200_ICEPICK_SDTAP0_REG,
+            (CC3200_ICEPICK_SDTAP_FORCEACTIVE
+                    | CC3200_ICEPICK_SDTAP_FORCEPOWER
+                    | CC3200_ICEPICK_SDTAP_INHIBITSLEEP
+                    | CC3200_ICEPICK_SDTAP_DEBUGCONNECT),
+                    JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //select TAP
-    if(cc3200_icepick_router_command(1, 2, 0, 0x102148, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SDTAP0_BLOCK, CC3200_ICEPICK_SDTAP0_REG,
+            (CC3200_ICEPICK_SDTAP_FORCEACTIVE
+                    | CC3200_ICEPICK_SDTAP_FORCEPOWER
+                    | CC3200_ICEPICK_SDTAP_INHIBITSLEEP
+                    | CC3200_ICEPICK_SDTAP_DEBUGCONNECT
+                    | CC3200_ICEPICK_SDTAP_TAPSELECT),
+                    JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //Delay for at least three clock cycles in RUN/IDLE state as per ICEPICK spec.
+    jtag_scan_doStateMachine(0, 5);
 
     //set ICEPICK TAP to BYPASS
     if(jtag_scan_shiftIR(ICEPICK_IR_BYPASS, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    //wait for a while
-    delay_loop(100000);
-
-    //TODO: this shouldn't be necessary, but it has been observed that the IR only starts working again after a double dummy write for some reason.
-    //Figure out why!
-    if(jtag_scan_shiftIR(0x3FF, 10, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(jtag_scan_shiftIR(0x3FF, 10, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-
     cc3200_icepick_state.configured = 1;
+    return RET_SUCCESS;
+}
+
+int cc3200_icepick_warm_reset(void)
+{
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //Assert reset while keeping free-running TCK mode
+    if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SCR_BLOCK, CC3200_ICEPICK_SCR_REG,
+            CC3200_ICEPICK_SCR_FREERUNNINGTCK | CC3200_ICEPICK_SCR_WARMRESET,
+            JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+
     return RET_SUCCESS;
 }
