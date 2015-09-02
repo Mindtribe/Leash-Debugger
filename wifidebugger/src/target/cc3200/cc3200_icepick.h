@@ -45,6 +45,7 @@ int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32
 //configure the ICEPICK for debugging the CC3200's core TAP.
 int cc3200_icepick_configure(void);
 
-//TODO: possibly add full system reset via ICEPICK module (see ICEPICK reference manual for docs on this feature)
+//perform a "warm system reset"
+int cc3200_icepick_warm_reset(void);
 
 #endif
