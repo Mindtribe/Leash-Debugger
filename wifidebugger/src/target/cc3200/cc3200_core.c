@@ -10,9 +10,9 @@
 
 #include "cc3200_core.h"
 
+#include "../../common/log.h"
 #include "cc3200_jtagdp.h"
 #include "error.h"
-#include "mem_log.h"
 
 //properties to check
 #define CC3200_CORE_AP_IDR 0x24770011
@@ -408,8 +408,7 @@ int cc3200_core_debug_enable(void)
         if(cc3200_core_read_mem_addr(cur_addr, &temp_entry) == RET_FAILURE) {RETURN_ERROR(cur_addr);}
         cc3200_core_state.romtable[i].valid = temp_entry&1;
         if(!cc3200_core_state.romtable[i].valid || (temp_entry == 0)){
-            cc3200_core_state.rom_table_size = i;
-            mem_log_add("Number of ROM table entries found:", i);
+            LOG(LOG_VERBOSE, "[CC3200 CORE] Number of ROM table entries found: %d", i);
             break;
         }
         if(i>0) {cc3200_core_state.has_rom_table = 1; }//have read at least 1 valid entry

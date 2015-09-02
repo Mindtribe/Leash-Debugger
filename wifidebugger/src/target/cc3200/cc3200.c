@@ -11,9 +11,9 @@
 #include "cc3200.h"
 
 #include <stdio.h>
+#include "../../common/log.h"
 
 #include "error.h"
-#include "mem_log.h"
 #include "jtag_scan.h"
 #include "cc3200_icepick.h"
 #include "cc3200_core.h"
@@ -66,7 +66,7 @@ int cc3200_init(void)
     if(cc3200_icepick_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_icepick_connect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_icepick_configure() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - ICEPICK OK.", 0);
+    LOG(LOG_VERBOSE, "[CC3200] ICEPICK OK.");
 
     //ARM core debug interface (JTAG-DP) detection
     if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -74,23 +74,23 @@ int cc3200_init(void)
     if(cc3200_jtagdp_clearCSR() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     uint32_t csr;
     if(cc3200_jtagdp_checkCSR(&csr) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - JTAG-DP OK.", 0);
+    LOG(LOG_VERBOSE, "[CC3200] JTAG-DP OK.");
 
     //powerup
     if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - Powerup OK.", 0);
+    LOG(LOG_VERBOSE, "[CC3200] Powerup OK.");
 
     if(cc3200_jtagdp_readAPs() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - IDCODEs OK.", 0);
+    LOG(LOG_VERBOSE, "[CC3200] IDCODES OK.");
 
     //core module
     if(cc3200_core_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_core_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - MEM-AP OK.", 0);
+    LOG(LOG_VERBOSE, "[CC3200] MEM-AP OK.");
 
     //enable debug
     if(cc3200_core_debug_enable() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - Debug Enabled.", 0);
+    LOG(LOG_VERBOSE, "[CC3200] Debug Enabled.");
 
     return RET_SUCCESS;
 }

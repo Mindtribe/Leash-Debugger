@@ -42,11 +42,11 @@
 #include "cc3200_core.h"
 #include "jtag_scan.h"
 #include "error.h"
-#include "mem_log.h"
 #include "misc_hal.h"
 #include "gdb_helpers.h"
 #include "target_al.h"
 #include "cc3200.h"
+#include "common/log.h"
 #include "gdbserver.h"
 #include "wifi.h"
 
@@ -58,8 +58,6 @@ static int OSInit(void);
 int main(void)
 {
     BoardInit();
-
-    clear_errors();
     mem_log_clear();
 
     OSInit();
@@ -70,15 +68,13 @@ int main(void)
             == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     if(WifiInit() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
-    mem_log_add("Init",0);
-
     //add task for WiFi scan
-    xTaskCreate(Task_WifiScan,
+    /*xTaskCreate(Task_WifiScan,
                 "WiFi Scan",
                 WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
                 0,
                 WIFI_TASK_PRIORITY,
-                0);
+                0);*/
 
 
     //add task for GDBServer
