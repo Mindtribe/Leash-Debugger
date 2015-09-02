@@ -427,7 +427,9 @@ void gdbserver_sendInfo(void)
 int gdbserver_processPacket(void)
 {
     //check the checksum
-    if((uint8_t)strtol(gdbserver_state.cur_checksum, NULL, 16) != gdb_helpers_getChecksum(gdbserver_state.cur_packet)){
+    unsigned int checksum;
+    sscanf(gdbserver_state.cur_checksum, "%02X", &checksum);
+    if((uint8_t)checksum != gdb_helpers_getChecksum(gdbserver_state.cur_packet)){
         gdbserver_reset_error(__LINE__, (uint8_t)strtol(gdbserver_state.cur_checksum, NULL, 16));
         gdb_helpers_Nack();
         return RET_SUCCESS;
@@ -542,7 +544,7 @@ int gdbserver_processPacket(void)
             break;
         case SEMIHOST_READCONSOLE:
             //handle first argument: return code.
-            return_code = strtol(&(gdbserver_state.cur_packet[arg_locations[0]+1]), NULL, 16);
+            sscanf(&(gdbserver_state.cur_packet[arg_locations[0]+1]), "%X", (unsigned int*)&return_code);
             if(return_code == -1){ //error
                 if((*gdbserver_state.target->target_write_register)(0, (uint32_t)return_code) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
             }

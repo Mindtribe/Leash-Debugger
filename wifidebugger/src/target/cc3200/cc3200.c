@@ -166,10 +166,10 @@ int cc3200_get_gdb_reg_string(char* string)
     for(enum cc3200_reg_index i=0; i<CC3200_REG_LAST; i++){
         //bytewise convert the register to hex characters.
         sprintf(&(string[8*i]), "%02X%02X%02X%02X",
-                (unsigned int)(0xFF & val[i]>>0),
-                (unsigned int)(0xFF & val[i]>>8),
-                (unsigned int)(0xFF & val[i]>>16),
-                (unsigned int)(0xFF & val[i]>>24)
+                (unsigned int)(0xFF & (val[i]>>0)),
+                (unsigned int)(0xFF & (val[i]>>8)),
+                (unsigned int)(0xFF & (val[i]>>16)),
+                (unsigned int)(0xFF & (val[i]>>24))
         );
     }
 
@@ -186,7 +186,7 @@ int cc3200_put_gdb_reg_string(char* string)
 
         uint32_t reg = 0; //the register value
         unsigned int reg0, reg8, reg16, reg24;
-        sscanf(string, "%02X%02X%02X%02X",
+        sscanf(&(string[i*8]), "%02X%02X%02X%02X",
                 &reg0,
                 &reg8,
                 &reg16,
