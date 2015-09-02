@@ -29,6 +29,7 @@
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/simplelink/include"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/include"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/portable/GCC/ARM_CM4"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1531671032" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
@@ -41,6 +42,7 @@
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/simplelink/include"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/include"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/portable/GCC/ARM_CM4"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.2034068317" languageId="org.eclipse.cdt.core.g++" languageName="GNU C++" sourceContentType="org.eclipse.cdt.core.cxxSource,org.eclipse.cdt.core.cxxHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
@@ -53,6 +55,7 @@
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/simplelink/include"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/include"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/portable/GCC/ARM_CM4"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.719884203" languageId="org.eclipse.cdt.core.gcc" languageName="GNU C" sourceContentType="org.eclipse.cdt.core.cSource,org.eclipse.cdt.core.cHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>

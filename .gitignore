@@ -43,5 +43,5 @@
 *.map
 
 #Eclipse
-*.cproject
-*.project
+**/.cproject
+**/.project
