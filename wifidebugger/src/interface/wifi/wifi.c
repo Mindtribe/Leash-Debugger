@@ -198,8 +198,40 @@ int WifiStartDefaultSettings(void)
 void Task_WifiScan(void* params)
 {
     (void)params; //avoid unused error
+    long retval;
+    unsigned char policy;
+    unsigned int policy_len;
 
     if(WifiStartDefaultSettings() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+
+    retval = sl_Start(0, 0, 0);
+    if(retval<0) {error_add(__FILE__, __LINE__, ERROR_UNKNOWN); return;}
+
+    //first, delete current connection policy
+    policy = SL_CONNECTION_POLICY(0,0,0,0,0);
+    retval = sl_WlanPolicySet(SL_POLICY_CONNECTION, policy, NULL, 0);
+    if(retval<0) {error_add(__FILE__,__LINE__,ERROR_UNKNOWN); return;}
+
+    //make scan policy
+    policy = SL_SCAN_POLICY(1);
+    policy_len = 10; //10 seconds scan time
+    retval = sl_WlanPolicySet(SL_POLICY_SCAN, policy, (unsigned char*)&policy_len, sizeof(policy_len));
+    if(retval<0) {error_add(__FILE__,__LINE__,ERROR_UNKNOWN); return;}
+
+    //wait for the scan to complete
+    const TickType_t delay = 11000 / portTICK_PERIOD_MS;
+    vTaskDelay(delay);
+
+    //get the results back
+    unsigned char index = 0;
+    retval = sl_WlanGetNetworkList(index, (unsigned char)WIFI_NUM_NETWORKS, &(wifi_state.networks[index]));
+
+    //retval holds the number of networks now, and they are saved in the state.
+
+    //disable the scan
+    policy = SL_SCAN_POLICY(0);
+    retval = sl_WlanPolicySet(SL_POLICY_SCAN, policy, NULL, 0);
+    if(retval<0) {error_add(__FILE__,__LINE__,ERROR_UNKNOWN); return;}
 
     return;
 }

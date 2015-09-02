@@ -25,11 +25,11 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wifidebugger/src}&quot;"/>
 									<listOptionValue builtIn="false" value="/usr/lib/arm-none-eabi/include"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/inc"/>
-									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/include"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos/portable/GCC/ARM_CM4"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/driverlib"/>
 									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/cc3200-sdk/simplelink/include"/>
+									<listOptionValue builtIn="false" value="/home/parallels/Wi-Fi-Debug-Adapter/lib/freertos"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1031260916" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>

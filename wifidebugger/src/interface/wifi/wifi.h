@@ -15,11 +15,13 @@
 
 #define WIFI_TASK_STACK_SIZE 2048
 #define WIFI_TASK_PRIORITY 2
+#define WIFI_NUM_NETWORKS 20
 
 typedef struct wifi_state_t {
     SlVersionFull version;
     unsigned char status;
     unsigned long station_IP;
+    Sl_WlanNetworkEntry_t networks[WIFI_NUM_NETWORKS];
 }wifi_state_t;
 extern struct wifi_state_t wifi_state;
 
