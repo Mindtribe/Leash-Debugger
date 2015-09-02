@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "target_al.h"
 
@@ -165,14 +166,6 @@ struct gdbserver_state_t gdbserver_state = {
     .fileio_state = {0}
 };
 #pragma GCC diagnostic pop
-
-static int isHex(char c)
-{
-    if((c>='0') && (c<='9')) return 1;
-    if((c>='A') && (c<='F')) return 1;
-    if((c>='a') && (c<='f')) return 1;
-    return 0;
-}
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target)
 {
@@ -327,7 +320,7 @@ int gdbserver_processChar(void)
                 //gdbserver_reset_error(__LINE__, c); break; //invalid character at this point.
                 break;
             case PACKET_CHECKSUM:
-                if(!isHex(c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
+                if(!isxdigit((int)c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
                 if(gdbserver_state.cur_packet_index == 0) {
                     gdbserver_state.cur_checksum[0] = c;
                     gdbserver_state.cur_packet_index++;
@@ -764,6 +757,7 @@ void gdbserver_loop_task(void* params)
     (void)params; //avoid unused warning
     return;
 }
+
 
 int gdbserver_pollTarget(void)
 {
