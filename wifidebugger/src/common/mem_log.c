@@ -9,12 +9,16 @@
     --------------------------------------------------------- */
 
 #include "mem_log.h"
+
 #include "uart_if.h"
 
-#include "common.h"
 #include "wfd_string.h"
 #include "wfd_conversions.h"
 #include "gdb_helpers.h"
+
+#define MEM_LOG_ENTRIES 512
+#define MSG_MAX 100
+#define CODECHAR_MAX 16
 
 struct mem_log_entry{
     char msg[MSG_MAX];
@@ -62,9 +66,6 @@ void mem_log_add(char* msg, int code){
 
     if(!gdb_helpers_isInitialized()){
         Message(&(msgs[2]));
-    }
-    else{
-        //gdb_helpers_TransmitPacket(msgs); //enable to send logs to GDB terminal.
     }
 
     return;

@@ -8,14 +8,20 @@
     Target(s):  ISO/IEC 9899:1999 (target independent)
     --------------------------------------------------------- */
 
+#include "error.h"
+
 #include "gpio_if.h"
 #include "uart_if.h"
 
 #include "gdb_helpers.h"
-#include "error.h"
-#include "common.h"
+
 #include "wfd_conversions.h"
 #include "wfd_string.h"
+
+#define ERROR_CODECHAR_MAX 20
+#define ERROR_LINECHAR_MAX 10
+#define FILE_MAX 100
+#define MAX_ERROR_LOGS 20
 
 struct error_log{
     int line;
@@ -66,17 +72,6 @@ void error_add(char* file, int line, uint32_t error_code)
     msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].file, 100);
     msgi += wfd_strncpy(&(msg[msgi]), ":", 100);
     msgi += wfd_strncpy(&(msg[msgi]), error_state.errors[error_state.cur_error - 1].linechar, 100);
-    //msgi += wfd_strncpy(&(msg[msgi]), "\n\r", 100);
-
-    /*
-    if(!gdb_helpers_isInitialized()){
-        Message(&(msg[2]));
-        Message("\n\r");
-    }
-    else{
-        gdb_helpers_TransmitPacket(msg);
-    }
-    */
 
     return;
 }

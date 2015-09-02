@@ -8,12 +8,12 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
+#include "jtag_scan.h"
+
 #include <stdint.h>
 
-#include "jtag_scan.h"
 #include "jtag_pinctl.h"
 #include "jtag_statemachine.h"
-#include "common.h"
 #include "misc_hal.h"
 #include "error.h"
 

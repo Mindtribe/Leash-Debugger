@@ -8,18 +8,29 @@
     Target(s):  ISO/IEC 9899:1999 (target independent)
     --------------------------------------------------------- */
 
-#include <signal.h>
-
 #include "gdbserver.h"
+
+#include <signal.h>
 #include "target_al.h"
 #include "gdb_helpers.h"
 #include "breakpoint.h"
-#include "common.h"
 #include "error.h"
 #include "mem_log.h"
 #include "special_chars.h"
 #include "wfd_conversions.h"
 #include "wfd_string.h"
+
+#define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
+#define GDBSERVER_KEEP_CHARS_NUM 128 //for debugging: number of chars to keep track of
+#define GDBSERVER_LOG_PACKETS
+
+//note: keep <256 or change PacketSize response in gdbserver
+#define GDBSERVER_MAX_PACKET_LEN_RX 256
+#define GDBSERVER_MAX_PACKET_LEN_TX 256
+
+#define GDBSERVER_MAX_BLOCK_ACCESS 256
+#define GDBSERVER_NUM_BKPT 256
+#define GDBSERVER_POLL_INTERVAL 100
 
 #ifdef GDBSERVER_KEEP_CHARS
 char lastChars[GDBSERVER_KEEP_CHARS_NUM];
@@ -31,6 +42,18 @@ enum gdbserver_packet_phase{
     PACKET_DATA,
     PACKET_CHECKSUM
 };
+
+#define WFD_NAME_STRING ""\
+    "\n"\
+    "------------------------------------------\n"\
+    "CC3200 Wi-Fi Debugger v0.1\n"\
+    "Copyright 2015, MindTribe inc.\n"\
+    "------------------------------------------\n"\
+    "\n"\
+    "Note: this is a work-in-progress.\n"\
+    "Please see KNOWN_BUGS before using.\n"\
+    "\n"
+
 
 //NOTE: keep this enum and the following const array synced so that each query type corresponds to its string.
 enum gdbserver_query_name{
@@ -648,9 +671,14 @@ int gdbserver_doMemCRC(char* argstring)
 
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
     while(bytes_left){
-        if((*gdbserver_state.target->target_mem_block_read)(addr, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //get some bytes
-        crc32 = wfd_crc32(data, MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left), crc32);
-        bytes_left-=MIN(GDBSERVER_MAX_BLOCK_ACCESS, bytes_left);
+        if((*gdbserver_state.target->target_mem_block_read)(addr,
+                (GDBSERVER_MAX_BLOCK_ACCESS < bytes_left) ? GDBSERVER_MAX_BLOCK_ACCESS : bytes_left,
+                data)
+                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //get some bytes
+        crc32 = wfd_crc32(data,
+                (GDBSERVER_MAX_BLOCK_ACCESS < bytes_left) ? GDBSERVER_MAX_BLOCK_ACCESS : bytes_left,
+                crc32);
+        bytes_left-= (GDBSERVER_MAX_BLOCK_ACCESS < bytes_left) ? GDBSERVER_MAX_BLOCK_ACCESS : bytes_left;
         addr+=GDBSERVER_MAX_BLOCK_ACCESS;
     }
 

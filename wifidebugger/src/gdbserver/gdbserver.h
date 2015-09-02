@@ -15,24 +15,11 @@
 #ifndef GDBSERVER_H_
 #define GDBSERVER_H_
 
-#include "target_al.h"
-
-#define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
-#define GDBSERVER_KEEP_CHARS_NUM 128 //for debugging: number of chars to keep track of
-
-#define GDBSERVER_LOG_PACKETS
-
-//note: keep <256 or change PacketSize response in gdbserver
-#define GDBSERVER_MAX_PACKET_LEN_RX 256
-#define GDBSERVER_MAX_PACKET_LEN_TX 256
-
-#define GDBSERVER_MAX_BLOCK_ACCESS 256
-
-#define GDBSERVER_NUM_BKPT 256
-
-#define GDBSERVER_POLL_INTERVAL 100
+#include <stdint.h>
 
 #define GDBSERVER_TASK_STACK_SIZE 2048
+
+struct target_al_interface;
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target);
 

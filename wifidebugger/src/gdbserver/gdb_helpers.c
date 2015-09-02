@@ -8,10 +8,10 @@
     Target(s):  ISO/IEC 9899:1999 (target independent)
     --------------------------------------------------------- */
 
+#include "gdb_helpers.h"
 #include <stdint.h>
 
 #include "error.h"
-#include "gdb_helpers.h"
 #include "wfd_conversions.h"
 
 struct gdb_helpers_state_t{

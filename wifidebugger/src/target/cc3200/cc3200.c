@@ -9,7 +9,7 @@
     --------------------------------------------------------- */
 
 #include "cc3200.h"
-#include "common.h"
+
 #include "error.h"
 #include "mem_log.h"
 #include "jtag_scan.h"
@@ -17,6 +17,13 @@
 #include "cc3200_core.h"
 #include "cc3200_jtagdp.h"
 #include "wfd_conversions.h"
+
+#define CC3200_CORE_DFSR_BKPT (1<<1)
+
+#define CC3200_OPCODE_BKPT 0xBE00
+
+#define CC3200_SEMIHOST_WRITE0 0x04
+#define CC3200_SEMIHOST_READ 0x06
 
 struct target_al_interface cc3200_interface = {
     .target_init = &cc3200_init,

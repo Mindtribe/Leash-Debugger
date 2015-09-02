@@ -9,9 +9,9 @@
     --------------------------------------------------------- */
 
 #include "wfd_conversions.h"
+
 #include "wfd_string.h"
 
-#include "common.h"
 #include "crc32.h"
 
 uint32_t wfd_flip_endian(uint32_t input){

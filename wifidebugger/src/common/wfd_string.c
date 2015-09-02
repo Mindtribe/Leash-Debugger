@@ -10,7 +10,7 @@
 
 
 #include "wfd_string.h"
-#include "common.h"
+#include "error.h"
 
 uint32_t wfd_strlen(char* src)
 {

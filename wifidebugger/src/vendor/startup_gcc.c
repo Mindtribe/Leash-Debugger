@@ -39,7 +39,6 @@
 #include <stdint.h>
 #include "hw_nvic.h"
 #include "hw_types.h"
-#include "common.h"
 
 //*****************************************************************************
 //
