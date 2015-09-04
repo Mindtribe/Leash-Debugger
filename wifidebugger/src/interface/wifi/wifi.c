@@ -8,6 +8,8 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
+#include "wifi.h"
+
 //FreeRTOS includes
 #include "FreeRTOS.h"
 #include "semphr.h"
@@ -17,14 +19,17 @@
 #include "simplelink.h"
 
 //project includes
-#include "wifi.h"
 #include "error.h"
 #include "simplelink_defs.h"
+#include "log.h"
 
 #define SPAWNQUEUE_SIZE (3)
 
 #define SPAWNTASK_STACK_SIZE (2048)
 #define SPAWNTASK_PRIORITY (9)
+
+#define WIFI_AP_SSID "WIFIDEBUGGER"
+#define WIFI_SCAN_TIME_S 5
 
 //SimpleLink spawn message type: specifies
 //a callback and parameter pointer.
@@ -99,7 +104,22 @@ int WifiStartSpawnTask(void)
     return RET_SUCCESS;
 }
 
-int WifiStartDefaultSettings(void)
+static void WifiTaskEndCallback(void (*taskAddr)(void*))
+{
+    //after scanning, start the AP task.
+    if(taskAddr == &Task_WifiScan){
+        xTaskCreate(Task_WifiAP,
+                "WiFi AP",
+                WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+                0,
+                WIFI_TASK_PRIORITY,
+                0);
+    }
+
+    return;
+}
+
+static int WifiDefaultSettings(void)
 {
     long retval = -1;
     unsigned char status = 0;
@@ -194,6 +214,42 @@ int WifiStartDefaultSettings(void)
     return RET_SUCCESS;
 }
 
+static int WifiSetModeAP()
+{
+    long retval;
+
+    if((retval = sl_WlanSetMode(ROLE_AP)) < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    if((retval = sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SSID, strlen(WIFI_AP_SSID), (unsigned char*)WIFI_AP_SSID)) < 0){
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    //restart
+    if((retval = sl_Stop(SL_STOP_TIMEOUT)) < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    CLR_STATUS_BIT_ALL(wifi_state.status);
+    return sl_Start(0,0,0);
+}
+
+void Task_Wifi(void* params)
+{
+    (void)params; //avoid unused error
+
+    LOG(LOG_VERBOSE, "WiFi Task started.");
+
+    //just start a scan.
+    //add task for WiFi
+    xTaskCreate(Task_WifiScan,
+            "WiFi Scan",
+            WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+            0,
+            WIFI_TASK_PRIORITY,
+            0);
+
+    WifiTaskEndCallback(&Task_Wifi);
+    vTaskDelete(NULL);
+    return;
+}
+
 void Task_WifiScan(void* params)
 {
     (void)params; //avoid unused error
@@ -201,24 +257,26 @@ void Task_WifiScan(void* params)
     unsigned char policy;
     unsigned int policy_len;
 
-    if(WifiStartDefaultSettings() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    LOG(LOG_VERBOSE, "Starting WiFi network scan...");
+
+    if(WifiDefaultSettings() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
     retval = sl_Start(0, 0, 0);
-    if(retval<0) {error_add(__FILE__, __LINE__, ERROR_UNKNOWN); return;}
+    if(retval<0) {ADD_ERROR(ERROR_UNKNOWN); return;}
 
     //first, delete current connection policy
     policy = SL_CONNECTION_POLICY(0,0,0,0,0);
     retval = sl_WlanPolicySet(SL_POLICY_CONNECTION, policy, NULL, 0);
-    if(retval<0) {error_add(__FILE__,__LINE__,ERROR_UNKNOWN); return;}
+    if(retval<0) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
 
     //make scan policy
     policy = SL_SCAN_POLICY(1);
-    policy_len = 10; //10 seconds scan time
+    policy_len = WIFI_SCAN_TIME_S; //10 seconds scan time
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, policy, (unsigned char*)&policy_len, sizeof(policy_len));
-    if(retval<0) {error_add(__FILE__,__LINE__,ERROR_UNKNOWN); return;}
+    if(retval<0) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
 
     //wait for the scan to complete
-    const TickType_t delay = 11000 / portTICK_PERIOD_MS;
+    const TickType_t delay = (1100*WIFI_SCAN_TIME_S) / portTICK_PERIOD_MS;
     vTaskDelay(delay);
 
     //get the results back
@@ -230,9 +288,46 @@ void Task_WifiScan(void* params)
     //disable the scan
     policy = SL_SCAN_POLICY(0);
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, policy, NULL, 0);
-    if(retval<0) {error_add(__FILE__,__LINE__,ERROR_UNKNOWN); return;}
+    if(retval<0) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+
+    //disable SimpleLink altogether
+    retval = sl_Stop(SL_STOP_TIMEOUT);
+    if(retval<0){TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+
+    LOG(LOG_VERBOSE, "WiFi network scan complete.");
 
     //exit (delete this task)
+    WifiTaskEndCallback(&Task_WifiScan);
+    vTaskDelete(NULL);
+
+    return;
+}
+
+void Task_WifiAP(void* params)
+{
+    (void)params; //avoid unused warning
+    long retval;
+
+    LOG(LOG_IMPORTANT, "Starting WiFi AP Mode.");
+
+    if(WifiDefaultSettings() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+
+    if((retval = sl_Start(0,0,0)) < 0) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+
+    if(retval != ROLE_AP){
+        if(WifiSetModeAP() != ROLE_AP){
+            sl_Stop(SL_STOP_TIMEOUT);
+            TASK_RETURN_ERROR(ERROR_UNKNOWN);
+        }
+    }
+
+    //Wait for an IP address to be acquired
+    while(!IS_IP_ACQUIRED(wifi_state.status)){};
+
+    LOG(LOG_IMPORTANT, "AP Started - Ready for client.");
+
+    //exit (delete this task)
+    WifiTaskEndCallback(&Task_WifiAP);
     vTaskDelete(NULL);
 
     return;

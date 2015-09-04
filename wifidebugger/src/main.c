@@ -68,9 +68,9 @@ int main(void)
             == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     if(WifiInit() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
-    //add task for WiFi scan
-    xTaskCreate(Task_WifiScan,
-                "WiFi Scan",
+    //add task for WiFi
+    xTaskCreate(Task_Wifi,
+                "WiFi",
                 WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
                 0,
                 WIFI_TASK_PRIORITY,

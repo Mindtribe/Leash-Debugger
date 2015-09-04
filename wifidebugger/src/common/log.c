@@ -19,7 +19,7 @@
 #include "gdb_helpers.h"
 #include "mem.h"
 
-#define MAX_MEM_LOG_LEN (128)
+#define MAX_MEM_LOG_LEN (256)
 #define MAX_MEM_LOG_ENTRIES (((HEAP_SIZE)/4)/(MAX_MEM_LOG_LEN))
 
 #define USE_MEM_LOG

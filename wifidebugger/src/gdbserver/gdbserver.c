@@ -254,15 +254,15 @@ void gdbserver_Interrupt(uint8_t signal)
 {
     if((*gdbserver_state.target->target_halt)() == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
-        error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+        ADD_ERROR(ERROR_UNKNOWN);
     }
     if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
-        error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+        ADD_ERROR(ERROR_UNKNOWN);
     }
     if(!gdbserver_state.halted){
         gdbserver_TransmitPacket("OError halting target!");
-        error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+        ADD_ERROR(ERROR_UNKNOWN);
     }
     gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
     char reply[4];
@@ -310,8 +310,8 @@ int gdbserver_processChar(void)
             break;
         case CHAR_END_TEXT: //CTRL-C in GDB
             gdbserver_Interrupt(SIGINT);
-            if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) { error_add(__FILE__, __LINE__, ERROR_UNKNOWN); }
-            if(!gdbserver_state.halted) { error_add(__FILE__, __LINE__, ERROR_UNKNOWN); }
+            if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) { ADD_ERROR(ERROR_UNKNOWN); }
+            if(!gdbserver_state.halted) { ADD_ERROR(ERROR_UNKNOWN); }
             break;
         default:
             switch(gdbserver_state.packet_phase){
@@ -437,7 +437,7 @@ int gdbserver_processPacket(void)
     //process the packet based on header character
     switch(gdbserver_state.cur_packet[0]){
     case 'q': //general query
-        if(gdbserver_processGeneralQuery(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+        if(gdbserver_processGeneralQuery(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) ADD_ERROR(ERROR_UNKNOWN);
         break;
     case 'H': //set operation type and thread ID
         if((gdbserver_state.cur_packet[1] != 'c' && gdbserver_state.cur_packet[1] != 'g') //operation types
@@ -788,7 +788,7 @@ int gdbserver_pollTarget(void)
             break;
         case STOPREASON_UNKNOWN:
         default:
-            error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN);
             break;
         }
     }

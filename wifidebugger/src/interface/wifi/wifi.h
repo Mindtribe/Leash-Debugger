@@ -33,5 +33,7 @@ int WifiStartDefaultSettings(void); //go to default state and given mode
 //FreeRTOS tasks
 void Task_WifiScan(void* params); //scan for WiFi networks
 void Task_SLSpawn(void* params); //message queue spawn task
+void Task_Wifi(void* params); //Encompassing task for all WiFi operations.
+void Task_WifiAP(void* params); //Task for having WiFi in AP mode.
 
 #endif

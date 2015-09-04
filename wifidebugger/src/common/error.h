@@ -27,6 +27,8 @@ enum error_type{
 #define RET_FAILURE (-1)
 
 #define RETURN_ERROR(X) {error_add(__FILE__,__LINE__,X); return RET_FAILURE;}
+#define TASK_RETURN_ERROR(X) {error_add(__FILE__,__LINE__,X); vTaskDelete(NULL); return; }
+#define ADD_ERROR(X) {error_add(__FILE__,__LINE__,X);}
 #define WAIT_ERROR(X) {error_wait(__FILE__,__LINE__,X);}
 
 void error_wait(char* file, int line, uint32_t error_code);
