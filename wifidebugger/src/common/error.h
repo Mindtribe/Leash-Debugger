@@ -18,7 +18,10 @@
 #ifndef ERROR_H_
 #define ERROR_H_
 
-#define ERROR_UNKNOWN 1
+enum error_type{
+    ERROR_UNKNOWN = 0,
+    ERROR_OVERFLOW
+};
 
 #define RET_SUCCESS (0)
 #define RET_FAILURE (-1)

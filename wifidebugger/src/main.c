@@ -28,7 +28,7 @@
 
 //TI interface layer code and pin config file
 #include "gpio_if.h"
-#include "uart_if.h"
+#include "uart_al.h"
 #include "pin_mux_config.h"
 
 //FreeRTOS
@@ -64,17 +64,17 @@ int main(void)
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
-    if(gdbserver_init(&TermPutChar, &TermGetChar, &TermCharsAvailable, &cc3200_interface)
+    if(gdbserver_init(&UartPutChar, &UartGetChar, &UartCharsAvailable, &cc3200_interface)
             == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     if(WifiInit() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
     //add task for WiFi scan
-    /*xTaskCreate(Task_WifiScan,
+    xTaskCreate(Task_WifiScan,
                 "WiFi Scan",
                 WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
                 0,
                 WIFI_TASK_PRIORITY,
-                0);*/
+                0);
 
 
     //add task for GDBServer
@@ -103,7 +103,7 @@ static int BoardInit(void)
     PRCMCC3200MCUInit();
 
     //UART terminal
-    InitTerm();
+    UartInit();
     PinMuxConfig();
 
     GPIO_IF_LedConfigure(LED1|LED2|LED3);
