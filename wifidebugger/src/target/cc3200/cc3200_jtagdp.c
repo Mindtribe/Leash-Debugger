@@ -13,9 +13,9 @@
 
 #include <stdint.h>
 
+#include "log.h"
 #include "jtag_scan.h"
 #include "error.h"
-#include "mem_log.h"
 
 //instruction register
 #define CC3200_JTAGDP_IR_ABORT 0x08
@@ -472,7 +472,7 @@ int cc3200_jtagdp_powerUpDebug(void)
     for(int i=0; i<CC3200_JTAGDP_PWRUP_RETRIES; i++){
         if(cc3200_jtagdp_DPACC_read(0x04, &temp, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
         if((temp & CC3200_JTAGDP_CDBGPWRUPACK) && (temp & CC3200_JTAGDP_CSYSPWRUPACK)) return RET_SUCCESS;
-        mem_log_add("CSR value waiting for dbg powerup:", (int)temp);
+        LOG(LOG_VERBOSE, "[CC3200 JTAG_DP] CSR value waiting for dbg powerup: 0x%8X", (unsigned int)temp);
     }
 
     {RETURN_ERROR(ERROR_UNKNOWN);}

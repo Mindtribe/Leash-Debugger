@@ -1,7 +1,8 @@
 #include "eventhandlers.h"
+
+#include "log.h"
 #include "simplelink_defs.h"
 #include "wifi.h"
-#include "mem_log.h"
 
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 {
@@ -25,10 +26,10 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
         // If the user has initiated 'Disconnect' request,
         //'reason_code' is SL_USER_INITIATED_DISCONNECTION
         if(SL_USER_INITIATED_DISCONNECTION == pEventData->reason_code){
-            mem_log_add("Application disconnected", 0);
+            LOG(LOG_IMPORTANT, "[WIFI] Application disconnected");
         }
         else{
-            mem_log_add("Unexpected disconnect", 0);
+            LOG(LOG_IMPORTANT, "[WIFI] Unexpected disconnect");
         }
     }
     break;
@@ -50,7 +51,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 
     default:
     {
-        mem_log_add("[WLAN EVENT] Unexpected event", 0);
+        LOG(LOG_IMPORTANT, "[WIFI] Unexpected WLAN event: 0x%8X", (unsigned int) pSlWlanEvent->Event);
     }
     break;
     }
@@ -73,12 +74,9 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
 
         wifi_state.station_IP = (pNetAppEvent)->EventData.ipLeased.ip_address;
 
-        mem_log_add("[NETAPP_EVENT] IP leased to Client.", 0);
-
-        /*TODO: improve
-        UART_PRINT("[NETAPP EVENT] IP Leased to Client: IP=%d.%d.%d.%d , ",
-                SL_IPV4_BYTE(wifi_state.station_IP,3), SL_IPV4_BYTE(wifi_state.station_IP,2),
-                SL_IPV4_BYTE(wifi_state.station_IP,1), SL_IPV4_BYTE(wifi_state.station_IP,0));*/
+        LOG(LOG_IMPORTANT, "[WIFI] NetApp: IP leased to Client: %d.%d.%d.%d",
+                (unsigned int)SL_IPV4_BYTE(wifi_state.station_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.station_IP,2),
+                (unsigned int)SL_IPV4_BYTE(wifi_state.station_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.station_IP,0));
     }
     break;
 
@@ -86,24 +84,16 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
     {
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_LEASED);
 
-        mem_log_add("[NETAPP_EVENT] IP Released for Client.", 0);
-
-        /*TODO: improve
-        UART_PRINT("[NETAPP EVENT] IP Released for Client: IP=%d.%d.%d.%d , ",
-                SL_IPV4_BYTE(wifi_state.station_IP,3), SL_IPV4_BYTE(wifi_state.station_IP,2),
-                SL_IPV4_BYTE(wifi_state.station_IP,1), SL_IPV4_BYTE(wifi_state.station_IP,0));*/
-
+        LOG(LOG_IMPORTANT, "[WIFI] NetApp: IP Released for Client: %d.%d.%d.%d",
+                (unsigned int)SL_IPV4_BYTE(wifi_state.station_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.station_IP,2),
+                (unsigned int)SL_IPV4_BYTE(wifi_state.station_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.station_IP,0));
     }
     break;
 
     default:
     {
 
-        mem_log_add("[NETAPP_EVENT] Unexpected event.", 0);
-
-        /*TODO: improve
-        UART_PRINT("[NETAPP EVENT] Unexpected event [0x%x] \n\r",
-                pNetAppEvent->Event);*/
+        LOG(LOG_IMPORTANT, "[WIFI] Unexpected event: 0x%8X", (unsigned int)pNetAppEvent->Event);
     }
     break;
     }
@@ -128,12 +118,10 @@ void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
     // Most of the general errors are not FATAL are are to be handled
     // appropriately by the application
     //
-    mem_log_add("[GENERAL_EVENT] Unknown.", 0);
 
-    /*TODO: improve
-    UART_PRINT("[GENERAL EVENT] - ID=[%d] Sender=[%d]\n\n",
+    LOG(LOG_VERBOSE, "[WIFI] Unknown General Event - ID=%d Sender=%d",
             pDevEvent->EventData.deviceEvent.status,
-            pDevEvent->EventData.deviceEvent.sender);*/
+            pDevEvent->EventData.deviceEvent.sender);
 }
 
 
@@ -148,24 +136,20 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
         switch( pSock->socketAsyncEvent.SockTxFailData.status)
         {
         case SL_ECLOSE:
-            mem_log_add("[SOCK_ERROR] Failed to transmit all queued packets before closing.", 0);
-            /*UART_PRINT("[SOCK ERROR] - close socket (%d) operation "
-                    "failed to transmit all queued packets\n\n",
-                    pSock->socketAsyncEvent.SockTxFailData.sd);*/
+            LOG(LOG_IMPORTANT,
+                    "[WIFI] SockErr: close socket (%d) operation failed to transmit all queued packets",
+                    pSock->socketAsyncEvent.SockTxFailData.sd);
             break;
         default:
-            mem_log_add("[SOCK_ERROR] Failed to transmit.", 0);
-            /*UART_PRINT("[SOCK ERROR] - TX FAILED  :  socket %d , reason "
-                    "(%d) \n\n",
-                    pSock->socketAsyncEvent.SockTxFailData.sd, pSock->socketAsyncEvent.SockTxFailData.status);*/
+            LOG(LOG_IMPORTANT,
+                    "[WIFI] SockErr: - TX FAILED  :  socket %d , reason (%d)",
+                    pSock->socketAsyncEvent.SockTxFailData.sd, pSock->socketAsyncEvent.SockTxFailData.status);
             break;
         }
         break;
 
         default:
-            mem_log_add("[SOCK_EVENT] Unexpected event.", 0);
-            /*
-            UART_PRINT("[SOCK EVENT] - Unexpected Event [%x0x]\n\n",pSock->Event);*/
+            LOG(LOG_IMPORTANT, "[WIFI] SockEvent: Unexpected event [0x%8X]\n\n", (unsigned int) pSock->Event);
             break;
     }
 

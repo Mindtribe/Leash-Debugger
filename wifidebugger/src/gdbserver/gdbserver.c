@@ -15,19 +15,24 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stddef.h>
 
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "log.h"
 #include "target_al.h"
+
+#include <ctype.h>
 
 #include "gdb_helpers.h"
 #include "breakpoint.h"
 #include "error.h"
-#include "mem_log.h"
 #include "special_chars.h"
 #include "crc32.h"
 
 #define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
-#define GDBSERVER_KEEP_CHARS_NUM 128 //for debugging: number of chars to keep track of
-#define GDBSERVER_LOG_PACKETS
+#define GDBSERVER_KEEP_CHARS_NUM 256 //for debugging: number of chars to keep track of
 
 //note: keep <256 or change PacketSize response in gdbserver
 #define GDBSERVER_MAX_PACKET_LEN_RX 256
@@ -208,11 +213,8 @@ void gdbserver_TransmitPacket(char* packet_data)
 
     //update state
     gdbserver_state.awaiting_ack = 1;
-
-#ifdef GDBSERVER_LOG_PACKETS
     //log the packet
-    mem_log_add(packet_data, 1);
-#endif
+    LOG(LOG_VERBOSE, "[GDBSERV] TX: %s" , packet_data);
 
     return;
 }
@@ -242,10 +244,8 @@ void gdbserver_TransmitDebugMsgPacket(char* packet_data)
     //update state
     //gdbserver_state.awaiting_ack = 1;
 
-#ifdef GDBSERVER_LOG_PACKETS
     //log the packet
-    mem_log_add(packet_data, 1);
-#endif
+    LOG(LOG_VERBOSE, "[GDBSERV] TX: %s" , packet_data);
 
     return;
 }
@@ -423,7 +423,7 @@ int gdbserver_processPacket(void)
     unsigned int checksum;
     sscanf(gdbserver_state.cur_checksum, "%02X", &checksum);
     if((uint8_t)checksum != gdb_helpers_getChecksum(gdbserver_state.cur_packet)){
-        gdbserver_reset_error(__LINE__, (uint8_t)strtol(gdbserver_state.cur_checksum, NULL, 16));
+        gdbserver_reset_error(__LINE__, gdb_helpers_getChecksum(gdbserver_state.cur_packet));
         gdb_helpers_Nack();
         return RET_SUCCESS;
     }
@@ -431,10 +431,8 @@ int gdbserver_processPacket(void)
     //acknowledge
     gdb_helpers_Ack();
 
-#ifdef GDBSERVER_LOG_PACKETS
     //log the packet
-    mem_log_add(gdbserver_state.cur_packet, 0);
-#endif
+    LOG(LOG_VERBOSE, "[GDBSERV] RX: %s" , gdbserver_state.cur_packet);
 
     //process the packet based on header character
     switch(gdbserver_state.cur_packet[0]){
@@ -747,7 +745,7 @@ int gdbserver_writeMemory(char* argstring)
 
 void gdbserver_loop_task(void* params)
 {
-    while(1){
+    for(;;){
         if(!gdbserver_state.halted) gdbserver_pollTarget();
         if(gdb_helpers_CharsAvaliable()){
             gdbserver_processChar();
@@ -755,6 +753,8 @@ void gdbserver_loop_task(void* params)
                 gdbserver_processChar();
             }
         }
+        //TODO: replace delay-loop polling by timer-based polling
+        vTaskDelay(1);
     };
 
     (void)params; //avoid unused warning
