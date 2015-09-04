@@ -20,7 +20,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-#include "../common/log.h"
+#include "log.h"
 #include "target_al.h"
 
 #include <ctype.h>
@@ -750,6 +750,7 @@ void gdbserver_loop_task(void* params)
                 gdbserver_processChar();
             }
         }
+        //TODO: replace delay-loop polling by timer-based polling
         vTaskDelay(1);
     };
 

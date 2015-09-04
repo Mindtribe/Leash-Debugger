@@ -11,7 +11,7 @@
 #include "cc3200.h"
 
 #include <stdio.h>
-#include "../../common/log.h"
+#include "log.h"
 
 #include "error.h"
 #include "jtag_scan.h"

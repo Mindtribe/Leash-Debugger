@@ -19,8 +19,9 @@ Logging functionality
 
 #define LOG_LEVEL LOG_VERBOSE
 
-extern void* pvPortMalloc(size_t); //FreeRTOS malloc
-extern void vPortFree(void*); //FreeRTOS free
+//declaring FreeRTOS dynamic memory management
+void* pvPortMalloc(size_t);
+void vPortFree(void*);
 
 enum log_level{
     LOG_VERBOSE = 0,
@@ -29,16 +30,16 @@ enum log_level{
     LOG_HIGHEST,
 };
 
-extern char* pLogPtr;
 #define LOG(X, ...) { \
     if((X) >= LOG_LEVEL){ \
-        pLogPtr = (char*) pvPortMalloc( (size_t) (snprintf(NULL,0,__VA_ARGS__)+1) ); \
-        sprintf(pLogPtr, __VA_ARGS__); \
-        log_put(pLogPtr); \
+        char* pLogPtr = (char*) pvPortMalloc( (size_t) (snprintf(NULL,0,__VA_ARGS__)+1) ); \
+        if(pLogPtr != NULL){ \
+            sprintf(pLogPtr, __VA_ARGS__); \
+            log_put(pLogPtr); \
+            vPortFree(pLogPtr); \
+        } \
     } \
 }
-
-//vPortFree((void*) pLogPtr);
 
 void log_put(char* msg);
 void mem_log_add(char* msg);

@@ -1,6 +1,6 @@
 #include "eventhandlers.h"
 
-#include "../../common/log.h"
+#include "log.h"
 #include "simplelink_defs.h"
 #include "wifi.h"
 

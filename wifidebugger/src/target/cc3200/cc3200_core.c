@@ -10,7 +10,7 @@
 
 #include "cc3200_core.h"
 
-#include "../../common/log.h"
+#include "log.h"
 #include "cc3200_jtagdp.h"
 #include "error.h"
 

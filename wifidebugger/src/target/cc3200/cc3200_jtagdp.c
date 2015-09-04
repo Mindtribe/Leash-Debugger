@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-#include "../../common/log.h"
+#include "log.h"
 #include "jtag_scan.h"
 #include "error.h"
 
