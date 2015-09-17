@@ -64,8 +64,8 @@ int main(void)
 
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
 
-    if(gdbserver_init(&UartPutChar, &UartGetChar, &UartCharsAvailable, &cc3200_interface)
-            == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    //if(gdbserver_init(&UartPutChar, &UartGetChar, &UartCharsAvailable, &cc3200_interface)
+    //        == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     if(WifiInit() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
     //add task for WiFi
@@ -78,12 +78,12 @@ int main(void)
 
 
     //add task for GDBServer
-    xTaskCreate(gdbserver_loop_task,
+    /*xTaskCreate(gdbserver_loop_task,
             "GDBServer Main Loop",
             GDBSERVER_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
             0,
             GDBSERVER_TASK_PRIORITY,
-            0);
+            0);*/
 
 
     //start FreeRTOS scheduler

@@ -10,6 +10,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
     {
     case SL_WLAN_CONNECT_EVENT:
     {
+        LOG(LOG_IMPORTANT, "[WIFI] Application connected");
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
     }
     break;
@@ -36,6 +37,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 
     case SL_WLAN_STA_CONNECTED_EVENT:
     {
+        LOG(LOG_IMPORTANT, "[WIFI] Station connected to CC3200 AP");
         // when device is in AP mode and any client connects to device cc3xxx
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
     }
@@ -43,6 +45,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 
     case SL_WLAN_STA_DISCONNECTED_EVENT:
     {
+        LOG(LOG_IMPORTANT, "[WIFI] Station disconnected from CC3200 AP");
         // when client disconnects from device (AP)
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_LEASED);
@@ -62,8 +65,18 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
     switch(pNetAppEvent->Event)
     {
     case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
+    {
+        wifi_state.self_IP = (pNetAppEvent)->EventData.ipAcquiredV4.ip;
+        LOG(LOG_VERBOSE, "[WIFI] NetApp: IPv4 Acquired: %d.%d.%d.%d",
+                (unsigned int)SL_IPV4_BYTE(wifi_state.self_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.self_IP,2),
+                (unsigned int)SL_IPV4_BYTE(wifi_state.self_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.self_IP,0));
+        SET_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_AQUIRED);
+    }
+    break;
+
     case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
     {
+        LOG(LOG_VERBOSE, "[WIFI] NetApp: IPv6 Acquired");
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_AQUIRED);
     }
     break;
@@ -72,11 +85,11 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
     {
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_LEASED);
 
-        wifi_state.station_IP = (pNetAppEvent)->EventData.ipLeased.ip_address;
+        wifi_state.client_IP = (pNetAppEvent)->EventData.ipLeased.ip_address;
 
         LOG(LOG_IMPORTANT, "[WIFI] NetApp: IP leased to Client: %d.%d.%d.%d",
-                (unsigned int)SL_IPV4_BYTE(wifi_state.station_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.station_IP,2),
-                (unsigned int)SL_IPV4_BYTE(wifi_state.station_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.station_IP,0));
+                (unsigned int)SL_IPV4_BYTE(wifi_state.client_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.client_IP,2),
+                (unsigned int)SL_IPV4_BYTE(wifi_state.client_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.client_IP,0));
     }
     break;
 
@@ -85,8 +98,10 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_LEASED);
 
         LOG(LOG_IMPORTANT, "[WIFI] NetApp: IP Released for Client: %d.%d.%d.%d",
-                (unsigned int)SL_IPV4_BYTE(wifi_state.station_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.station_IP,2),
-                (unsigned int)SL_IPV4_BYTE(wifi_state.station_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.station_IP,0));
+                (unsigned int)SL_IPV4_BYTE(wifi_state.client_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.client_IP,2),
+                (unsigned int)SL_IPV4_BYTE(wifi_state.client_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.client_IP,0));
+
+        wifi_state.client_IP = 0;
     }
     break;
 
@@ -104,6 +119,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
         SlHttpServerResponse_t *pHttpResponse)
 {
+    LOG(LOG_VERBOSE, "[WIFI] HTTP Server Callback Triggered");
     (void)pHttpEvent;
     (void)pHttpResponse;
     // Unused in this application

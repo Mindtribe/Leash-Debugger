@@ -17,11 +17,21 @@
 #define WIFI_TASK_PRIORITY 1
 #define WIFI_NUM_NETWORKS 20
 
+//struct that holds parameters of an AP to connect to
+//in station mode.
+typedef struct
+{
+    char* ssid;
+    SlSecParams_t secparams;
+}tApParams;
+
 typedef struct wifi_state_t {
     SlVersionFull version;
     unsigned char status;
-    unsigned long station_IP;
+    unsigned long client_IP;
+    unsigned long self_IP;
     Sl_WlanNetworkEntry_t networks[WIFI_NUM_NETWORKS];
+    tApParams ap;
 }wifi_state_t;
 extern struct wifi_state_t wifi_state;
 
@@ -35,5 +45,6 @@ void Task_WifiScan(void* params); //scan for WiFi networks
 void Task_SLSpawn(void* params); //message queue spawn task
 void Task_Wifi(void* params); //Encompassing task for all WiFi operations.
 void Task_WifiAP(void* params); //Task for having WiFi in AP mode.
+void Task_WifiSTA(void* params); //Task for having WiFi in Station mode.
 
 #endif
