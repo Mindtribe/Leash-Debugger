@@ -34,8 +34,8 @@
  *
 */
 
-#ifndef __NONOS_H__
-#define	__NONOS_H__
+#ifndef __SPAWN_H__
+#define	__SPAWN_H__
 
 #ifdef	__cplusplus
 extern "C" {

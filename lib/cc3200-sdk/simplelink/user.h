@@ -973,9 +973,7 @@ typedef OsiLockObj_t                            _SlLockObj_t;
     \warning
 */
 
-/*
-#define sl_GeneralEvtHdlr
-*/
+#define sl_GeneralEvtHdlr SimpleLinkGeneralEventHandler
 
 /*!
     \brief WLAN Async event handler

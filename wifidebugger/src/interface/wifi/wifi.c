@@ -23,6 +23,10 @@
 #include "simplelink_defs.h"
 #include "log.h"
 
+#ifndef sl_WlanEvtHdlr
+#error SimpleLink event handler not defined!
+#endif
+
 #define SPAWNQUEUE_SIZE (3)
 
 #define SPAWNTASK_STACK_SIZE (2048)
@@ -30,6 +34,9 @@
 
 #define WIFI_AP_SSID "WIFIDEBUGGER"
 #define WIFI_SCAN_TIME_S 5
+
+#define WIFI_STA_SSID "Mindtribe"
+#define WIFI_STA_KEY "thisisnottherealkey!"
 
 //SimpleLink spawn message type: specifies
 //a callback and parameter pointer.
@@ -51,8 +58,20 @@ struct wifi_state_t wifi_state ={
         .NwpVersion = {0}
     },
     .status = 0,
-    .station_IP = 0
+    .client_IP = 0,
+    .self_IP = 0,
+    .ap = {
+        .ssid = WIFI_STA_SSID,
+        .secparams = {
+            .Type = SL_SEC_TYPE_WPA_WPA2,
+            .Key = (signed char*) WIFI_STA_KEY,
+            .KeyLen = sizeof(WIFI_STA_KEY)
+        }
+    }
 };
+
+static int WifiSetModeAP();
+static int WifiConnectSTA();
 
 int WifiInit(void)
 {
@@ -106,10 +125,9 @@ int WifiStartSpawnTask(void)
 
 static void WifiTaskEndCallback(void (*taskAddr)(void*))
 {
-    //after scanning, start the AP task.
     if(taskAddr == &Task_WifiScan){
-        xTaskCreate(Task_WifiAP,
-                "WiFi AP",
+        xTaskCreate(Task_WifiSTA,
+                "WiFi Station",
                 WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
                 0,
                 WIFI_TASK_PRIORITY,
@@ -122,7 +140,6 @@ static void WifiTaskEndCallback(void (*taskAddr)(void*))
 static int WifiDefaultSettings(void)
 {
     long retval = -1;
-    unsigned char status = 0;
     unsigned char val = 1;
 
     unsigned char config, config_len;
@@ -139,7 +156,11 @@ static int WifiDefaultSettings(void)
     //set device in station mode
     if(retval != ROLE_STA){
         if(retval == ROLE_AP){ //we need to wait for an event before doing anything
-            while(!IS_IP_ACQUIRED(status)){};
+            while(!IS_IP_ACQUIRED(wifi_state.status)){
+#ifndef SL_PLATFORM_MULTI_THREADED
+                _SlNonOsMainLoopTask();
+#endif
+            }
         }
         //change mode to Station
         retval = sl_WlanSetMode(ROLE_STA);
@@ -173,7 +194,11 @@ static int WifiDefaultSettings(void)
     //disconnect
     retval = sl_WlanDisconnect();
     if(retval == 0){ //not yet disconnected
-        while(IS_CONNECTED(status)){};
+        while(IS_CONNECTED(wifi_state.status)){
+#ifndef SL_PLATFORM_MULTI_THREADED
+            _SlNonOsMainLoopTask();
+#endif
+        }
     }
 
     //Enable DHCP client
@@ -207,9 +232,9 @@ static int WifiDefaultSettings(void)
     if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
 
     retval = sl_Stop(SL_STOP_TIMEOUT);
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    //TODO: (re)set state variables
+    wifi_state.status = 0;
 
     return RET_SUCCESS;
 }
@@ -221,13 +246,36 @@ static int WifiSetModeAP()
     if((retval = sl_WlanSetMode(ROLE_AP)) < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     if((retval = sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SSID, strlen(WIFI_AP_SSID), (unsigned char*)WIFI_AP_SSID)) < 0){
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR((int)retval);
     }
 
     //restart
     if((retval = sl_Stop(SL_STOP_TIMEOUT)) < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
     CLR_STATUS_BIT_ALL(wifi_state.status);
     return sl_Start(0,0,0);
+}
+
+static int WifiConnectSTA()
+{
+    long retval;
+
+    LOG(LOG_IMPORTANT ,"Connecting to '%s'...", wifi_state.ap.ssid);
+
+    retval = sl_WlanConnect((signed char*)wifi_state.ap.ssid, strlen(wifi_state.ap.ssid),
+            0, &(wifi_state.ap.secparams), 0);
+    if(retval < 0){
+        RETURN_ERROR((int)retval);
+    }
+
+    while((!IS_CONNECTED(wifi_state.status)) || (!IS_IP_ACQUIRED(wifi_state.status))){
+#ifndef SL_PLATFORM_MULTI_THREADED
+        _SlNonOsMainLoopTask();
+#endif
+    }
+
+    LOG(LOG_IMPORTANT ,"Connected to '%s'.", wifi_state.ap.ssid);
+
+    return RET_SUCCESS;
 }
 
 void Task_Wifi(void* params)
@@ -261,7 +309,7 @@ void Task_WifiScan(void* params)
 
     if(WifiDefaultSettings() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
-    retval = sl_Start(0, 0, 0);
+    retval = sl_Start(0,0,0);
     if(retval<0) {ADD_ERROR(ERROR_UNKNOWN); return;}
 
     //first, delete current connection policy
@@ -271,7 +319,7 @@ void Task_WifiScan(void* params)
 
     //make scan policy
     policy = SL_SCAN_POLICY(1);
-    policy_len = WIFI_SCAN_TIME_S; //10 seconds scan time
+    policy_len = WIFI_SCAN_TIME_S;
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, policy, (unsigned char*)&policy_len, sizeof(policy_len));
     if(retval<0) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
 
@@ -325,6 +373,29 @@ void Task_WifiAP(void* params)
     while(!IS_IP_ACQUIRED(wifi_state.status)){};
 
     LOG(LOG_IMPORTANT, "AP Started - Ready for client.");
+
+    //exit (delete this task)
+    WifiTaskEndCallback(&Task_WifiAP);
+    vTaskDelete(NULL);
+
+    return;
+}
+
+void Task_WifiSTA(void* params)
+{
+    (void)params; //avoid unused warning
+    long retval;
+
+    LOG(LOG_IMPORTANT, "Starting WiFi Station Mode.");
+
+    if(WifiDefaultSettings() == RET_FAILURE) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+
+    if((retval = sl_Start(0,0,0)) < 0) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    if(retval != ROLE_STA) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+
+    LOG(LOG_VERBOSE, "WiFi set to station mode.");
+
+    if(WifiConnectSTA() == RET_FAILURE) TASK_RETURN_ERROR(ERROR_UNKNOWN);
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiAP);
