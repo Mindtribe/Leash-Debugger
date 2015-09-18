@@ -35,6 +35,9 @@
 #define WIFI_AP_SSID "WIFIDEBUGGER"
 #define WIFI_SCAN_TIME_S 5
 
+#define WIFI_STA_SSID "Mindtribe"
+#define WIFI_STA_KEY "thisisnottherealkey!"
+
 //SimpleLink spawn message type: specifies
 //a callback and parameter pointer.
 typedef struct
@@ -58,11 +61,11 @@ struct wifi_state_t wifi_state ={
     .client_IP = 0,
     .self_IP = 0,
     .ap = {
-        .ssid = "Mindtribe",
+        .ssid = WIFI_STA_SSID,
         .secparams = {
             .Type = SL_SEC_TYPE_WPA_WPA2,
-            .Key = (signed char*) "thisisnottherealkey!",
-            .KeyLen = 20
+            .Key = (signed char*) WIFI_STA_KEY,
+            .KeyLen = sizeof(WIFI_STA_KEY)
         }
     }
 };
@@ -123,12 +126,6 @@ int WifiStartSpawnTask(void)
 static void WifiTaskEndCallback(void (*taskAddr)(void*))
 {
     if(taskAddr == &Task_WifiScan){
-        /*xTaskCreate(Task_WifiAP,
-                "WiFi AP",
-                WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
-                0,
-                WIFI_TASK_PRIORITY,
-                0);*/
         xTaskCreate(Task_WifiSTA,
                 "WiFi Station",
                 WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
