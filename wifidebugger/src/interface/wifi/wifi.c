@@ -22,6 +22,7 @@
 #include "error.h"
 #include "simplelink_defs.h"
 #include "log.h"
+#include "serialsock.h"
 
 #ifndef sl_WlanEvtHdlr
 #error SimpleLink event handler not defined!
@@ -34,6 +35,9 @@
 
 #define WIFI_AP_SSID "WIFIDEBUGGER"
 #define WIFI_SCAN_TIME_S 5
+
+#define WIFI_STA_SSID "Mindtribe"
+#define WIFI_STA_KEY "thisisnottherealkey!"
 
 //SimpleLink spawn message type: specifies
 //a callback and parameter pointer.
@@ -58,11 +62,11 @@ struct wifi_state_t wifi_state ={
     .client_IP = 0,
     .self_IP = 0,
     .ap = {
-        .ssid = "Mindtribe",
+        .ssid = WIFI_STA_SSID,
         .secparams = {
             .Type = SL_SEC_TYPE_WPA_WPA2,
-            .Key = (signed char*) "thisisnottherealkey!",
-            .KeyLen = 20
+            .Key = (signed char*) WIFI_STA_KEY,
+            .KeyLen = sizeof(WIFI_STA_KEY)
         }
     }
 };
@@ -399,6 +403,12 @@ void Task_WifiSTA(void* params)
     LOG(LOG_VERBOSE, "WiFi set to station mode.");
 
     if(WifiConnectSTA() == RET_FAILURE) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+
+    //start socket server and accept a connection
+    if(StartSerialSock(1000, 0) == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+    while(!GetSockConnected(0)){
+        if(SockAccept(0) == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+    }
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiAP);

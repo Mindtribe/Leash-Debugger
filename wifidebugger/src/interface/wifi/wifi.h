@@ -19,20 +19,19 @@
 
 //struct that holds parameters of an AP to connect to
 //in station mode.
-typedef struct
-{
+struct tApParams{
     char* ssid;
     SlSecParams_t secparams;
-}tApParams;
+};
 
-typedef struct wifi_state_t {
+struct wifi_state_t {
     SlVersionFull version;
     unsigned char status;
     unsigned long client_IP;
     unsigned long self_IP;
     Sl_WlanNetworkEntry_t networks[WIFI_NUM_NETWORKS];
-    tApParams ap;
-}wifi_state_t;
+    struct tApParams ap;
+};
 extern struct wifi_state_t wifi_state;
 
 int WifiInit(void); //initialize and start spawn task
