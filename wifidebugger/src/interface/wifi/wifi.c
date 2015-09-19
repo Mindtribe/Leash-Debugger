@@ -127,12 +127,6 @@ int WifiStartSpawnTask(void)
 static void WifiTaskEndCallback(void (*taskAddr)(void*))
 {
     if(taskAddr == &Task_WifiScan){
-        /*xTaskCreate(Task_WifiAP,
-                "WiFi AP",
-                WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
-                0,
-                WIFI_TASK_PRIORITY,
-                0);*/
         xTaskCreate(Task_WifiSTA,
                 "WiFi Station",
                 WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
@@ -405,10 +399,20 @@ void Task_WifiSTA(void* params)
     if(WifiConnectSTA() == RET_FAILURE) TASK_RETURN_ERROR(ERROR_UNKNOWN);
 
     //start socket server and accept a connection
-    if(StartSerialSock(1000, 0) == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
-    while(!GetSockConnected(0)){
-        if(SockAccept(0) == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+    if(StartSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+
+    for(;;){
+        if(UpdateSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+
+        //Echo
+        while(TS_SocketRXCharAvailable(0)){
+            char c;
+            TS_SocketGetChar(&c, 0);
+            TS_SocketPutChar(c, 0);
+        }
     }
+
+    StopSockets();
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiAP);

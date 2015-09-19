@@ -18,9 +18,17 @@
 #include "log.h"
 
 int StartSerialSock(unsigned short port, unsigned int slot);
-
 int SockAccept(unsigned int slot);
-
 int GetSockConnected(unsigned int slot);
+int StartSockets(void);
+void StopSockets(void);
+int UpdateSockets(void);
+
+//The 'TS_xxx' functions are safe for calling from other threads
+//than the SimpleLink WiFi thread.
+int TS_SocketPutChar(char c, unsigned int socket_slot);
+int TS_SocketGetChar(char *c, unsigned int socket_slot);
+int TS_SocketRXCharAvailable(unsigned int socket_slot);
+int TS_SocketTXSpaceAvailable(unsigned int socket_slot);
 
 #endif

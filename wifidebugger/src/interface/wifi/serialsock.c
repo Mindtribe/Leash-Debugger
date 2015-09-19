@@ -11,8 +11,10 @@
 #include "serialsock.h"
 #include "wifi.h"
 #include "simplelink_defs.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
 
-#define NUM_SOCKETS 2
+#define NUM_SOCKETS 3
 
 //status bits
 #define SOCKET_STARTED 1
@@ -21,14 +23,148 @@
 #define IS_SOCK_STARTED(X) (socket_state[(X)].status & SOCKET_STARTED)
 #define IS_SOCK_CONNECTED(X) (socket_state[(X)].status & SOCKET_CONNECTED)
 
+#define SOCKET_TXBUF_SIZE 128
+#define SOCKET_RXBUF_SIZE 128
+
+enum{
+    SOCKET_LOG = 0,
+    SOCKET_TARGET,
+    SOCKET_GDB
+};
+
+const int socket_ports[NUM_SOCKETS] = {
+    1000,
+    1001,
+    1002
+};
+
 struct socket_state_t{
     unsigned int status;
     int id;
     SlSockAddrIn_t addr_local;
     SlSockAddrIn_t addr_remote;
+    SemaphoreHandle_t bufmutex;
+    char tx_buf[SOCKET_TXBUF_SIZE];
+    unsigned int tx_buf_i_in;
+    unsigned int tx_buf_i_out;
+    unsigned int tx_buf_occupancy;
+    char rx_buf[SOCKET_RXBUF_SIZE];
+    unsigned int rx_buf_i_in;
+    unsigned int rx_buf_i_out;
+    unsigned int rx_buf_occupancy;
 };
 
 struct socket_state_t socket_state[NUM_SOCKETS] = {{0}};
+
+int StartSockets(void)
+{
+    for(int i=0; i<NUM_SOCKETS; i++){
+        if(StartSerialSock(socket_ports[i], i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(socket_state[i].bufmutex == NULL) socket_state[i].bufmutex = xSemaphoreCreateMutex();
+    }
+    return RET_SUCCESS;
+}
+
+void StopSockets(void)
+{
+    for(int i = 0; i<NUM_SOCKETS; i++){
+        if(IS_SOCK_STARTED(i)){
+            sl_Close(socket_state[i].id);
+        }
+        socket_state[i].status = 0;
+    }
+
+    return;
+}
+
+int TS_SocketPutChar(char c, unsigned int socket_slot)
+{
+    for(;;){
+        xSemaphoreTake(socket_state[socket_slot].bufmutex, portMAX_DELAY);
+        if(socket_state[socket_slot].tx_buf_occupancy < SOCKET_TXBUF_SIZE) {break;}
+        xSemaphoreGive(socket_state[socket_slot].bufmutex);
+    }
+
+    socket_state[socket_slot].tx_buf[(socket_state[socket_slot].tx_buf_i_in++)%SOCKET_TXBUF_SIZE] = c;
+    socket_state[socket_slot].tx_buf_occupancy++;
+    xSemaphoreGive(socket_state[socket_slot].bufmutex);
+
+    return RET_SUCCESS;
+}
+
+int TS_SocketGetChar(char *c, unsigned int socket_slot)
+{
+    for(;;){
+        xSemaphoreTake(socket_state[socket_slot].bufmutex, portMAX_DELAY);
+        if(socket_state[socket_slot].rx_buf_occupancy > 0) {break;}
+        xSemaphoreGive(socket_state[socket_slot].bufmutex);
+    }
+
+    *c = socket_state[socket_slot].rx_buf[(socket_state[socket_slot].rx_buf_i_out++)%SOCKET_RXBUF_SIZE];
+    socket_state[socket_slot].rx_buf_occupancy--;
+    xSemaphoreGive(socket_state[socket_slot].bufmutex);
+
+    return RET_SUCCESS;
+}
+
+int TS_SocketRXCharAvailable(unsigned int socket_slot){
+    int occupancy;
+    xSemaphoreTake(socket_state[socket_slot].bufmutex, portMAX_DELAY);
+    occupancy = socket_state[socket_slot].rx_buf_occupancy;
+    xSemaphoreGive(socket_state[socket_slot].bufmutex);
+
+    return occupancy;
+}
+
+int TS_SocketTXSpaceAvailable(unsigned int socket_slot){
+    int space;
+    xSemaphoreTake(socket_state[socket_slot].bufmutex, portMAX_DELAY);
+    space = SOCKET_TXBUF_SIZE - socket_state[socket_slot].tx_buf_occupancy;
+    xSemaphoreGive(socket_state[socket_slot].bufmutex);
+
+    return space;
+}
+
+int UpdateSockets(void)
+{
+    int retval;
+
+    for(int i=0; i<NUM_SOCKETS; i++){
+        if(!GetSockConnected(i)){
+            if(SockAccept(i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        }
+        else{
+            xSemaphoreTake(socket_state[i].bufmutex, portMAX_DELAY);
+
+            //Update RX
+            retval = sl_Recv(socket_state[i].id,
+                    &(socket_state[i].rx_buf[socket_state[i].rx_buf_i_in % SOCKET_RXBUF_SIZE]),
+                    SOCKET_RXBUF_SIZE - socket_state[i].rx_buf_occupancy,
+                    0);
+            if(retval > 0){
+                socket_state[i].rx_buf_i_in += retval;
+                socket_state[i].rx_buf_occupancy += retval;
+            }
+            else if((retval<0) && (retval!=SL_EAGAIN)) {RETURN_ERROR(retval);}
+            //Update TX
+            if(socket_state[i].tx_buf_occupancy){
+                retval = sl_Send(socket_state[i].id,
+                        &(socket_state[i].tx_buf[socket_state[i].tx_buf_i_out % SOCKET_RXBUF_SIZE]),
+                        socket_state[i].tx_buf_occupancy,
+                        0);
+                if(retval<0) {RETURN_ERROR(retval);}
+                else{
+                    socket_state[i].tx_buf_occupancy -= retval;
+                    socket_state[i].tx_buf_i_out += retval;
+                }
+            }
+
+            xSemaphoreGive(socket_state[i].bufmutex);
+        }
+    }
+
+    return RET_SUCCESS;
+}
 
 int StartSerialSock(unsigned short port, unsigned int slot)
 {
