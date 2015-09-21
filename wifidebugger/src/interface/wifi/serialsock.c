@@ -26,6 +26,10 @@
 #define SOCKET_TXBUF_SIZE 128
 #define SOCKET_RXBUF_SIZE 128
 
+//Note: be aware that arguments to this macro get evaluated twice.
+//(so no MIN(x++, y++)!)
+#define MIN(X, Y) ((X) < (Y)) ? (X) : (Y)
+
 enum{
     SOCKET_LOG = 0,
     SOCKET_TARGET,
@@ -77,6 +81,38 @@ void StopSockets(void)
     return;
 }
 
+int SocketPutChar(char c, unsigned int socket_slot)
+{
+    for(;;){
+        xSemaphoreTake(socket_state[socket_slot].bufmutex, portMAX_DELAY);
+        if(socket_state[socket_slot].tx_buf_occupancy < SOCKET_TXBUF_SIZE) {break;}
+        xSemaphoreGive(socket_state[socket_slot].bufmutex);
+        UpdateSockets();
+    }
+
+    socket_state[socket_slot].tx_buf[(socket_state[socket_slot].tx_buf_i_in++)%SOCKET_TXBUF_SIZE] = c;
+    socket_state[socket_slot].tx_buf_occupancy++;
+    xSemaphoreGive(socket_state[socket_slot].bufmutex);
+
+    return RET_SUCCESS;
+}
+
+int SocketGetChar(char *c, unsigned int socket_slot)
+{
+    for(;;){
+        xSemaphoreTake(socket_state[socket_slot].bufmutex, portMAX_DELAY);
+        if(socket_state[socket_slot].rx_buf_occupancy > 0) {break;}
+        xSemaphoreGive(socket_state[socket_slot].bufmutex);
+        UpdateSockets();
+    }
+
+    *c = socket_state[socket_slot].rx_buf[(socket_state[socket_slot].rx_buf_i_out++)%SOCKET_RXBUF_SIZE];
+    socket_state[socket_slot].rx_buf_occupancy--;
+    xSemaphoreGive(socket_state[socket_slot].bufmutex);
+
+    return RET_SUCCESS;
+}
+
 int TS_SocketPutChar(char c, unsigned int socket_slot)
 {
     for(;;){
@@ -105,6 +141,24 @@ int TS_SocketGetChar(char *c, unsigned int socket_slot)
     xSemaphoreGive(socket_state[socket_slot].bufmutex);
 
     return RET_SUCCESS;
+}
+
+int SocketRXCharAvailable(unsigned int socket_slot){
+    int occupancy;
+    xSemaphoreTake(socket_state[socket_slot].bufmutex, portMAX_DELAY);
+    occupancy = socket_state[socket_slot].rx_buf_occupancy;
+    xSemaphoreGive(socket_state[socket_slot].bufmutex);
+
+    return occupancy;
+}
+
+int SocketTXSpaceAvailable(unsigned int socket_slot){
+    int space;
+    xSemaphoreTake(socket_state[socket_slot].bufmutex, portMAX_DELAY);
+    space = SOCKET_TXBUF_SIZE - socket_state[socket_slot].tx_buf_occupancy;
+    xSemaphoreGive(socket_state[socket_slot].bufmutex);
+
+    return space;
 }
 
 int TS_SocketRXCharAvailable(unsigned int socket_slot){
@@ -136,28 +190,32 @@ int UpdateSockets(void)
         else{
             xSemaphoreTake(socket_state[i].bufmutex, portMAX_DELAY);
 
-            //Update RX
-            retval = sl_Recv(socket_state[i].id,
-                    &(socket_state[i].rx_buf[socket_state[i].rx_buf_i_in % SOCKET_RXBUF_SIZE]),
-                    SOCKET_RXBUF_SIZE - socket_state[i].rx_buf_occupancy,
-                    0);
-            if(retval > 0){
-                socket_state[i].rx_buf_i_in += retval;
-                socket_state[i].rx_buf_occupancy += retval;
-            }
-            else if((retval<0) && (retval!=SL_EAGAIN)) {RETURN_ERROR(retval);}
             //Update TX
             if(socket_state[i].tx_buf_occupancy){
                 retval = sl_Send(socket_state[i].id,
                         &(socket_state[i].tx_buf[socket_state[i].tx_buf_i_out % SOCKET_RXBUF_SIZE]),
-                        socket_state[i].tx_buf_occupancy,
-                        0);
-                if(retval<0) {RETURN_ERROR(retval);}
+                        MIN(socket_state[i].tx_buf_occupancy,
+                                SOCKET_TXBUF_SIZE - (socket_state[i].tx_buf_i_out % SOCKET_RXBUF_SIZE)), //Prevent overflow at wraparound point
+                                0);
+                if(retval<0) {xSemaphoreGive(socket_state[i].bufmutex); RETURN_ERROR(retval);}
                 else{
                     socket_state[i].tx_buf_occupancy -= retval;
                     socket_state[i].tx_buf_i_out += retval;
                 }
             }
+
+            //Update RX
+            retval = sl_Recv(socket_state[i].id,
+                    &(socket_state[i].rx_buf[socket_state[i].rx_buf_i_in % SOCKET_RXBUF_SIZE]),
+                    MIN((SOCKET_RXBUF_SIZE - socket_state[i].rx_buf_occupancy),
+                            SOCKET_RXBUF_SIZE - (socket_state[i].rx_buf_i_in % SOCKET_RXBUF_SIZE)), //Prevent overflow at wraparound point
+                            0);
+            if(retval > 0){
+                socket_state[i].rx_buf_i_in += retval;
+                socket_state[i].rx_buf_occupancy += retval;
+            }
+            else if((retval<0) && (retval!=SL_EAGAIN)) {xSemaphoreGive(socket_state[i].bufmutex); RETURN_ERROR(retval);}
+
 
             xSemaphoreGive(socket_state[i].bufmutex);
         }
@@ -218,6 +276,13 @@ int SockAccept(unsigned int slot)
         LOG(LOG_VERBOSE, "Socket %d: client connected.", slot);
         socket_state[slot].status |= SOCKET_CONNECTED;
         socket_state[slot].id = newid;
+        //set to non-blocking again
+        long nonblock = 1;
+        int retval = sl_SetSockOpt(newid, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
+        if(retval < 0){
+            sl_Close(newid);
+            RETURN_ERROR(retval);
+        }
     }
     else if(newid != SL_EAGAIN){
         sl_Close(socket_state[slot].id);

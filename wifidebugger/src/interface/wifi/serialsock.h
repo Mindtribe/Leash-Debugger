@@ -17,15 +17,21 @@
 #include "mem.h"
 #include "log.h"
 
+//These functions are for calling from the WiFi SimpleLink thread only.
 int StartSerialSock(unsigned short port, unsigned int slot);
 int SockAccept(unsigned int slot);
 int GetSockConnected(unsigned int slot);
 int StartSockets(void);
 void StopSockets(void);
 int UpdateSockets(void);
+int SocketPutChar(char c, unsigned int socket_slot);
+int SocketGetChar(char *c, unsigned int socket_slot);
+int SocketRXCharAvailable(unsigned int socket_slot);
+int SocketTXSpaceAvailable(unsigned int socket_slot);
 
-//The 'TS_xxx' functions are safe for calling from other threads
+//The 'TS_xxx' functions are meant for calling from other threads
 //than the SimpleLink WiFi thread.
+//Calling them from the WiFi thread itself may cause infinite stalls.
 int TS_SocketPutChar(char c, unsigned int socket_slot);
 int TS_SocketGetChar(char *c, unsigned int socket_slot);
 int TS_SocketRXCharAvailable(unsigned int socket_slot);

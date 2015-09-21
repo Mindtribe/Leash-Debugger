@@ -405,10 +405,20 @@ void Task_WifiSTA(void* params)
         if(UpdateSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
 
         //Echo
-        while(TS_SocketRXCharAvailable(0)){
+        while(SocketRXCharAvailable(0)){
             char c;
-            TS_SocketGetChar(&c, 0);
-            TS_SocketPutChar(c, 0);
+            SocketGetChar(&c, 0);
+            SocketPutChar(c, 0);
+        }
+        while(SocketRXCharAvailable(1)){
+            char c;
+            SocketGetChar(&c, 1);
+            SocketPutChar(c, 1);
+        }
+        while(SocketRXCharAvailable(2)){
+            char c;
+            SocketGetChar(&c, 2);
+            SocketPutChar(c, 2);
         }
     }
 
