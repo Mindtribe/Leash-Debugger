@@ -3,6 +3,7 @@
 #include "log.h"
 #include "simplelink_defs.h"
 #include "wifi.h"
+#include "led.h"
 
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 {
@@ -32,6 +33,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
         else{
             LOG(LOG_IMPORTANT, "[WIFI] Unexpected disconnect");
         }
+        ClearLED(LED_WIFI);
     }
     break;
 
@@ -49,6 +51,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
         // when client disconnects from device (AP)
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_LEASED);
+        ClearLED(LED_WIFI);
     }
     break;
 

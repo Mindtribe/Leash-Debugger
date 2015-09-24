@@ -14,7 +14,7 @@
 #include "simplelink.h"
 
 #define WIFI_TASK_STACK_SIZE 2048
-#define WIFI_TASK_PRIORITY 1
+#define WIFI_TASK_PRIORITY 4
 #define WIFI_NUM_NETWORKS 20
 
 //struct that holds parameters of an AP to connect to
@@ -31,10 +31,11 @@ struct wifi_state_t {
     unsigned long self_IP;
     Sl_WlanNetworkEntry_t networks[WIFI_NUM_NETWORKS];
     struct tApParams ap;
+    unsigned int startAP;
 };
 extern struct wifi_state_t wifi_state;
 
-int WifiInit(void); //initialize and start spawn task
+int WifiInit(unsigned int startAP); //initialize and start spawn task (if startAP is nonzero, start in AP mode)
 int WifiDeleteSpawnTask(void); //delete the spawn task and queue
 int WifiStartSpawnTask(void); //create the spawn task and queue
 int WifiStartDefaultSettings(void); //go to default state and given mode

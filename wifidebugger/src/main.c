@@ -44,11 +44,14 @@
 #include "error.h"
 #include "misc_hal.h"
 #include "gdb_helpers.h"
+#include "serialsock.h"
 #include "target_al.h"
 #include "cc3200.h"
 #include "common/log.h"
 #include "gdbserver.h"
 #include "wifi.h"
+#include "led.h"
+#include "switch.h"
 
 extern void (* const g_pfnVectors[])(void);
 
@@ -59,27 +62,26 @@ int main(void)
 {
     BoardInit();
     mem_log_clear();
-
     OSInit();
 
-    GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
+    unsigned int startAP = GetUserSwitch(AP_SWITCH); //If switch pressed, start in AP mode later
 
-    if(gdbserver_init(&UartPutChar, &UartGetChar, &UartCharsAvailable, &cc3200_interface)
+    InitSockets();
+    if(gdbserver_init(&TS_GDBSocketPutChar, &TS_GDBSocketGetChar, &TS_GDBSocketRXCharAvailable, &cc3200_interface)
             == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-    if(WifiInit() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(WifiInit(startAP) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
 
     //add task for WiFi
     xTaskCreate(Task_Wifi,
-                "WiFi",
-                WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
-                0,
-                WIFI_TASK_PRIORITY,
-                0);
-
+            "WiFi",
+            WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+            0,
+            WIFI_TASK_PRIORITY,
+            0);
 
     //add task for GDBServer
     xTaskCreate(gdbserver_loop_task,
-            "GDBServer Main Loop",
+            "GDBServer Loop",
             GDBSERVER_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
             0,
             GDBSERVER_TASK_PRIORITY,
@@ -102,13 +104,12 @@ static int BoardInit(void)
 
     PRCMCC3200MCUInit();
 
-    //UART terminal
-    UartInit();
     PinMuxConfig();
 
-    GPIO_IF_LedConfigure(LED1|LED2|LED3);
-    GPIO_IF_LedOff(MCU_ALL_LED_IND);
-    GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
+    InitLED();
+
+    //UART terminal
+    UartInit();
 
     return RET_SUCCESS;
 }

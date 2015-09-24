@@ -53,6 +53,7 @@ static void UartIntHandler(void)
 
 void UartInit(void)
 {
+    MAP_PRCMPeripheralClkEnable(CONSOLE_PERIPH, PRCM_RUN_MODE_CLK);
     MAP_UARTConfigSetExpClk(CONSOLE,MAP_PRCMPeripheralClockGet(CONSOLE_PERIPH),
             UART_BAUD_RATE, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
                     UART_CONFIG_PAR_NONE));
