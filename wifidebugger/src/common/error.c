@@ -13,6 +13,7 @@
 #include "log.h"
 #include "led.h"
 #include "gpio_if.h"
+#include "ui.h"
 
 #include <stddef.h>
 #include <stdlib.h>

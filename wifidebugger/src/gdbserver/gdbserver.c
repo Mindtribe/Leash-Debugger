@@ -31,6 +31,7 @@
 #include "special_chars.h"
 #include "crc32.h"
 #include "led.h"
+#include "ui.h"
 
 #define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
 #define GDBSERVER_KEEP_CHARS_NUM 256 //for debugging: number of chars to keep track of

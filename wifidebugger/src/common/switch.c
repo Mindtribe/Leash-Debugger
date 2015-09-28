@@ -10,6 +10,7 @@
 
 #include "switch.h"
 #include "gpio_if.h"
+#include "ui.h"
 
 const unsigned char switch_pins[NUM_SWITCHES] = {
     22,
@@ -18,5 +19,6 @@ const unsigned char switch_pins[NUM_SWITCHES] = {
 
 unsigned int GetUserSwitch(unsigned int id)
 {
+    if(id>=NUM_SWITCHES) return 0;
     return GPIO_IF_SwStatus(switch_pins[id]);
 }

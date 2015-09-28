@@ -52,6 +52,7 @@
 #include "wifi.h"
 #include "led.h"
 #include "switch.h"
+#include "ui.h"
 
 extern void (* const g_pfnVectors[])(void);
 

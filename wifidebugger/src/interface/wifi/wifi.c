@@ -24,6 +24,7 @@
 #include "log.h"
 #include "serialsock.h"
 #include "led.h"
+#include "ui.h"
 
 #ifndef sl_WlanEvtHdlr
 #error SimpleLink event handler not defined!

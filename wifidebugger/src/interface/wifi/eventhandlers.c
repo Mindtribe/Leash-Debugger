@@ -4,6 +4,7 @@
 #include "simplelink_defs.h"
 #include "wifi.h"
 #include "led.h"
+#include "ui.h"
 
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 {

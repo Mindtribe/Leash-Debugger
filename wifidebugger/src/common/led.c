@@ -22,17 +22,19 @@ struct led_state_t{
     unsigned int blink_bit;
 };
 
-struct led_state_t led_state[NUM_LEDS] = {{0}};
+static struct led_state_t led_state[NUM_LEDS] = {{0}};
 
-char lednums[NUM_LEDS];
+static char lednums[NUM_LEDS];
 
-void Int_LEDBlink(void);
+static void Int_LEDBlink(void);
 
 void SetLED(unsigned int id, unsigned int value){
+    if(id>=NUM_LEDS) return;
     if(value){GPIO_IF_LedOn(lednums[id]);}
     else{GPIO_IF_LedOff(lednums[id]);}
 }
 void ClearLED(unsigned int id){
+    if(id>=NUM_LEDS) return;
     led_state[id].blink_enabled = 0;
     GPIO_IF_LedOff(lednums[id]);
 }
@@ -55,11 +57,12 @@ void InitLED(void)
 
 void SetLEDBlink(unsigned int id, unsigned int pattern)
 {
+    if(id>=NUM_LEDS) return;
     led_state[id].blink_pattern = pattern;
     led_state[id].blink_enabled = 1;
 }
 
-void Int_LEDBlink(void)
+static void Int_LEDBlink(void)
 {
     for(int i=0; i<NUM_LEDS; i++){
         if(led_state[i].blink_enabled){
