@@ -16,6 +16,8 @@ Logging functionality
 #define LOG_H_
 
 #include <stdio.h>
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #define LOG_LEVEL LOG_VERBOSE
 
@@ -42,7 +44,10 @@ enum log_level{
 }
 
 void log_put(char* msg);
-void mem_log_add(char* msg);
 void mem_log_clear(void);
+
+//for outputting log messages over an arbitraty putchar interface.
+void mem_log_start_putchar(void (*putchar)(char));
+void mem_log_stop_putchar(void);
 
 #endif

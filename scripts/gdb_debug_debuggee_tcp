@@ -1,0 +1,1 @@
+arm-none-eabi-gdb -x gdbinit_debuggee_tcp ./../build/wifidebugger/testapp/Debug/wifidebugger-testapp-Debug.elf

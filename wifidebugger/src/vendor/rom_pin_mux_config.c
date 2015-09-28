@@ -78,6 +78,12 @@ void PinMuxConfig(void)
     MAP_GPIODirModeSet(GPIOA3_BASE, 0x2, GPIO_DIR_MODE_IN);
 
     //
+    // Configure PIN_04 for GPIO Input
+    //
+    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
+
+    //
     // Configure PIN_64 for GPIO Output
     //
     MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);

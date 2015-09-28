@@ -30,6 +30,8 @@
 #include "error.h"
 #include "special_chars.h"
 #include "crc32.h"
+#include "led.h"
+#include "ui.h"
 
 #define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
 #define GDBSERVER_KEEP_CHARS_NUM 256 //for debugging: number of chars to keep track of
@@ -174,25 +176,30 @@ struct gdbserver_state_t gdbserver_state = {
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target)
 {
-    if(gdb_helpers_init(pPutChar, pGetChar, pGetCharsAvail) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(gdb_helpers_init(pPutChar, pGetChar, pGetCharsAvail) == RET_FAILURE) {goto error;}
+
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_INIT);
+
     gdbserver_state.target = target;
 
-    if((*target->target_init)() == RET_FAILURE){
-        RETURN_ERROR(ERROR_UNKNOWN);
-    }
-    if((*target->target_halt)() == RET_FAILURE){
-        RETURN_ERROR(ERROR_UNKNOWN);
-    }
+    if((*target->target_init)() == RET_FAILURE) {goto error;}
+    if((*target->target_halt)() == RET_FAILURE) {goto error;}
 
-    if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!gdbserver_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {goto error;}
+    if(!gdbserver_state.halted) {goto error;}
 
     //TODO: report the halted state to GDB
 
     gdbserver_state.gave_info = 0;
     gdbserver_state.fileio_state.fileio_waiting = 0;
     gdbserver_state.initialized = 1;
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
     return RET_SUCCESS;
+
+    error:
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+    RETURN_ERROR(ERROR_UNKNOWN);
+    return RET_FAILURE;
 }
 
 void gdbserver_TransmitPacket(char* packet_data)
@@ -254,16 +261,20 @@ void gdbserver_Interrupt(uint8_t signal)
 {
     if((*gdbserver_state.target->target_halt)() == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
         ADD_ERROR(ERROR_UNKNOWN);
     }
     if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
         ADD_ERROR(ERROR_UNKNOWN);
     }
     if(!gdbserver_state.halted){
         gdbserver_TransmitPacket("OError halting target!");
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
         ADD_ERROR(ERROR_UNKNOWN);
     }
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
     gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
     char reply[4];
     reply[0] = 'S';
@@ -344,6 +355,7 @@ int gdbserver_processChar(void)
 void gdbserver_reset_error(int line, int error_code)
 {
     error_add(__FILE__, line, error_code);
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
     gdbserver_state.packet_phase = PACKET_NONE;
     gdbserver_state.cur_packet_index = 0;
     gdbserver_state.awaiting_ack = 0;
@@ -595,16 +607,25 @@ int gdbserver_readMemory(char* argstring)
             lenstring = &(argstring[i+1]);
             break;
         }
-        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no comma found
+        if(i>=29) {
+            SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+            RETURN_ERROR(ERROR_UNKNOWN);
+        } //no comma found
     }
 
     uint32_t addr = strtol(addrstring, NULL, 16);
     uint32_t len = strtol(lenstring, NULL, 16);
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
-    if(len>GDBSERVER_MAX_BLOCK_ACCESS) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(len>GDBSERVER_MAX_BLOCK_ACCESS) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
 
-    if((*gdbserver_state.target->target_mem_block_read)(addr, len, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((*gdbserver_state.target->target_mem_block_read)(addr, len, data) == RET_FAILURE) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
 
     //construct the answer string
     char retstring[GDBSERVER_MAX_PACKET_LEN_TX];
@@ -632,6 +653,7 @@ int gdbserver_setSWBreakpoint(uint32_t addr, uint8_t len_bytes)
         }
     }
     if(bkpt == 0){ //none found
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
         return RET_FAILURE;
     }
 
@@ -641,11 +663,17 @@ int gdbserver_setSWBreakpoint(uint32_t addr, uint8_t len_bytes)
 
     //get the original instruction
     uint32_t inst;
-    if((*gdbserver_state.target->target_mem_block_read)(addr, len_bytes, (uint8_t*)(&inst)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((*gdbserver_state.target->target_mem_block_read)(addr, len_bytes, (uint8_t*)(&inst)) == RET_FAILURE) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
     bkpt->ori_instr = inst;
 
     //place the breakpoint
-    if((*gdbserver_state.target->target_set_sw_bkpt)(addr, len_bytes) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((*gdbserver_state.target->target_set_sw_bkpt)(addr, len_bytes) == RET_FAILURE) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
 
     bkpt->active = 1;
     bkpt->valid = 1;
@@ -712,7 +740,10 @@ int gdbserver_writeMemory(char* argstring)
             lenstring = &(argstring[i+1]);
             break;
         }
-        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no comma found
+        if(i>=29) {
+            SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+            RETURN_ERROR(ERROR_UNKNOWN);
+        } //no comma found
     }
     for(int i=0; i<30; i++){
         if(lenstring[i] == ':'){
@@ -720,14 +751,20 @@ int gdbserver_writeMemory(char* argstring)
             datastring = &(lenstring[i+1]);
             break;
         }
-        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no colon found
+        if(i>=29) {
+            SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+            RETURN_ERROR(ERROR_UNKNOWN);
+        } //no colon found
     }
 
     uint32_t addr = strtol(addrstring, NULL, 16);
     uint32_t len = strtol(lenstring, NULL, 16);
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
-    if(len>GDBSERVER_MAX_BLOCK_ACCESS) RETURN_ERROR(len);
+    if(len>GDBSERVER_MAX_BLOCK_ACCESS){
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(len);
+    }
 
     //convert data
     for(uint32_t i=0; i<len; i++){
@@ -736,7 +773,10 @@ int gdbserver_writeMemory(char* argstring)
         data[i] = (uint8_t) datai;
     }
 
-    if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
 
     gdbserver_TransmitPacket("OK");
 
@@ -765,10 +805,20 @@ void gdbserver_loop_task(void* params)
 int gdbserver_pollTarget(void)
 {
     int old_halted = gdbserver_state.halted;
-    if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(old_halted && !gdbserver_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+    if(old_halted && !gdbserver_state.halted) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
     if(!old_halted && gdbserver_state.halted){
-        if(gdbserver_handleHalt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(gdbserver_handleHalt() == RET_FAILURE) {
+            SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+            RETURN_ERROR(ERROR_UNKNOWN);
+        }
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
         char reply[4];
         switch(gdbserver_state.stop_reason){
         case STOPREASON_SEMIHOSTING:
@@ -816,7 +866,10 @@ void gdbserver_TransmitStopReason(void){
 int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
 {
     //we must wait for the previous file I/O to finish
-    if(gdbserver_state.fileio_state.fileio_waiting) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(gdbserver_state.fileio_state.fileio_waiting) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
 
     char msg[28];
     sprintf(msg, "Fwrite,%02X,%02X%02X%02X%02X,%02X%02X%02X%02X",
@@ -840,7 +893,10 @@ int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t count)
 int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t count)
 {
     //we must wait for the previous file I/O to finish
-    if(gdbserver_state.fileio_state.fileio_waiting) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(gdbserver_state.fileio_state.fileio_waiting) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
 
     char msg[28];
     sprintf(msg, "Fread,%02X,%02X%02X%02X%02X,%02X%02X%02X%02X",
@@ -863,7 +919,10 @@ int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t count)
 
 int gdbserver_continue(void)
 {
-    if(!gdbserver_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!gdbserver_state.halted) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
 
     if(!gdbserver_state.gave_info){
         gdbserver_sendInfo();
@@ -873,9 +932,11 @@ int gdbserver_continue(void)
     if((*gdbserver_state.target->target_continue)()
             == RET_FAILURE){
         gdbserver_TransmitPacket("E0");
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN);
     }
     gdbserver_state.halted = 0; //force halted off so polling starts
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_RUNNING);
 
     return RET_SUCCESS;
 }

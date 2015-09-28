@@ -22,6 +22,9 @@
 #include "error.h"
 #include "simplelink_defs.h"
 #include "log.h"
+#include "serialsock.h"
+#include "led.h"
+#include "ui.h"
 
 #ifndef sl_WlanEvtHdlr
 #error SimpleLink event handler not defined!
@@ -67,14 +70,16 @@ struct wifi_state_t wifi_state ={
             .Key = (signed char*) WIFI_STA_KEY,
             .KeyLen = sizeof(WIFI_STA_KEY)
         }
-    }
+    },
+    .startAP = 0
 };
 
 static int WifiSetModeAP();
 static int WifiConnectSTA();
 
-int WifiInit(void)
+int WifiInit(unsigned int startAP)
 {
+    wifi_state.startAP = startAP;
     if(WifiStartSpawnTask() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     return RET_SUCCESS;
@@ -284,14 +289,25 @@ void Task_Wifi(void* params)
 
     LOG(LOG_VERBOSE, "WiFi Task started.");
 
-    //just start a scan.
-    //add task for WiFi
-    xTaskCreate(Task_WifiScan,
-            "WiFi Scan",
-            WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
-            0,
-            WIFI_TASK_PRIORITY,
-            0);
+    if(wifi_state.startAP){
+        //start the access point.
+        xTaskCreate(Task_WifiAP,
+                "WiFi AP",
+                WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+                0,
+                WIFI_TASK_PRIORITY,
+                0);
+    }
+    else{
+        //just start a scan.
+        //add task for WiFi
+        xTaskCreate(Task_WifiScan,
+                "WiFi Scan",
+                WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+                0,
+                WIFI_TASK_PRIORITY,
+                0);
+    }
 
     WifiTaskEndCallback(&Task_Wifi);
     vTaskDelete(NULL);
@@ -307,21 +323,23 @@ void Task_WifiScan(void* params)
 
     LOG(LOG_VERBOSE, "Starting WiFi network scan...");
 
-    if(WifiDefaultSettings() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_SCANNING);
+
+    if(WifiDefaultSettings() == RET_FAILURE) {goto error;}
 
     retval = sl_Start(0,0,0);
-    if(retval<0) {ADD_ERROR(ERROR_UNKNOWN); return;}
+    if(retval<0)  {goto error;}
 
     //first, delete current connection policy
     policy = SL_CONNECTION_POLICY(0,0,0,0,0);
     retval = sl_WlanPolicySet(SL_POLICY_CONNECTION, policy, NULL, 0);
-    if(retval<0) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0)  {goto error;}
 
     //make scan policy
     policy = SL_SCAN_POLICY(1);
     policy_len = WIFI_SCAN_TIME_S;
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, policy, (unsigned char*)&policy_len, sizeof(policy_len));
-    if(retval<0) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0)  {goto error;}
 
     //wait for the scan to complete
     const TickType_t delay = (1100*WIFI_SCAN_TIME_S) / portTICK_PERIOD_MS;
@@ -336,18 +354,25 @@ void Task_WifiScan(void* params)
     //disable the scan
     policy = SL_SCAN_POLICY(0);
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, policy, NULL, 0);
-    if(retval<0) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0)  {goto error;}
 
     //disable SimpleLink altogether
     retval = sl_Stop(SL_STOP_TIMEOUT);
-    if(retval<0){TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0)  {goto error;}
 
     LOG(LOG_VERBOSE, "WiFi network scan complete.");
+
+    ClearLED(LED_WIFI);
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiScan);
     vTaskDelete(NULL);
 
+    return;
+
+    error:
+    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
+    TASK_RETURN_ERROR(ERROR_UNKNOWN);
     return;
 }
 
@@ -357,26 +382,41 @@ void Task_WifiAP(void* params)
     long retval;
 
     LOG(LOG_IMPORTANT, "Starting WiFi AP Mode.");
+    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTING);
 
-    if(WifiDefaultSettings() == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
+    if(WifiDefaultSettings() == RET_FAILURE)  {goto error;}
 
-    if((retval = sl_Start(0,0,0)) < 0) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    if((retval = sl_Start(0,0,0)) < 0)  {goto error;}
 
     if(retval != ROLE_AP){
         if(WifiSetModeAP() != ROLE_AP){
             sl_Stop(SL_STOP_TIMEOUT);
-            TASK_RETURN_ERROR(ERROR_UNKNOWN);
+            goto error;
         }
     }
 
     //Wait for an IP address to be acquired
     while(!IS_IP_ACQUIRED(wifi_state.status)){};
 
+    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_AP);
     LOG(LOG_IMPORTANT, "AP Started - Ready for client.");
+
+    //start socket handler.
+    xTaskCreate(Task_SocketHandler,
+            "Socket Handler",
+            SOCKET_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+            0,
+            SOCKET_TASK_PRIORITY,
+            0);
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiAP);
     vTaskDelete(NULL);
+
+    error:
+    SetLED(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
+    TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    return;
 
     return;
 }
@@ -387,20 +427,36 @@ void Task_WifiSTA(void* params)
     long retval;
 
     LOG(LOG_IMPORTANT, "Starting WiFi Station Mode.");
+    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTING);
 
-    if(WifiDefaultSettings() == RET_FAILURE) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    if(WifiDefaultSettings() == RET_FAILURE) {goto error;}
 
-    if((retval = sl_Start(0,0,0)) < 0) TASK_RETURN_ERROR(ERROR_UNKNOWN);
-    if(retval != ROLE_STA) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    if((retval = sl_Start(0,0,0)) < 0) {goto error;}
+    if(retval != ROLE_STA) {goto error;}
 
     LOG(LOG_VERBOSE, "WiFi set to station mode.");
 
-    if(WifiConnectSTA() == RET_FAILURE) TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    if(WifiConnectSTA() == RET_FAILURE) {goto error;}
+
+    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTED);
+
+    //start socket handler.
+    xTaskCreate(Task_SocketHandler,
+            "Socket Handler",
+            SOCKET_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+            0,
+            SOCKET_TASK_PRIORITY,
+            0);
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiAP);
     vTaskDelete(NULL);
 
+    return;
+
+    error:
+    SetLED(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
+    TASK_RETURN_ERROR(ERROR_UNKNOWN);
     return;
 }
 

@@ -68,7 +68,7 @@ int cc3200_init(void)
 
     //warm reset
     if(cc3200_icepick_warm_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - Reset done.");
+    LOG(LOG_VERBOSE, "CC3200 - Reset done.");
 
     //ARM core debug interface (JTAG-DP) detection
     if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -106,11 +106,11 @@ int cc3200_reset(void)
     if(cc3200_icepick_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_icepick_connect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_icepick_configure() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - ICEPICK OK.");
+    LOG(LOG_VERBOSE, "CC3200 - ICEPICK OK.");
 
     //warm reset
     if(cc3200_icepick_warm_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    mem_log_add("CC3200 - Reset done.");
+    LOG(LOG_VERBOSE, "CC3200 - Reset done.");
 
     return RET_SUCCESS;
 }
