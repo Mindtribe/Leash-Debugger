@@ -30,7 +30,6 @@ struct wifi_state_t {
     unsigned long client_IP;
     unsigned long self_IP;
     Sl_WlanNetworkEntry_t networks[WIFI_NUM_NETWORKS];
-    struct tApParams ap;
     unsigned int startAP;
 };
 extern struct wifi_state_t wifi_state;

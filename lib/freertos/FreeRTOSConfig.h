@@ -99,7 +99,7 @@
 
 #define configMAX_PRIORITIES			( 10UL )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
-#define configQUEUE_REGISTRY_SIZE		10
+#define configQUEUE_REGISTRY_SIZE		20
 
 /* Timer related defines. */
 #define configUSE_TIMERS				0
