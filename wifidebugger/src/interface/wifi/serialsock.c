@@ -14,6 +14,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "serialconfig.h"
 
 #define NUM_SOCKETS 3
 
@@ -110,6 +111,8 @@ void LogSLError(int code){
         break;
     }
 }
+
+static int ListenSerialSock(unsigned int slot);
 
 void InitSockets(void)
 {
@@ -361,9 +364,7 @@ int UpdateSockets(void)
             else if(retval==0){
                 socket_state[i].status = SOCKET_STARTED;
                 LOG(LOG_VERBOSE, "Socket %d: client disconnected/broken.", i);
-                //sl_Close(socket_state[i].id);
-                //vTaskDelay(2000); //TODO: reconnection after disconnect
-                //if(StartSerialSock(socket_ports[i], i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                ListenSerialSock(i);
                 while(1)
                     ;
             }
@@ -380,6 +381,26 @@ int UpdateSockets(void)
     return RET_SUCCESS;
 }
 
+static int ListenSerialSock(unsigned int slot)
+{
+    long nonblock = 1;
+
+    int retval = sl_Listen(socket_state[slot].id, 0);
+    if(retval < 0){
+        sl_Close(socket_state[slot].id);
+        RETURN_ERROR(retval);
+    }
+
+    //set to non-blocking
+    retval = sl_SetSockOpt(socket_state[slot].id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
+    if(retval < 0){
+        sl_Close(socket_state[slot].id);
+        RETURN_ERROR(retval);
+    }
+
+    return RET_SUCCESS;
+}
+
 int StartSerialSock(unsigned short port, unsigned int slot)
 {
     if(!IS_IP_ACQUIRED(wifi_state.status)) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -388,7 +409,6 @@ int StartSerialSock(unsigned short port, unsigned int slot)
     LOG(LOG_VERBOSE, "Starting socket %d on port %d...", slot, port);
 
     int retval;
-    long nonblock = 1;
 
     socket_state[slot].addr_local.sin_family = SL_AF_INET;
     socket_state[slot].addr_local.sin_port = sl_Htons(port);
@@ -403,18 +423,7 @@ int StartSerialSock(unsigned short port, unsigned int slot)
         RETURN_ERROR(retval);
     }
 
-    retval = sl_Listen(socket_state[slot].id, 0);
-    if(retval < 0){
-        sl_Close(socket_state[slot].id);
-        RETURN_ERROR(retval);
-    }
-
-    //set to non-blocking
-    retval = sl_SetSockOpt(socket_state[slot].id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
-    if(retval < 0){
-        sl_Close(socket_state[slot].id);
-        RETURN_ERROR(retval);
-    }
+    retval = ListenSerialSock(slot);
 
     LOG(LOG_VERBOSE, "Socket started.");
 
@@ -441,6 +450,7 @@ int SockAccept(unsigned int slot)
         }
         if(slot == SOCKET_LOG){
             mem_log_start_putchar(&TS_LogSocketPutChar);
+            serialconfig_start(&TS_LogSocketGetChar);
         }
     }
     else if(newid != SL_EAGAIN){
