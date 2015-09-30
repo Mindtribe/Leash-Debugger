@@ -78,22 +78,24 @@ Upon the first connection to this socket, all log information produced so far sh
 
 For the **GDB socket**, GDB should be configured to connect to the socket. In typical projects using OpenOCD instead of Leash Debugger, the GDB connection would be to OpenOCD using a pipe, usually using a line resembling the following in the GDB initialization script:
 
-```sh
+```
 target remote | openocd -c "gdb_port pipe; log_output ~/openocd.log" -f cc3200.cfg
 ```
 
 For Leash Debugger, this line can be changed to the following, assuming Leash Debugger has IP 192.168.1.1:
 
-```sh
+```
 target remote tcp:192.168.1.1:(...)
 ```
 
 Setting the baud rate, as you would typically do for an OpenOCD session, is not required.
 If you want to test whether Leash Debugger is responding at all to GDB commands, you can enable GDB's remote protocol verbose debugging to see the individual messages (also in the GDB script or from the GDB command line):
 
-```sh
+```
 (gdb) set debug remote 1
 ```
+
+**Note: make sure that you use the GDB version applicable for your target architecture. For debugging the CC3200 (ARM Cortex-M4-based), that means installing and using arm-none-eabi-gdb.**
 
 ## Name Resolution using mDNS/Apple Bonjour
 
