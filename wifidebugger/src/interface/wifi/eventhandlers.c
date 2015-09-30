@@ -17,6 +17,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
         strncpy(ssid, (char*)info->ssid_name, (size_t)info->ssid_len);
         ssid[info->ssid_len] = 0;
         LOG(LOG_IMPORTANT, "[WIFI] Connected to '%s'", ssid);
+
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
     }
     break;

@@ -135,14 +135,14 @@ static int WifiDefaultSettings(void)
     config = SL_DEVICE_GENERAL_VERSION;
     config_len = sizeof(SlVersionFull);
     retval = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &config, &config_len, (unsigned char*)&wifi_state.version);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0) {RETURN_ERROR(retval);}
 
     //default connection policy
     retval = sl_WlanPolicySet(SL_POLICY_CONNECTION,
             SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
             NULL,
             0);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0) {RETURN_ERROR(retval);}
 
     //disconnect
     retval = sl_WlanDisconnect();
@@ -156,33 +156,51 @@ static int WifiDefaultSettings(void)
 
     //Enable DHCP client
     retval = sl_NetCfgSet(SL_IPV4_STA_P2P_CL_DHCP_ENABLE,1,1,&val);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0) {RETURN_ERROR(retval);}
 
     //Disable scan policy
     config = SL_SCAN_POLICY(0);
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, config, NULL, 0);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0) {RETURN_ERROR(retval);}
 
     //Set Tx power level for station mode
     //Number between 0-15, as dB offset from max power - 0 will set max power
     val = 0;
     retval = sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
             WLAN_GENERAL_PARAM_OPT_STA_TX_POWER, 1, (unsigned char *)&val);
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval<0){ RETURN_ERROR(retval); }
 
     // Set PM policy to normal
     retval = sl_WlanPolicySet(SL_POLICY_PM , SL_NORMAL_POLICY, NULL, 0);
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval<0){ RETURN_ERROR(retval); }
 
     // Unregister mDNS services
     retval = sl_NetAppMDNSUnRegisterService(0, 0);
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval<0){ RETURN_ERROR(retval); }
+
+    //Set mDNS device hostname
+    char hostname[64];
+    char macstring[20];
+    unsigned char mac[SL_MAC_ADDR_LEN];
+    unsigned char maclen = SL_MAC_ADDR_LEN;
+    retval = sl_NetCfgGet(SL_MAC_ADDRESS_GET,
+            NULL,
+            &maclen,
+            mac);
+    if(retval < 0) { RETURN_ERROR(retval); }
+    sprintf(macstring, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    sprintf(hostname, "WiFiDebugger%s", macstring);
+    retval = sl_NetAppSet (SL_NET_APP_DEVICE_CONFIG_ID,
+            NETAPP_SET_GET_DEV_CONF_OPT_DEVICE_URN,
+            strlen((const char *)hostname),
+            (unsigned char *) hostname);
+    if(retval<0) {RETURN_ERROR(retval);}
 
     // Remove  all 64 filters (8*8)
     memset(filter_mask.FilterIdMask, 0xFF, 8);
     retval = sl_WlanRxFilterSet(SL_REMOVE_RX_FILTER, (uint8_t*)&filter_mask,
             sizeof(_WlanRxFilterOperationCommandBuff_t));
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval<0){ RETURN_ERROR(retval); }
 
     retval = sl_Stop(SL_STOP_TIMEOUT);
     if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
