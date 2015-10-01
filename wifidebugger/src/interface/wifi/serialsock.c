@@ -10,10 +10,13 @@
 
 #include "serialsock.h"
 #include "wifi.h"
-#include "simplelink_defs.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+
+#include "simplelink_defs.h"
+#include "simplelink.h"
+#include "socket.h"
 
 #define NUM_SOCKETS 3
 

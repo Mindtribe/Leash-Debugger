@@ -16,11 +16,11 @@
 #include "task.h"
 
 //SimpleLink includes
+#include "simplelink_defs.h"
 #include "simplelink.h"
 
 //project includes
 #include "error.h"
-#include "simplelink_defs.h"
 #include "log.h"
 #include "serialsock.h"
 #include "led.h"

@@ -1,0 +1,1 @@
+arm-none-eabi-gdb -x gdbinit_debugger ./../build/wifidebugger/cc3200_flashstub/Debug/wifidebugger-cc3200_flashstub-Debug.elf

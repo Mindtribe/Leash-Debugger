@@ -12,9 +12,10 @@ workspace :wifidebugger, File.dirname(__FILE__) do |w|
 	w.add_project('lib/cc3200-sdk/oslib')
 	w.add_project('lib/cc3200-sdk/middleware')
 	w.add_project('lib/cc3200-sdk/simplelink')
+	w.add_project('stubs/cc3200_flashstub')
 	w.add_project('testapp')
 	w.add_project('wifidebugger')
 
-	w.add_default_tasks(['testapp:Debug', 'wifidebugger:Debug'])
+	w.add_default_tasks(['testapp:Debug', 'cc3200_flashstub:Debug', 'wifidebugger:Debug'])
 end
 
