@@ -18,6 +18,7 @@
 #include "cc3200_icepick.h"
 #include "cc3200_core.h"
 #include "cc3200_jtagdp.h"
+#include "cc3200_flashfs.h"
 
 #define CC3200_CORE_DFSR_BKPT (1<<1)
 
@@ -45,7 +46,13 @@ struct target_al_interface cc3200_interface = {
     .target_write_register = &cc3200_reg_write,
     .target_querySemiHostOp = &cc3200_querySemiHostOp,
     .target_set_pc = &cc3200_set_pc,
-    .target_get_pc = &cc3200_get_pc
+    .target_get_pc = &cc3200_get_pc,
+    .target_flash_fs_supported = &cc3200_flash_fs_supported,
+    .target_flash_fs_read = &cc3200_flash_fs_read,
+    .target_flash_fs_write = &cc3200_flash_fs_write,
+    .target_flash_fs_open = &cc3200_flash_fs_open,
+    .target_flash_fs_close = &cc3200_flash_fs_close,
+    .target_flash_fs_delete = &cc3200_flash_fs_delete,
 };
 
 struct cc3200_state_t{
@@ -363,5 +370,39 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
 
     return RET_SUCCESS;
 }
+
+int cc3200_flash_fs_supported(void)
+{
+    return TARGET_FLASH_FS_SUPPORTED;
+}
+
+int cc3200_flash_fs_read(void)
+{
+    return RET_SUCCESS;
+}
+
+int cc3200_flash_fs_write(void)
+{
+    return RET_SUCCESS;
+}
+
+int cc3200_flash_fs_open(void)
+{
+    int retval = cc3200_flashfs_loadstub();
+    if(retval == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+
+    return RET_SUCCESS;
+}
+
+int cc3200_flash_fs_close(void)
+{
+    return RET_SUCCESS;
+}
+
+int cc3200_flash_fs_delete(void)
+{
+    return RET_SUCCESS;
+}
+
 
 

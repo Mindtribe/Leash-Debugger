@@ -131,6 +131,16 @@ const char* gdbserver_query_strings[] = {
     "Attached"
 };
 
+//NOTE: keep this enum and the following const array synced so that each query type corresponds to its string.
+enum gdbserver_vcommand_name{
+    VCOMMAND_FILE = 0,
+    VCOMMAND_MAX,
+    VCOMMAND_ERROR
+};
+const char* gdbserver_vcommand_strings[] = {
+    "File"
+};
+
 struct fileio_state_t{
     uint8_t fileio_waiting;
     struct semihost_operation last_semihost_op;
@@ -380,6 +390,55 @@ enum gdbserver_query_name gdbserver_getGeneralQueryName(char* query)
     return QUERY_ERROR; //wasn't able to decode
 }
 
+enum gdbserver_vcommand_name gdbserver_getVCommandName(char* command)
+{
+    char commandName[20];
+    int qi;
+    for(qi=0; qi<19 && command[qi]!=':'; qi++){
+        commandName[qi] = command[qi];
+    }
+    commandName[qi] = 0;
+
+    //enumerate the query
+    for(enum gdbserver_vcommand_name i = 0; i<VCOMMAND_MAX; i++){
+        if(strcmp(commandName, (const char*)gdbserver_vcommand_strings[i]) == 0){
+            return (enum gdbserver_vcommand_name) i; //found it
+        }
+    }
+
+    return VCOMMAND_ERROR; //wasn't able to decode
+}
+
+int gdbserver_processVCommand(char* commandString)
+{
+    enum gdbserver_vcommand_name qname = gdbserver_getVCommandName(commandString);
+    if(qname == VCOMMAND_ERROR){
+        error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        gdbserver_TransmitPacket("");
+    }
+
+    char response[50];
+    int retval;
+
+    switch(qname){
+    case VCOMMAND_FILE:
+        retval = (*gdbserver_state.target->target_flash_fs_supported)();
+        if(retval == TARGET_FLASH_FS_UNSUPPORTED){
+            gdbserver_TransmitPacket("");
+        }
+        else{
+            (void)response;
+            retval = (*gdbserver_state.target->target_flash_fs_open)();
+        }
+        break;
+    default:
+        gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
+        break;//unsupported query as of now
+    }
+
+    return RET_SUCCESS;
+}
+
 int gdbserver_processGeneralQuery(char* queryString)
 {
     enum gdbserver_query_name qname = gdbserver_getGeneralQueryName(queryString);
@@ -450,6 +509,9 @@ int gdbserver_processPacket(void)
     switch(gdbserver_state.cur_packet[0]){
     case 'q': //general query
         if(gdbserver_processGeneralQuery(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) ADD_ERROR(ERROR_UNKNOWN);
+        break;
+    case 'v': //v category of commands
+        if(gdbserver_processVCommand(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) ADD_ERROR(ERROR_UNKNOWN);
         break;
     case 'H': //set operation type and thread ID
         if((gdbserver_state.cur_packet[1] != 'c' && gdbserver_state.cur_packet[1] != 'g') //operation types

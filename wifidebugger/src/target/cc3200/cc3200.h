@@ -57,4 +57,16 @@ int cc3200_get_pc(uint32_t* dst);
 
 int cc3200_querySemiHostOp(struct semihost_operation *op);
 
+int cc3200_flash_fs_supported(void);
+
+int cc3200_flash_fs_read(void);
+
+int cc3200_flash_fs_write(void);
+
+int cc3200_flash_fs_open(void);
+
+int cc3200_flash_fs_close(void);
+
+int cc3200_flash_fs_delete(void);
+
 #endif
