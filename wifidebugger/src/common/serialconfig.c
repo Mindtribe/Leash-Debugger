@@ -40,12 +40,12 @@
 
 enum command_statemachine{
     COMMAND = 0,
-    GET_SSID,
+    ADDNEWORK_GET_SSID,
     GET_TYPE,
     GET_KEY,
-    GET_SSID_DEL,
+    DELETENEWORK_GET_SSID,
     CONFIRM_DEL_ALL,
-    CONFIRM_DEL
+    DELETENETWORK_CONFIRM
 };
 
 struct wlan_profile_data_t{
@@ -63,6 +63,7 @@ struct serialconfig_state_t{
     unsigned int rxbuf_i;
     void (*get_char)(char*);
     enum command_statemachine statenum;
+    void (*current_operation_callback)(void);
     char temp_ssid[SSID_MAXLEN];
     unsigned int temp_type;
     char temp_key[KEY_MAXLEN];
@@ -73,6 +74,26 @@ static struct serialconfig_state_t serialconfig_state = {
     .rxbuf_i = 0,
     .get_char = NULL,
     .statenum = COMMAND
+};
+
+struct serialconfig_command_t{
+    const char* cmdstring;
+    const char* helpstring;
+    void (*executeCallback)(void);
+};
+
+static void sc_cmd_add(void);
+static void sc_cmd_del(void);
+static void sc_cmd_delall(void);
+static void sc_cmd_list(void);
+static void sc_cmd_help(void);
+
+static const struct serialconfig_command_t serialconfig_commands[] = {
+    {"network", "add a network.", &sc_cmd_add},
+    {"delete", "delete a network.", &sc_cmd_del},
+    {"deleteall", "delete all networks.", &sc_cmd_delall},
+    {"list", "list stored networks.", &sc_cmd_list},
+    {"help", "display this help text.", &sc_cmd_help}
 };
 
 static void Task_SerialConfig(void* params);
@@ -116,48 +137,15 @@ static int get_profiles(struct wlan_profile_data_t *profiles)
     return RET_SUCCESS;
 }
 
-static void HandleMessage(void)
+static void sc_cmd_add(void)
 {
     unsigned int commit = 0;
-    unsigned int delete = 0;
-    unsigned int deleteall = 0;
     switch(serialconfig_state.statenum){
     case COMMAND:
-        if(strcmp(serialconfig_state.rxbuf, SC_CMD_ADD_NETWORK) == 0){
-            serialconfig_state.statenum = GET_SSID;
-            LOG(LOG_IMPORTANT, "[CONF] Please enter SSID:");
-        }
-        else if(strcmp(serialconfig_state.rxbuf, SC_CMD_HELP) == 0){
-            LOG(LOG_IMPORTANT, "[CONF] Supported commands:");
-            LOG(LOG_IMPORTANT, "[CONF] network: add network.");
-            LOG(LOG_IMPORTANT, "[CONF] list: list stored networks.");
-            LOG(LOG_IMPORTANT, "[CONF] delete: delete a network.");
-            LOG(LOG_IMPORTANT, "[CONF] deleteall: delete all networks.");
-            LOG(LOG_IMPORTANT, "[CONF] help: show this help text.");
-        }
-        else if(strcmp(serialconfig_state.rxbuf, SC_CMD_DELETE_NETWORK) == 0){
-            serialconfig_state.statenum = GET_SSID_DEL;
-            LOG(LOG_IMPORTANT, "[CONF] Please enter SSID:");
-        }
-        else if(strcmp(serialconfig_state.rxbuf, SC_CMD_DELETE_ALL) == 0){
-            serialconfig_state.statenum = CONFIRM_DEL_ALL;
-            LOG(LOG_IMPORTANT, "[CONF] Delete ALL networks? (Y/N)");
-        }
-        else if(strcmp(serialconfig_state.rxbuf, SC_CMD_LIST_NETWORKS) == 0){
-            struct wlan_profile_data_t profiles[NUM_PROFILES_MAX];
-            if(get_profiles(profiles) == RET_FAILURE) { LOG(LOG_IMPORTANT, "[CONF] List retrieval failed!");}
-            else{
-                LOG(LOG_IMPORTANT, "[CONF] Networks stored:");
-                for(int i=0; i<NUM_PROFILES_MAX; i++){
-                    if(profiles[i].valid){ LOG(LOG_IMPORTANT, "[CONF] '%s'", profiles[i].name); }
-                }
-            }
-        }
-        else{
-            LOG(LOG_IMPORTANT, "[CONF] Invalid command.");
-        }
+        serialconfig_state.statenum = ADDNEWORK_GET_SSID;
+        LOG(LOG_IMPORTANT, "[CONF] Please enter SSID:");
         break;
-    case GET_SSID:
+    case ADDNEWORK_GET_SSID:
         if(strlen(serialconfig_state.rxbuf) > SSID_MAXLEN){
             LOG(LOG_IMPORTANT, "[CONF] SSID too long.");
             serialconfig_state.statenum = COMMAND;
@@ -197,31 +185,10 @@ static void HandleMessage(void)
         serialconfig_state.statenum = COMMAND;
         commit = 1;
         break;
-    case GET_SSID_DEL:
-        if(strlen(serialconfig_state.rxbuf) > SSID_MAXLEN){
-            LOG(LOG_IMPORTANT, "[CONF] SSID too long.");
-            serialconfig_state.statenum = COMMAND;
-        }
-        strcpy(serialconfig_state.temp_ssid, serialconfig_state.rxbuf);
-        LOG(LOG_IMPORTANT, "[CONF] Delete '%s'? (Y/N)", serialconfig_state.temp_ssid);
-        serialconfig_state.statenum = CONFIRM_DEL;
-        break;
-    case CONFIRM_DEL:
-        if(strcmp(serialconfig_state.rxbuf, "Y") == 0){
-            delete = 1;
-            serialconfig_state.statenum = COMMAND;
-        }
-        else { LOG(LOG_IMPORTANT, "[CONF] Cancelled."); }
-        break;
-    case CONFIRM_DEL_ALL:
-        if(strcmp(serialconfig_state.rxbuf, "Y") == 0){
-            deleteall = 1;
-            serialconfig_state.statenum = COMMAND;
-        }
-        else { LOG(LOG_IMPORTANT, "[CONF] Cancelled."); }
-        break;
+    default:
+        serialconfig_state.statenum = COMMAND;
+        return;
     }
-
     if(commit){
         LOG(LOG_IMPORTANT, "[CONF] Adding network '%s'...", serialconfig_state.temp_ssid);
 
@@ -276,6 +243,36 @@ static void HandleMessage(void)
             }
         }
     }
+}
+
+static void sc_cmd_del(void)
+{
+    unsigned int delete = 0;
+    switch(serialconfig_state.statenum){
+    case COMMAND:
+        serialconfig_state.statenum = DELETENEWORK_GET_SSID;
+        LOG(LOG_IMPORTANT, "[CONF] Please enter SSID:");
+        break;
+    case DELETENEWORK_GET_SSID:
+        if(strlen(serialconfig_state.rxbuf) > SSID_MAXLEN){
+            LOG(LOG_IMPORTANT, "[CONF] SSID too long.");
+            serialconfig_state.statenum = COMMAND;
+        }
+        strcpy(serialconfig_state.temp_ssid, serialconfig_state.rxbuf);
+        LOG(LOG_IMPORTANT, "[CONF] Delete '%s'? (Y/N)", serialconfig_state.temp_ssid);
+        serialconfig_state.statenum = DELETENETWORK_CONFIRM;
+        break;
+    case DELETENETWORK_CONFIRM:
+        if(strcmp(serialconfig_state.rxbuf, "Y") == 0){
+            delete = 1;
+            serialconfig_state.statenum = COMMAND;
+        }
+        else { LOG(LOG_IMPORTANT, "[CONF] Cancelled."); }
+        break;
+    default:
+        serialconfig_state.statenum = COMMAND;
+        return;
+    }
     if(delete){
         LOG(LOG_IMPORTANT, "[CONF] Deleting network '%s'...", serialconfig_state.temp_ssid);
 
@@ -294,11 +291,88 @@ static void HandleMessage(void)
         }
         if(!found){ LOG(LOG_IMPORTANT, "[COMP] Delete failed - not found."); }
     }
+}
+
+static void sc_cmd_delall(void)
+{
+    unsigned int deleteall = 0;
+    switch(serialconfig_state.statenum){
+    case COMMAND:
+        serialconfig_state.statenum = CONFIRM_DEL_ALL;
+        LOG(LOG_IMPORTANT, "[CONF] Delete ALL networks? (Y/N)");
+        break;
+    case CONFIRM_DEL_ALL:
+        if(strcmp(serialconfig_state.rxbuf, "Y") == 0){
+            deleteall = 1;
+            serialconfig_state.statenum = COMMAND;
+        }
+        else { LOG(LOG_IMPORTANT, "[CONF] Cancelled."); }
+        break;
+    default:
+        serialconfig_state.statenum = COMMAND;
+        return;
+    }
     if(deleteall){
         if(sl_WlanProfileDel(255) < 0){
             LOG(LOG_IMPORTANT, "[COMP] Delete failed - unknown error.");
         }
         else { LOG(LOG_IMPORTANT, "[COMP] Deleted all networks."); }
+    }
+}
+
+static void sc_cmd_list(void)
+{
+    struct wlan_profile_data_t profiles[NUM_PROFILES_MAX];
+    switch(serialconfig_state.statenum){
+    case COMMAND:
+        if(get_profiles(profiles) == RET_FAILURE) { LOG(LOG_IMPORTANT, "[CONF] List retrieval failed!");}
+        else{
+            LOG(LOG_IMPORTANT, "[CONF] Networks stored:");
+            for(int i=0; i<NUM_PROFILES_MAX; i++){
+                if(profiles[i].valid){ LOG(LOG_IMPORTANT, "[CONF] '%s'", profiles[i].name); }
+            }
+        }
+        break;
+    default:
+        serialconfig_state.statenum = COMMAND;
+        return;
+    }
+}
+
+static void sc_cmd_help(void)
+{
+    switch(serialconfig_state.statenum){
+    case COMMAND:
+        LOG(LOG_IMPORTANT, "[CONF] Supported commands:");
+        for(unsigned int i=0; i<(sizeof(serialconfig_commands)/sizeof(struct serialconfig_command_t)); i++){
+            LOG(LOG_IMPORTANT, "[CONF] %s: %s", serialconfig_commands[i].cmdstring, serialconfig_commands[i].helpstring);
+        }
+        break;
+    default:
+        serialconfig_state.statenum = COMMAND;
+        return;
+    }
+}
+
+static void HandleMessage(void)
+{
+    int cmd_found = 0;
+    switch(serialconfig_state.statenum){
+    case COMMAND:
+        for(unsigned int i=0; (cmd_found == 0) && (i<(sizeof(serialconfig_commands)/sizeof(struct serialconfig_command_t))); i++){
+            if(strcmp(serialconfig_state.rxbuf, serialconfig_commands[i].cmdstring) == 0){
+                serialconfig_commands[i].executeCallback();
+                serialconfig_state.current_operation_callback = serialconfig_commands[i].executeCallback;
+                cmd_found = 1;
+            }
+        }
+        if(cmd_found == 0){
+            LOG(LOG_IMPORTANT, "[CONF] Invalid command.");
+        }
+        break;
+    default:
+        serialconfig_state.current_operation_callback();
+        break;
     }
     return;
 }
