@@ -188,8 +188,8 @@ static int WifiDefaultSettings(void)
             &maclen,
             mac);
     if(retval < 0) { RETURN_ERROR(retval); }
-    sprintf(macstring, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    sprintf(hostname, "WiFiDebugger%s", macstring);
+    snprintf(macstring, 20,  "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    snprintf(hostname, 64,  "WiFiDebugger%s", macstring);
     retval = sl_NetAppSet (SL_NET_APP_DEVICE_CONFIG_ID,
             NETAPP_SET_GET_DEV_CONF_OPT_DEVICE_URN,
             strlen((const char *)hostname),

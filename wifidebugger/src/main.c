@@ -66,17 +66,6 @@ static int OSInit(void);
 #define SL_TASK_STACK_SIZE (2048)
 #define SL_TASK_PRIORITY (5)
 
-/*
-#ifdef SL_PLATFORM_MULTI_THREADED
-static void Task_SimpleLink(void* params)
-{
-    (void)params;
-    sl_Task();
-    return;
-}
-#endif
-*/
-
 int main(void)
 {
     BoardInit();
@@ -89,18 +78,6 @@ int main(void)
     if(gdbserver_init(&TS_GDBSocketPutChar, &TS_GDBSocketGetChar, &TS_GDBSocketRXCharAvailable, &cc3200_interface)
             == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
     if(WifiInit(startAP) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN);
-
-    /*
-#ifdef SL_PLATFORM_MULTI_THREADED
-    //add task for SimpleLink
-    xTaskCreate(Task_SimpleLink,
-            "SimpleLink",
-            SL_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
-            0,
-            SL_TASK_PRIORITY,
-            0);
-#endif
-*/
 
     //add task for WiFi
     xTaskCreate(Task_Wifi,

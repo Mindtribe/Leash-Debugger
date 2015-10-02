@@ -20,6 +20,11 @@
 #define SOCKET_TASK_PRIORITY (3)
 #define SOCKET_TASK_STACK_SIZE (2048)
 
+#define NUM_SOCKETS 3
+extern const int socket_ports[NUM_SOCKETS];
+extern const char* socket_mdns_names_fixedpart[NUM_SOCKETS];
+extern const char* socket_mdns_descriptions[NUM_SOCKETS];
+
 //These functions are for calling from the WiFi SimpleLink thread only.
 int StartSerialSock(unsigned short port, unsigned int slot);
 int SockAccept(unsigned int slot);

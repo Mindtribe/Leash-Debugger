@@ -137,6 +137,27 @@ static int get_profiles(struct wlan_profile_data_t *profiles)
     return RET_SUCCESS;
 }
 
+static int check_add_profile_space(char* ssid)
+{
+    struct wlan_profile_data_t profiles[NUM_PROFILES_MAX];
+    if(get_profiles(profiles) == RET_FAILURE) { WAIT_ERROR(ERROR_UNKNOWN); }
+
+    for(short i=0; i<NUM_PROFILES_MAX; i++){
+        if(strcmp(ssid, profiles[i].name) == 0){
+            LOG(LOG_IMPORTANT, "[CONF] '%s' found in profiles, replacing it...", profiles[i].name);
+            return 1; //equal SSID found - add profile in SL API will automatically replace it
+        }
+    }
+
+    for(int i=0; i<NUM_PROFILES_MAX; i++){
+        if(!profiles[i].valid){
+            return 1; //empty space found
+        }
+    }
+
+    return 0;
+}
+
 static void sc_cmd_add(void)
 {
     unsigned int commit = 0;
@@ -192,55 +213,28 @@ static void sc_cmd_add(void)
     if(commit){
         LOG(LOG_IMPORTANT, "[CONF] Adding network '%s'...", serialconfig_state.temp_ssid);
 
-        struct wlan_profile_data_t profiles[NUM_PROFILES_MAX];
-        if(get_profiles(profiles) == RET_FAILURE) { WAIT_ERROR(ERROR_UNKNOWN); }
-
-        short delete_profile = -1;
-        int add_profile = 0;
-        int ready_commit = 0;
-
-        for(short i=0; i<NUM_PROFILES_MAX; i++){
-            if(strcmp(serialconfig_state.temp_ssid, profiles[i].name) == 0){
-                LOG(LOG_IMPORTANT, "[COMP] '%s' found in profiles, replacing it...", profiles[i].name);
-                delete_profile = i;
-                ready_commit = 1;
-                add_profile = 1;
-                break;
+        if(check_add_profile_space(serialconfig_state.temp_ssid)){
+            SlSecParams_t secparams = {0};
+            secparams.Type = serialconfig_state.temp_type;
+            secparams.KeyLen = strlen(serialconfig_state.temp_key);
+            secparams.Key = (signed char*)serialconfig_state.temp_key;
+            int retval = sl_WlanProfileAdd(
+                    (signed char*)serialconfig_state.temp_ssid,
+                    (short)strlen(serialconfig_state.temp_ssid),
+                    NULL,
+                    &secparams,
+                    NULL,
+                    0,
+                    0);
+            if(retval<0){
+                LOG(LOG_IMPORTANT, "[COMP] Add failed - unknown error.");
             }
-        }
-        if(!ready_commit){
-            for(int i=0; i<NUM_PROFILES_MAX; i++){
-                if(!profiles[i].valid){
-                    add_profile = 1;
-                    ready_commit = 1;
-                }
+            else{
+                LOG(LOG_IMPORTANT, "[COMP] '%s' added.", serialconfig_state.temp_ssid);
             }
-        }
-        if(!ready_commit){
-            LOG(LOG_IMPORTANT, "[COMP] Failed: no room in profiles list.");
         }
         else{
-            if(delete_profile >= 0){
-                if(sl_WlanProfileDel(delete_profile) < 0){
-                    LOG(LOG_IMPORTANT, "[COMP] Delete failed - unknown error.");
-                }
-            }
-            if(add_profile){
-                SlSecParams_t secparams = {0};
-                secparams.Type = serialconfig_state.temp_type;
-                secparams.KeyLen = strlen(serialconfig_state.temp_key);
-                secparams.Key = (signed char*)serialconfig_state.temp_key;
-                int retval = sl_WlanProfileAdd(
-                        (signed char*)serialconfig_state.temp_ssid,
-                        (short)strlen(serialconfig_state.temp_ssid),
-                        NULL,
-                        &secparams,
-                        NULL,
-                        0,
-                        0);
-                if(retval<0){  LOG(LOG_IMPORTANT, "[COMP] Add failed - unknown error."); }
-                else{ LOG(LOG_IMPORTANT, "[COMP] '%s' added.", serialconfig_state.temp_ssid);}
-            }
+            LOG(LOG_IMPORTANT, "[COMP] Failed: no room in profiles list.");
         }
     }
 }
@@ -267,7 +261,10 @@ static void sc_cmd_del(void)
             delete = 1;
             serialconfig_state.statenum = COMMAND;
         }
-        else { LOG(LOG_IMPORTANT, "[CONF] Cancelled."); }
+        else {
+            LOG(LOG_IMPORTANT, "[CONF] Cancelled.");
+            serialconfig_state.statenum = COMMAND;
+        }
         break;
     default:
         serialconfig_state.statenum = COMMAND;
@@ -331,6 +328,7 @@ static void sc_cmd_list(void)
             for(int i=0; i<NUM_PROFILES_MAX; i++){
                 if(profiles[i].valid){ LOG(LOG_IMPORTANT, "[CONF] '%s'", profiles[i].name); }
             }
+            serialconfig_state.statenum = COMMAND;
         }
         break;
     default:
