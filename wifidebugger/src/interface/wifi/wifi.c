@@ -15,6 +15,9 @@
 #include "semphr.h"
 #include "task.h"
 
+//TI OS abstraction layer
+#include "osi.h"
+
 //SimpleLink includes
 #include "simplelink.h"
 
@@ -30,16 +33,11 @@
 #error SimpleLink event handler not defined!
 #endif
 
-#define SPAWNQUEUE_SIZE (3)
-
 #define SPAWNTASK_STACK_SIZE (2048)
 #define SPAWNTASK_PRIORITY (9)
 
 #define WIFI_AP_SSID "WIFIDEBUGGER"
 #define WIFI_SCAN_TIME_S 5
-
-#define WIFI_STA_SSID "Mindtribe"
-#define WIFI_STA_KEY "thisisnottherealkey!"
 
 //SimpleLink spawn message type: specifies
 //a callback and parameter pointer.
@@ -49,13 +47,6 @@ typedef struct
     void* pValue;
 }tSLSpawnMessage;
 
-//SimpleLink spawn queue, for receiving
-//spawn messages
-QueueHandle_t SLSpawnQueue = NULL;
-
-//Handle to the spawn task
-TaskHandle_t SLSpawnTask = NULL;
-
 struct wifi_state_t wifi_state ={
     .version = {
         .NwpVersion = {0}
@@ -63,14 +54,6 @@ struct wifi_state_t wifi_state ={
     .status = 0,
     .client_IP = 0,
     .self_IP = 0,
-    .ap = {
-        .ssid = WIFI_STA_SSID,
-        .secparams = {
-            .Type = SL_SEC_TYPE_WPA_WPA2,
-            .Key = (signed char*) WIFI_STA_KEY,
-            .KeyLen = sizeof(WIFI_STA_KEY)
-        }
-    },
     .startAP = 0
 };
 
@@ -80,7 +63,7 @@ static int WifiConnectSTA();
 int WifiInit(unsigned int startAP)
 {
     wifi_state.startAP = startAP;
-    if(WifiStartSpawnTask() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(VStartSimpleLinkSpawnTask(SPAWNTASK_PRIORITY) < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     return RET_SUCCESS;
 }
@@ -93,38 +76,7 @@ int WifiDeinit(void)
 
 int WifiDeleteSpawnTask(void)
 {
-    if(SLSpawnTask != NULL){
-        vTaskDelete(SLSpawnTask);
-        SLSpawnTask = NULL;
-    }
-    if(SLSpawnQueue != NULL){
-        vQueueDelete(SLSpawnQueue);
-        SLSpawnQueue = NULL;
-    }
-    return RET_SUCCESS;
-}
-
-int WifiStartSpawnTask(void)
-{
-    if(SLSpawnTask != NULL || SLSpawnQueue != NULL){
-        RETURN_ERROR(ERROR_UNKNOWN);
-    }
-
-    SLSpawnQueue = xQueueCreate(SPAWNQUEUE_SIZE, sizeof(tSLSpawnMessage));
-    if(SLSpawnQueue == NULL){
-        RETURN_ERROR(ERROR_UNKNOWN);
-    }
-
-    if(xTaskCreate(Task_SLSpawn,
-            (portCHAR*) "SL_Spawn",
-            (SPAWNTASK_STACK_SIZE/sizeof(portSTACK_TYPE)),
-            NULL,
-            SPAWNTASK_PRIORITY,
-            &SLSpawnTask)
-            != pdTRUE){
-        RETURN_ERROR(ERROR_UNKNOWN);
-    }
-
+    VDeleteSimpleLinkSpawnTask();
     return RET_SUCCESS;
 }
 
@@ -183,18 +135,14 @@ static int WifiDefaultSettings(void)
     config = SL_DEVICE_GENERAL_VERSION;
     config_len = sizeof(SlVersionFull);
     retval = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &config, &config_len, (unsigned char*)&wifi_state.version);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0) {RETURN_ERROR(retval);}
 
     //default connection policy
     retval = sl_WlanPolicySet(SL_POLICY_CONNECTION,
-            SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
+            SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
             NULL,
             0);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
-
-    //delete profiles
-    retval = sl_WlanProfileDel(0xFF);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0) {RETURN_ERROR(retval);}
 
     //disconnect
     retval = sl_WlanDisconnect();
@@ -208,33 +156,51 @@ static int WifiDefaultSettings(void)
 
     //Enable DHCP client
     retval = sl_NetCfgSet(SL_IPV4_STA_P2P_CL_DHCP_ENABLE,1,1,&val);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0) {RETURN_ERROR(retval);}
 
     //Disable scan policy
     config = SL_SCAN_POLICY(0);
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, config, NULL, 0);
-    if(retval<0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval<0) {RETURN_ERROR(retval);}
 
     //Set Tx power level for station mode
     //Number between 0-15, as dB offset from max power - 0 will set max power
     val = 0;
     retval = sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
             WLAN_GENERAL_PARAM_OPT_STA_TX_POWER, 1, (unsigned char *)&val);
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval<0){ RETURN_ERROR(retval); }
 
     // Set PM policy to normal
     retval = sl_WlanPolicySet(SL_POLICY_PM , SL_NORMAL_POLICY, NULL, 0);
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval<0){ RETURN_ERROR(retval); }
 
     // Unregister mDNS services
     retval = sl_NetAppMDNSUnRegisterService(0, 0);
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval<0){ RETURN_ERROR(retval); }
+
+    //Set mDNS device hostname
+    char hostname[64];
+    char macstring[20];
+    unsigned char mac[SL_MAC_ADDR_LEN];
+    unsigned char maclen = SL_MAC_ADDR_LEN;
+    retval = sl_NetCfgGet(SL_MAC_ADDRESS_GET,
+            NULL,
+            &maclen,
+            mac);
+    if(retval < 0) { RETURN_ERROR(retval); }
+    snprintf(macstring, 20,  "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    snprintf(hostname, 64,  "WiFiDebugger%s", macstring);
+    retval = sl_NetAppSet (SL_NET_APP_DEVICE_CONFIG_ID,
+            NETAPP_SET_GET_DEV_CONF_OPT_DEVICE_URN,
+            strlen((const char *)hostname),
+            (unsigned char *) hostname);
+    if(retval<0) {RETURN_ERROR(retval);}
 
     // Remove  all 64 filters (8*8)
     memset(filter_mask.FilterIdMask, 0xFF, 8);
     retval = sl_WlanRxFilterSet(SL_REMOVE_RX_FILTER, (uint8_t*)&filter_mask,
             sizeof(_WlanRxFilterOperationCommandBuff_t));
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN); }
+    if(retval<0){ RETURN_ERROR(retval); }
 
     retval = sl_Stop(SL_STOP_TIMEOUT);
     if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -262,23 +228,13 @@ static int WifiSetModeAP()
 
 static int WifiConnectSTA()
 {
-    long retval;
-
-    LOG(LOG_IMPORTANT ,"Connecting to '%s'...", wifi_state.ap.ssid);
-
-    retval = sl_WlanConnect((signed char*)wifi_state.ap.ssid, strlen(wifi_state.ap.ssid),
-            0, &(wifi_state.ap.secparams), 0);
-    if(retval < 0){
-        RETURN_ERROR((int)retval);
-    }
+    LOG(LOG_IMPORTANT ,"Waiting for auto connect...");
 
     while((!IS_CONNECTED(wifi_state.status)) || (!IS_IP_ACQUIRED(wifi_state.status))){
 #ifndef SL_PLATFORM_MULTI_THREADED
         _SlNonOsMainLoopTask();
 #endif
     }
-
-    LOG(LOG_IMPORTANT ,"Connected to '%s'.", wifi_state.ap.ssid);
 
     return RET_SUCCESS;
 }
@@ -299,10 +255,8 @@ void Task_Wifi(void* params)
                 0);
     }
     else{
-        //just start a scan.
-        //add task for WiFi
-        xTaskCreate(Task_WifiScan,
-                "WiFi Scan",
+        xTaskCreate(Task_WifiSTA,
+                "WiFi Station",
                 WIFI_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
                 0,
                 WIFI_TASK_PRIORITY,
@@ -457,30 +411,5 @@ void Task_WifiSTA(void* params)
     error:
     SetLED(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
     TASK_RETURN_ERROR(ERROR_UNKNOWN);
-    return;
-}
-
-
-void Task_SLSpawn(void *params)
-{
-    (void)params; //avoid unused warning
-
-    tSLSpawnMessage Msg;
-    portBASE_TYPE ret=pdFAIL;
-
-    //infinitely wait for spawn messages from the queue,
-    //and spawn the functions specified inside.
-    for(;;)
-    {
-        ret = xQueueReceive( SLSpawnQueue, &Msg, portMAX_DELAY );
-        if(ret == pdPASS)
-        {
-            Msg.pEntry(Msg.pValue);
-        }
-    }
-
-    //exit (delete this task)
-    vTaskDelete(NULL);
-
     return;
 }

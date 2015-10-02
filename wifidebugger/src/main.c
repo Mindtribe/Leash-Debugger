@@ -31,6 +31,10 @@
 #include "uart_al.h"
 #include "pin_mux_config.h"
 
+//SimpleLink
+#include "simplelink.h"
+#include "device.h"
+
 //FreeRTOS
 #include "FreeRTOS.h"
 #include "task.h"
@@ -58,6 +62,9 @@ extern void (* const g_pfnVectors[])(void);
 
 static int BoardInit(void);
 static int OSInit(void);
+
+#define SL_TASK_STACK_SIZE (2048)
+#define SL_TASK_PRIORITY (5)
 
 int main(void)
 {

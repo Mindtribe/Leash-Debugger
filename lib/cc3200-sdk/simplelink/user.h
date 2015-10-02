@@ -606,9 +606,9 @@ extern "C" {
  ******************************************************************************
 */
 
-/*
+
 #define SL_PLATFORM_MULTI_THREADED
-*/
+
 
 #ifdef SL_PLATFORM_MULTI_THREADED
 #include "osi.h"

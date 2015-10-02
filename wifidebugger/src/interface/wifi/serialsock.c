@@ -11,11 +11,38 @@
 #include "serialsock.h"
 #include "wifi.h"
 #include "simplelink_defs.h"
+#include "netcfg.h"
+#include "netapp.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "serialconfig.h"
 
 #define NUM_SOCKETS 3
+
+enum{
+    SOCKET_LOG = 0,
+    SOCKET_TARGET,
+    SOCKET_GDB
+};
+
+const unsigned int socket_ports[NUM_SOCKETS] = {
+    49152,
+    49153,
+    49154
+};
+
+const char* socket_mdns_names_fixedpart[NUM_SOCKETS] = {
+    "Debug Adapter Serial Link._raw-serial._tcp.local.",
+    "Debug Target Serial Link._raw-serial._tcp.local.",
+    "GDB Remote Link._gdbremote._tcp.local."
+};
+
+const char* socket_mdns_descriptions[NUM_SOCKETS] = {
+    "Log information and interaction with WiFi debug adapter.",
+    "Serial communication to WiFi debug adapter target.",
+    "GDB connection to operate WiFi debug adapter."
+};
 
 //status bits
 #define SOCKET_STARTED 1
@@ -27,21 +54,12 @@
 #define SOCKET_TXBUF_SIZE 128
 #define SOCKET_RXBUF_SIZE 128
 
+#define MDNS_SERVICE_NAME_MAXLEN 128
+#define MDNS_SERVICE_TTL 2000
+
 //Note: be aware that arguments to this macro get evaluated twice.
 //(so no MIN(x++, y++)!)
 #define MIN(X, Y) ((X) < (Y)) ? (X) : (Y)
-
-enum{
-    SOCKET_LOG = 0,
-    SOCKET_TARGET,
-    SOCKET_GDB
-};
-
-const int socket_ports[NUM_SOCKETS] = {
-    1000,
-    1001,
-    1002
-};
 
 struct socket_state_t{
     unsigned int status;
@@ -80,6 +98,25 @@ const char* rx_buf_empty_names[3] = {
 
 struct socket_state_t socket_state[NUM_SOCKETS] = {{0}};
 
+int TS_GetNumSockets(void){
+    return NUM_SOCKETS;
+}
+
+int TS_GetSocketPort(int socket){
+    if(socket>=NUM_SOCKETS) return -1;
+    return socket_ports[socket];
+}
+
+const char* TS_GetSocketMDNSName(int socket){
+    if(socket>=NUM_SOCKETS) return NULL;
+    return socket_mdns_names_fixedpart[socket];
+}
+
+const char* TS_GetSocketMDNSDesc(int socket){
+    if(socket>=NUM_SOCKETS) return NULL;
+    return socket_mdns_descriptions[socket];
+}
+
 void LogSLError(int code){
     switch(code){
     case SL_ENSOCK:
@@ -111,6 +148,8 @@ void LogSLError(int code){
     }
 }
 
+static int ListenSerialSock(unsigned int slot);
+
 void InitSockets(void)
 {
     for(int i=0; i<NUM_SOCKETS; i++){
@@ -133,11 +172,47 @@ void InitSockets(void)
     }
 }
 
+static int RegisterSocketServices(void)
+{
+    int retval;
+    char servicename[MDNS_SERVICE_NAME_MAXLEN];
+
+    LOG(LOG_IMPORTANT, "[WIFI] Registering services on mDNS...");
+
+    //retreive the device mac address
+    char macstring[20];
+    unsigned char mac[SL_MAC_ADDR_LEN];
+    unsigned char maclen = SL_MAC_ADDR_LEN;
+    retval = sl_NetCfgGet(SL_MAC_ADDRESS_GET,
+            NULL,
+            &maclen,
+            mac);
+    if(retval < 0) { RETURN_ERROR(retval); }
+    sprintf(macstring, "[%02X:%02X:%02X:%02X:%02X:%02X]", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    for(int i=0; i<NUM_SOCKETS; i++){
+        sprintf(servicename, "%s - %s", macstring, socket_mdns_names_fixedpart[i]);
+        retval = sl_NetAppMDNSRegisterService((signed char*)servicename,
+                (unsigned char)strlen(servicename),
+                (signed char*)socket_mdns_descriptions[i],
+                (unsigned char)strlen(socket_mdns_descriptions[i]),
+                socket_ports[i],MDNS_SERVICE_TTL,1);
+        if(retval < 0) { RETURN_ERROR(retval); }
+    }
+
+    LOG(LOG_IMPORTANT, "[WIFI] Services registered.");
+
+    return RET_SUCCESS;
+}
+
 int StartSockets(void)
 {
     for(int i=0; i<NUM_SOCKETS; i++){
         if(StartSerialSock(socket_ports[i], i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     }
+
+    if(RegisterSocketServices() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+
     return RET_SUCCESS;
 }
 
@@ -361,9 +436,7 @@ int UpdateSockets(void)
             else if(retval==0){
                 socket_state[i].status = SOCKET_STARTED;
                 LOG(LOG_VERBOSE, "Socket %d: client disconnected/broken.", i);
-                //sl_Close(socket_state[i].id);
-                //vTaskDelay(2000); //TODO: reconnection after disconnect
-                //if(StartSerialSock(socket_ports[i], i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                ListenSerialSock(i);
                 while(1)
                     ;
             }
@@ -380,6 +453,26 @@ int UpdateSockets(void)
     return RET_SUCCESS;
 }
 
+static int ListenSerialSock(unsigned int slot)
+{
+    long nonblock = 1;
+
+    int retval = sl_Listen(socket_state[slot].id, 0);
+    if(retval < 0){
+        sl_Close(socket_state[slot].id);
+        RETURN_ERROR(retval);
+    }
+
+    //set to non-blocking
+    retval = sl_SetSockOpt(socket_state[slot].id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
+    if(retval < 0){
+        sl_Close(socket_state[slot].id);
+        RETURN_ERROR(retval);
+    }
+
+    return RET_SUCCESS;
+}
+
 int StartSerialSock(unsigned short port, unsigned int slot)
 {
     if(!IS_IP_ACQUIRED(wifi_state.status)) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -388,7 +481,6 @@ int StartSerialSock(unsigned short port, unsigned int slot)
     LOG(LOG_VERBOSE, "Starting socket %d on port %d...", slot, port);
 
     int retval;
-    long nonblock = 1;
 
     socket_state[slot].addr_local.sin_family = SL_AF_INET;
     socket_state[slot].addr_local.sin_port = sl_Htons(port);
@@ -403,18 +495,7 @@ int StartSerialSock(unsigned short port, unsigned int slot)
         RETURN_ERROR(retval);
     }
 
-    retval = sl_Listen(socket_state[slot].id, 0);
-    if(retval < 0){
-        sl_Close(socket_state[slot].id);
-        RETURN_ERROR(retval);
-    }
-
-    //set to non-blocking
-    retval = sl_SetSockOpt(socket_state[slot].id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
-    if(retval < 0){
-        sl_Close(socket_state[slot].id);
-        RETURN_ERROR(retval);
-    }
+    retval = ListenSerialSock(slot);
 
     LOG(LOG_VERBOSE, "Socket started.");
 
@@ -441,6 +522,7 @@ int SockAccept(unsigned int slot)
         }
         if(slot == SOCKET_LOG){
             mem_log_start_putchar(&TS_LogSocketPutChar);
+            serialconfig_start(&TS_LogSocketGetChar);
         }
     }
     else if(newid != SL_EAGAIN){

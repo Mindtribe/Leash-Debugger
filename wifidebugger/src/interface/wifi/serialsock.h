@@ -52,6 +52,10 @@ int TS_TargetSocketRXCharAvailable(void);
 int TS_LogSocketTXSpaceAvailable(void);
 int TS_GDBSocketTXSpaceAvailable(void);
 int TS_TargetSocketTXSpaceAvailable(void);
+int TS_GetNumSockets(void);
+int TS_GetSocketPort(int socket);
+const char* TS_GetSocketMDNSName(int socket);
+const char* TS_GetSocketMDNSDesc(int socket);
 
 //Task to handle all socket-related operations.
 void Task_SocketHandler(void* params);
