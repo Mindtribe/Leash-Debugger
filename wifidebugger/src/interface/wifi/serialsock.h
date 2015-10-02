@@ -20,11 +20,6 @@
 #define SOCKET_TASK_PRIORITY (3)
 #define SOCKET_TASK_STACK_SIZE (2048)
 
-#define NUM_SOCKETS 3
-extern const int socket_ports[NUM_SOCKETS];
-extern const char* socket_mdns_names_fixedpart[NUM_SOCKETS];
-extern const char* socket_mdns_descriptions[NUM_SOCKETS];
-
 //These functions are for calling from the WiFi SimpleLink thread only.
 int StartSerialSock(unsigned short port, unsigned int slot);
 int SockAccept(unsigned int slot);
@@ -57,6 +52,10 @@ int TS_TargetSocketRXCharAvailable(void);
 int TS_LogSocketTXSpaceAvailable(void);
 int TS_GDBSocketTXSpaceAvailable(void);
 int TS_TargetSocketTXSpaceAvailable(void);
+int TS_GetNumSockets(void);
+int TS_GetSocketPort(int socket);
+const char* TS_GetSocketMDNSName(int socket);
+const char* TS_GetSocketMDNSDesc(int socket);
 
 //Task to handle all socket-related operations.
 void Task_SocketHandler(void* params);

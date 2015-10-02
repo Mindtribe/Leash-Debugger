@@ -18,13 +18,15 @@
 #include "semphr.h"
 #include "serialconfig.h"
 
+#define NUM_SOCKETS 3
+
 enum{
     SOCKET_LOG = 0,
     SOCKET_TARGET,
     SOCKET_GDB
 };
 
-const int socket_ports[NUM_SOCKETS] = {
+const unsigned int socket_ports[NUM_SOCKETS] = {
     49152,
     49153,
     49154
@@ -95,6 +97,25 @@ const char* rx_buf_empty_names[3] = {
 };
 
 struct socket_state_t socket_state[NUM_SOCKETS] = {{0}};
+
+int TS_GetNumSockets(void){
+    return NUM_SOCKETS;
+}
+
+int TS_GetSocketPort(int socket){
+    if(socket>=NUM_SOCKETS) return -1;
+    return socket_ports[socket];
+}
+
+const char* TS_GetSocketMDNSName(int socket){
+    if(socket>=NUM_SOCKETS) return NULL;
+    return socket_mdns_names_fixedpart[socket];
+}
+
+const char* TS_GetSocketMDNSDesc(int socket){
+    if(socket>=NUM_SOCKETS) return NULL;
+    return socket_mdns_descriptions[socket];
+}
 
 void LogSLError(int code){
     switch(code){
