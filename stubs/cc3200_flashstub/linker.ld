@@ -36,13 +36,18 @@
 *
 ******************************************************************************/
 
-
-HEAP_SIZE = 0x00010000;
-
 MEMORY
 {
     /* SRAM size of 240KB for cc3200 ES 1.33 device onward */
-    SRAM (rwx) : ORIGIN = 0x20004000, LENGTH = 0x3C000
+    
+    /*
+    *  SRAM (rwx) : ORIGIN = 0x20004000, LENGTH = 0x3C000
+    *  Above is the full SRAM size. For the flash stub, it is
+    *  split into the stub region and the communication (shared)
+    *  region.
+    */
+    SRAM_FLASH_STUB : ORIGIN = 0x20004000, LENGTH = 0x20000
+    SRAM_FLASH_SHARED : ORIGIN = 0x20024000, LENGTH = 0x1C000
 }
 
 SECTIONS
@@ -56,13 +61,13 @@ SECTIONS
 	*(.ARM.extab* .gnu.linkonce.armextab.*)
 	. = ALIGN(8);
         _etext = .;
-    } > SRAM
+    } > SRAM_FLASH_STUB
 
     .ARM : {
     __exidx_start = .;
       *(.ARM.exidx*)
       __exidx_end = .;
-    } > SRAM
+    } > SRAM_FLASH_STUB
 
     __init_data = .;
 
@@ -72,7 +77,7 @@ SECTIONS
         *(.data*)
 	. = ALIGN (8);
         _edata = .;
-    } > SRAM
+    } > SRAM_FLASH_STUB
 
     .bss :
     {
@@ -82,25 +87,13 @@ SECTIONS
         *(COMMON)
         _ebss = .;
 	//__bss_end__ = .;
-    } > SRAM
-
-    .heap :
-    {
-	_heap = .;
-	. = . + HEAP_SIZE;
-	. = ALIGN(8);
-	_eheap = .;
-
-    } > SRAM
+    } > SRAM_FLASH_STUB
     
-    .cc3200_flashstub_binary :
+    .shared :
     {
-    . = ALIGN(32);
-    _cc3200_flashstub_binary = .;
-    *(.cc3200_flashstub_binary*)
-    _ecc3200_flashstub_binary = .;
-    } > SRAM
+    	_shared = .;
+    	*(.shared*)
+    	_eshared = .;
+   	} > SRAM_FLASH_SHARED
 }
-
-EXTERN(CC3200_FLASHSTUB_BINARY);
 
