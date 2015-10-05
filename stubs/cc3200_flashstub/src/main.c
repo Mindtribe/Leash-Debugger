@@ -19,6 +19,9 @@
 #include "simplelink.h"
 #include "fs.h"
 
+#include "gpio_if.h"
+#include "pinmux.h"
+
 #ifndef NULL
 #define NULL 0
 #endif
@@ -38,6 +41,8 @@ static int BoardInit(void);
 int main(void)
 {
     BoardInit();
+
+    GPIO_IF_LedOff(MCU_ALL_LED_IND);
 
     //tell the debugger stub is ready
     flash.response.data_size = 0;
@@ -99,6 +104,9 @@ static int BoardInit(void)
     MAP_IntMasterEnable();
     MAP_IntEnable(FAULT_SYSTICK);
     PRCMCC3200MCUInit();
+
+    PinMuxConfig();
+    GPIO_IF_LedConfigure(LED1|LED2|LED3);
 
     return 1;
 }

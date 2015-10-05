@@ -413,7 +413,7 @@ int gdbserver_processVCommand(char* commandString)
 {
     enum gdbserver_vcommand_name qname = gdbserver_getVCommandName(commandString);
     if(qname == VCOMMAND_ERROR){
-        error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        LOG(LOG_VERBOSE, "[GDBSERV] Unknown 'v' packet: 'v%s'.", commandString);
         gdbserver_TransmitPacket("");
     }
 
@@ -443,7 +443,7 @@ int gdbserver_processGeneralQuery(char* queryString)
 {
     enum gdbserver_query_name qname = gdbserver_getGeneralQueryName(queryString);
     if(qname == QUERY_ERROR){
-        error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        LOG(LOG_VERBOSE, "[GDBSERV] Unknown 'q' packet: 'q%s'.", queryString);
         gdbserver_TransmitPacket("");
     }
 

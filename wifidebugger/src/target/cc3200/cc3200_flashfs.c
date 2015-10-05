@@ -17,14 +17,6 @@
 #include "error.h"
 #include "log.h"
 
-//Note: referencing this assembly symbol here prevents the linker from
-//optimizing out its section at link-time
-extern void* dummy_cc3200_flashstub_binary __asm__("CC3200_FLASHSTUB_BINARY");
-
-//Note: these symbols are placed by the linker script.
-extern unsigned char _cc3200_flashstub_binary;
-extern unsigned char _ecc3200_flashstub_binary;
-
 #define TARGET_SRAM_ORIGIN 0x20004000
 #define FLASH_LOAD_CHUNK_SIZE 128
 
@@ -32,7 +24,7 @@ int cc3200_flashfs_loadstub(void){
 
     LOG(LOG_IMPORTANT, "[CC3200] Loading CC3200 flash stub (may take long)...");
 
-    unsigned int binary_size = (unsigned int)(&_ecc3200_flashstub_binary - &_cc3200_flashstub_binary)+4;
+    unsigned int binary_size = 0;
 
     unsigned int bytes_left = binary_size;
     unsigned int rel_write_addr = 0;
@@ -43,7 +35,7 @@ int cc3200_flashfs_loadstub(void){
         if(write_bytes > FLASH_LOAD_CHUNK_SIZE) { write_bytes = FLASH_LOAD_CHUNK_SIZE; }
         retval = cc3200_mem_block_write(TARGET_SRAM_ORIGIN+rel_write_addr,
                 write_bytes,
-                (unsigned char*)(&_cc3200_flashstub_binary+rel_write_addr));
+                (unsigned char*)0);
         if(retval == RET_FAILURE) RETURN_ERROR(retval);
         bytes_left -= write_bytes;
         rel_write_addr += write_bytes;

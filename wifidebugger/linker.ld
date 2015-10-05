@@ -92,15 +92,5 @@ SECTIONS
 	_eheap = .;
 
     } > SRAM
-    
-    .cc3200_flashstub_binary :
-    {
-    . = ALIGN(32);
-    _cc3200_flashstub_binary = .;
-    *(.cc3200_flashstub_binary*)
-    _ecc3200_flashstub_binary = .;
-    } > SRAM
 }
-
-EXTERN(CC3200_FLASHSTUB_BINARY);
 
