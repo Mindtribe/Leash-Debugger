@@ -21,6 +21,19 @@
 #include "jtag_statemachine.h"
 #include "error.h"
 
+#define JTAG_SET_PIN(REG, VAL, ONOFF) (HWREG((REG))=(ONOFF)*(VAL))
+#define JTAG_GET_PIN(REG) (HWREG(REG))
+#define TMS_REG 0x40006008
+#define TMS_VAL 0x02
+#define TDI_REG 0x40005200
+#define TDI_VAL 0x80
+#define TCK_REG 0x40007040
+#define TCK_VAL 0x10
+#define TDO_REG 0x40006100
+#define TDO_VAL 0x40
+#define RST_REG 0x40006003
+#define RST_VAL 0x01
+
 //state struct
 struct jtag_pinctl_state_t{
     unsigned char initialized;
@@ -60,7 +73,7 @@ struct jtagPinLocation TCKLocation = {
 };
 
 //"unit delay" (min TCK clock period becomes 4 times this)
-const int UNIT_DELAY = 10;
+const int TDO_SETUP_DELAY = 1;
 
 //initializes JTAG pins to inactive.
 int jtag_pinctl_init(void)
@@ -187,55 +200,20 @@ int jtag_pinctl_doClock(uint8_t active_pins)
     if(!jtag_pinctl_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);} //not initialized
 
     //determine which pins to set
-    unsigned char TMS, TDI, RST;
+    unsigned char TMS, TDI;
     TMS = (active_pins & JTAG_TMS) ? 1 : 0;
     TDI = (active_pins & JTAG_TDI) ? 1 : 0;
-    RST = (active_pins & JTAG_RST) ? 0 : 1; //inverted: active low
 
     jtag_statemachine_transition(TMS);
+    JTAG_SET_PIN(TMS_REG, TMS_VAL, TMS);
+    JTAG_SET_PIN(TDI_REG, TDI_VAL, TDI);
 
-    GPIO_IF_Set(TMSLocation.ucPin,
-            TMSLocation.uiGPIOPort,
-            TMSLocation.ucGPIOPin,
-            TMS);
+    JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
 
-    GPIO_IF_Set(RSTLocation.ucPin,
-            RSTLocation.uiGPIOPort,
-            RSTLocation.ucGPIOPin,
-            RST);
+    MAP_UtilsDelay(TDO_SETUP_DELAY);
+    jtag_pinctl_state.lastTDO = JTAG_GET_PIN(TDO_REG) ? 1:0;
 
-    GPIO_IF_Set(TDILocation.ucPin,
-            TDILocation.uiGPIOPort,
-            TDILocation.ucGPIOPin,
-            TDI);
-
-    //TODO: delay check
-    MAP_UtilsDelay(UNIT_DELAY);
-
-    //clock HIGH
-    GPIO_IF_Set(TCKLocation.ucPin,
-            TCKLocation.uiGPIOPort,
-            TCKLocation.ucGPIOPin,
-            1);
-
-    //TODO: delay check
-    MAP_UtilsDelay(2*UNIT_DELAY);
-
-    //read TDO just before falling edge and store
-    jtag_pinctl_state.lastTDO = GPIO_IF_Get(TDOLocation.ucPin,
-            TDOLocation.uiGPIOPort,
-            TDOLocation.ucGPIOPin) ? 1:0;
-
-    //clock LOW
-    GPIO_IF_Set(TCKLocation.ucPin,
-            TCKLocation.uiGPIOPort,
-            TCKLocation.ucGPIOPin,
-            0);
-
-    //TODO: read TDO
-
-    //TODO: delay check
-    MAP_UtilsDelay(UNIT_DELAY);
+    JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
 
     return RET_SUCCESS;
 }

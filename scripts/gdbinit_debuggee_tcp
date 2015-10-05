@@ -4,7 +4,7 @@
 set remotetimeout 120
 
 #connect to serial link
-target remote tcp:192.168.169.85:1002
+target remote tcp:192.168.169.85:49154
 
 #load the program
 load
