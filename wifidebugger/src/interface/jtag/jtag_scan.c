@@ -44,7 +44,7 @@ int jtag_scan_hardRst(void)
 
     //hardware reset using the reset pin
     jtag_pinctl_assertPins(JTAG_RST);
-    delay_loop(100000);
+    delay_loop(10000000);
     jtag_pinctl_deAssertPins(JTAG_RST);
     delay_loop(20000000);
 
