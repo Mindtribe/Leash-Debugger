@@ -18,7 +18,6 @@
 #include "rom_map.h"
 #include "gpio.h"
 
-#include "jtag_statemachine.h"
 #include "error.h"
 
 #define JTAG_SET_PIN(REG, VAL, ONOFF) (HWREG((REG))=((ONOFF)*(VAL)))
@@ -70,8 +69,6 @@ int jtag_pinctl_init(void)
     JTAG_SET_PIN(TDI_REG, TDI_VAL, 0);
     JTAG_SET_PIN(RST_REG, RST_VAL, 1);
     JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
-
-    jtag_statemachine_reset();
 
     jtag_pinctl_state.initialized = 1;
     return RET_SUCCESS;
@@ -127,14 +124,11 @@ int jtag_pinctl_deAssertPins(uint8_t pins)
 //asserts JTAG clock with the specified pins active.
 int jtag_pinctl_doClock(uint8_t active_pins)
 {
-    if(!jtag_pinctl_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);} //not initialized
-
     //determine which pins to set
     unsigned char TMS, TDI;
     TMS = (active_pins & JTAG_TMS) ? 1 : 0;
     TDI = (active_pins & JTAG_TDI) ? 1 : 0;
 
-    jtag_statemachine_transition(TMS);
     JTAG_SET_PIN(TMS_REG, TMS_VAL, TMS);
     JTAG_SET_PIN(TDI_REG, TDI_VAL, TDI);
 

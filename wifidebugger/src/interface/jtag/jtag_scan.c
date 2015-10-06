@@ -13,19 +13,39 @@
 #include <stdint.h>
 
 #include "jtag_pinctl.h"
-#include "jtag_statemachine.h"
 #include "misc_hal.h"
 #include "error.h"
+
+enum jtag_state{
+    JTAG_STATE_TLR = 0,
+    JTAG_STATE_RTI,
+    JTAG_STATE_DRSCAN,
+    JTAG_STATE_CAPTDR,
+    JTAG_STATE_SHIFTDR,
+    JTAG_STATE_EXIT1DR,
+    JTAG_STATE_PAUSEDR,
+    JTAG_STATE_EXIT2DR,
+    JTAG_STATE_UPDATEDR,
+    JTAG_STATE_IRSCAN,
+    JTAG_STATE_CAPTIR,
+    JTAG_STATE_SHIFTIR,
+    JTAG_STATE_EXIT1IR,
+    JTAG_STATE_PAUSEIR,
+    JTAG_STATE_EXIT2IR,
+    JTAG_STATE_UPDATEIR
+};
 
 //state struct
 struct jtag_scan_state_t{
     unsigned char initialized;
     uint64_t shift_out;
+    enum jtag_state cur_jtag_state;
 };
 //instantiate state struct
 struct jtag_scan_state_t jtag_scan_state = {
     .initialized = 0,
-    .shift_out = 0
+    .shift_out = 0,
+    .cur_jtag_state = 0
 };
 
 int jtag_scan_init(void)
@@ -33,6 +53,8 @@ int jtag_scan_init(void)
     if(jtag_scan_state.initialized) return RET_SUCCESS;
 
     if(jtag_pinctl_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    jtag_scan_state.cur_jtag_state = JTAG_STATE_TLR;
 
     jtag_scan_state.initialized = 1;
     return RET_SUCCESS;
@@ -48,6 +70,8 @@ int jtag_scan_hardRst(void)
     jtag_pinctl_deAssertPins(JTAG_RST);
     delay_loop(20000000);
 
+    jtag_scan_state.cur_jtag_state = JTAG_STATE_TLR;
+
     return RET_SUCCESS;
 }
 
@@ -61,6 +85,8 @@ int jtag_scan_rstStateMachine(void)
         jtag_pinctl_doClock(JTAG_TMS);
     }
 
+    jtag_scan_state.cur_jtag_state = JTAG_STATE_TLR;
+
     return RET_SUCCESS;
 }
 
@@ -71,8 +97,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     jtag_scan_state.shift_out = 0;
 
     //Get to Shift-DR state
-    enum jtag_state cur_state = jtag_statemachine_getState();
-    switch(cur_state){
+    switch(jtag_scan_state.cur_jtag_state){
     case JTAG_STATE_RTI:
     case JTAG_STATE_TLR:
         jtag_scan_doStateMachine(0x02, 4);
@@ -82,8 +107,8 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x07, 5);
         break;
     default:
-        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
-        break;
+    {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
+    break;
     }
 
     //do shifting
@@ -91,19 +116,18 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 
     //get back to Run-Test/Idle state from current state (Exit-DR)
     //Get to Shift-DR state
-    cur_state = jtag_statemachine_getState();
     switch(toState){
     case JTAG_STATE_SCAN_RUNIDLE:
         jtag_scan_doStateMachine(0x01, 2);
-        if(jtag_statemachine_getState() != JTAG_STATE_RTI) RETURN_ERROR(jtag_statemachine_getState());
+        jtag_scan_state.cur_jtag_state = JTAG_STATE_RTI;
         break;
     case JTAG_STATE_SCAN_PAUSE:
         jtag_scan_doStateMachine(0x00, 1);
-        if(jtag_statemachine_getState() != JTAG_STATE_PAUSEDR) RETURN_ERROR(jtag_statemachine_getState());
+        jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEDR;
         break;
     default:
-        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
-        break;
+    {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
+    break;
     }
 
     return RET_SUCCESS;
@@ -116,8 +140,7 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     jtag_scan_state.shift_out = 0;
 
     //Get to Shift-IR state
-    enum jtag_state cur_state = jtag_statemachine_getState();
-    switch(cur_state){
+    switch(jtag_scan_state.cur_jtag_state){
     case JTAG_STATE_RTI:
     case JTAG_STATE_TLR:
         jtag_scan_doStateMachine(0x06, 5);
@@ -127,8 +150,8 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x0F, 6);
         break;
     default:
-        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
-        break;
+    {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
+    break;
     }
 
     //do shifting
@@ -139,15 +162,15 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     switch(toState){
     case JTAG_STATE_SCAN_RUNIDLE:
         jtag_scan_doStateMachine(0x01, 2);
-        if(jtag_statemachine_getState() != JTAG_STATE_RTI) {RETURN_ERROR(ERROR_UNKNOWN);}
+        jtag_scan_state.cur_jtag_state = JTAG_STATE_RTI;
         break;
     case JTAG_STATE_SCAN_PAUSE:
         jtag_scan_doStateMachine(0x00, 1);
-        if(jtag_statemachine_getState() != JTAG_STATE_PAUSEIR) {RETURN_ERROR(ERROR_UNKNOWN);}
+        jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEIR;
         break;
     default:
-        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
-        break;
+    {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
+    break;
     }
 
     return RET_SUCCESS;
