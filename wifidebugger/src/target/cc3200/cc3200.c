@@ -216,13 +216,14 @@ int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
     uint32_t data;
     uint8_t *data_bytes = (uint8_t*)&data;
 
-    /* TODO: this code is buggy due to buggy pipelined read access. (unreliable)
+    /*
+    // TODO: this code is buggy due to buggy pipelined read access. (unreliable)
     if((bytes%4 ==0) && (addr%4 ==0)){ //word-aligned full-word reads
         if(cc3200_core_pipeline_read_mem_addr(addr, bytes/4, (uint32_t*) dst) == RET_FAILURE){
             {RETURN_ERROR(ERROR_UNKNOWN);}
         }
     }
-    else*/
+    else{*/
     //non-word-aligned or incomplete words
 
     uint32_t last_read_addr = addr & 0xFFFFFFFC;
@@ -247,13 +248,15 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
     uint8_t *data_bytes = (uint8_t*)&data;
     uint8_t *src_bytes = src;
 
+    /*
     //aligned, word-sized accesses
     //TODO: pipelined accesses have proven unreliable. Needs to be improved before we can enable this again!
-    /*
+
     if((bytes%4 == 0) && (addr%4 == 0)){
         return cc3200_core_pipeline_write_mem_addr(addr, bytes/4, (uint32_t*)src);
     }
     else{*/
+
     //BELOW IS THE SLOW METHOD FOR BLOCKS THAT ARE (PARTIALLY) UNALIGNED OR NON-WORD-SIZED
     for(uint32_t cur_addr = addr - (addr%4); cur_addr <= (addr+bytes); cur_addr+=4){
         if(bytes_left>=4 && cur_addr >= addr){ //aligned, whole-word write
@@ -275,7 +278,6 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
         }
         data = 0;
     }
-    //}
 
     return RET_SUCCESS;
 }

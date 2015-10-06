@@ -131,7 +131,6 @@ int jtag_pinctl_doClock(uint8_t active_pins)
 
     JTAG_SET_PIN(TMS_REG, TMS_VAL, TMS);
     JTAG_SET_PIN(TDI_REG, TDI_VAL, TDI);
-
     JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
 
     MAP_UtilsDelay(TDO_SETUP_DELAY);

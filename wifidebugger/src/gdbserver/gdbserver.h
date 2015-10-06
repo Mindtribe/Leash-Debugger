@@ -40,6 +40,8 @@ int gdbserver_readMemory(char* argstring);
 
 int gdbserver_writeMemory(char* argstring);
 
+int gdbserver_writeMemoryBinary(char* argstring);
+
 void gdbserver_Interrupt(uint8_t signal);
 
 int gdbserver_doMemCRC(char* argstring);
