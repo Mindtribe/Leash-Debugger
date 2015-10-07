@@ -347,6 +347,9 @@ int cc3200_jtagdp_APACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* val
             response = (uint8_t)(result & 0x07);
 
             if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) {RETURN_ERROR(ERROR_UNKNOWN);} //invalid response
+            if(response == CC3200_JTAGDP_WAIT){
+                LOG(LOG_VERBOSE, "[CC3200] WAIT during pipelined write");
+            }
         }
     }
     if(check_response){

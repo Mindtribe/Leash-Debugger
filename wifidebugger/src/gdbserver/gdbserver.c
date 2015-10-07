@@ -36,7 +36,6 @@
 #define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
 #define GDBSERVER_KEEP_CHARS_NUM 512 //for debugging: number of chars to keep track of
 
-//note: keep <256 or change PacketSize response in gdbserver
 #define GDBSERVER_MAX_PACKET_LEN_RX 512
 #define GDBSERVER_MAX_PACKET_LEN_TX 512
 

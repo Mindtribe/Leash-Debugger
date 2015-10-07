@@ -7,20 +7,20 @@ set remotetimeout 120
 target remote tcp:192.168.169.85:49154
 
 #load the program
-load
+#load
 
 #quick check 
 #compare-sections
 
 #initialize PC, SP
-set $sp = g_pfnVectors[0]
-set $pc = g_pfnVectors[1]
+#set $sp = g_pfnVectors[0]
+#set $pc = g_pfnVectors[1]
 
 #set breakpoint
-break main
+#break main
 
 #enable semihosting
 #monitor semihosting enable
 #set mem inaccessible-by-default off
 
-continue
+#continue

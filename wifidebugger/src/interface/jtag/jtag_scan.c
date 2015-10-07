@@ -82,7 +82,8 @@ int jtag_scan_rstStateMachine(void)
     //five consecutive TMS 1's will reset the JTAG state machine of everything
     //in the chain.
     for(int i=0; i<5; i++) {
-        jtag_pinctl_doClock(JTAG_TMS);
+        uint8_t dummy;
+        jtag_pinctl_doClock(1,0,&dummy);
     }
 
     jtag_scan_state.cur_jtag_state = JTAG_STATE_TLR;
@@ -182,7 +183,8 @@ int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
     if(num_clk>=32) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     for(unsigned int i=0; i<num_clk; i++){
-        jtag_pinctl_doClock((tms_bits_lsb_first&(1<<i)) ? JTAG_TMS : JTAG_NONE);
+        uint8_t dummy;
+        jtag_pinctl_doClock((tms_bits_lsb_first&(1<<i)) ? 1:0, 0, &dummy);
     }
 
     return RET_SUCCESS;
@@ -196,13 +198,14 @@ int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
     jtag_scan_state.shift_out = 0;
 
     for(unsigned int i=0; i<(num_clk-1); i++){
-        jtag_pinctl_doClock((tdi_bits_lsb_first & 1) * JTAG_TDI);
+        uint8_t tdo;
+        jtag_pinctl_doClock(0, (tdi_bits_lsb_first & 1), &tdo);
         tdi_bits_lsb_first >>= 1;
-        //jtag_pinctl_doClock((tdi_bits_lsb_first&(1<<i)) ? JTAG_TDI : JTAG_NONE);
-        if(jtag_pinctl_getLastTDO()) jtag_scan_state.shift_out |= (((uint64_t)1)<<((uint64_t)i));
+        if(tdo) jtag_scan_state.shift_out |= (((uint64_t)1)<<((uint64_t)i));
     }
     //last bit with TMS high
-    jtag_pinctl_doClock(JTAG_TMS | (tdi_bits_lsb_first & 1) * JTAG_TDI);
+    uint8_t dummy;
+    jtag_pinctl_doClock(1, (tdi_bits_lsb_first & 1), &dummy);
 
     return RET_SUCCESS;
 }

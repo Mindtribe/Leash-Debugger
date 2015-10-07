@@ -121,28 +121,16 @@ int jtag_pinctl_deAssertPins(uint8_t pins)
     return RET_SUCCESS;
 }
 
-//asserts JTAG clock with the specified pins active.
-int jtag_pinctl_doClock(uint8_t active_pins)
+void jtag_pinctl_doClock(uint8_t TMS, uint8_t TDI, uint8_t* TDO_result)
 {
-    //determine which pins to set
-    unsigned char TMS, TDI;
-    TMS = (active_pins & JTAG_TMS) ? 1 : 0;
-    TDI = (active_pins & JTAG_TDI) ? 1 : 0;
-
     JTAG_SET_PIN(TMS_REG, TMS_VAL, TMS);
     JTAG_SET_PIN(TDI_REG, TDI_VAL, TDI);
     JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
 
     MAP_UtilsDelay(TDO_SETUP_DELAY);
-    jtag_pinctl_state.lastTDO = JTAG_GET_PIN(TDO_REG) ? 1:0;
+    *TDO_result = JTAG_GET_PIN(TDO_REG) ? 1:0;
 
     JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
-
-    return RET_SUCCESS;
-}
-
-unsigned char jtag_pinctl_getLastTDO(void)
-{
-    return jtag_pinctl_state.lastTDO;
+    return;
 }
 
