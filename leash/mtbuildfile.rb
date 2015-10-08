@@ -1,4 +1,4 @@
-application_project :wifidebugger, File.dirname(__FILE__) do |app|
+application_project :leash, File.dirname(__FILE__) do |app|
 
   app.add_configuration :Debug,
     sources: ['src/**/*.c'],

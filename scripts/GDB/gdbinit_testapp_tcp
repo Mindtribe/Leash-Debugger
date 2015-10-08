@@ -4,13 +4,14 @@
 set remotetimeout 120
 
 #connect to serial link
-target remote tcp:192.168.169.85:1002
+#NOTE: set this up with your Leash board's IP address.
+target remote tcp:192.168.169.85:49154
 
 #load the program
 load
 
 #quick check 
-#compare-sections
+compare-sections
 
 #initialize PC, SP
 set $sp = g_pfnVectors[0]
@@ -18,9 +19,5 @@ set $pc = g_pfnVectors[1]
 
 #set breakpoint
 break main
-
-#enable semihosting
-#monitor semihosting enable
-#set mem inaccessible-by-default off
 
 continue
