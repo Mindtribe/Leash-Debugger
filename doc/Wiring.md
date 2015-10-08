@@ -3,6 +3,7 @@ Doc pages:
 * [**User Guide**](doc/UserGuide.md)
 * [**Wiring**](doc/Wiring.md)
 * [**Report**](doc/Report.md)
+* [**Known Issues**](doc/KnownIssues.md)
 
 # Leash Debugger: Wiring
 
