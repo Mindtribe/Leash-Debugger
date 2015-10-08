@@ -157,8 +157,6 @@ int cc3200_jtagdp_selectAPBank(uint8_t AP, uint8_t bank)
 
     uint32_t APSELECT = (bank<<4) | AP<<24;
 
-    //note: we don't check for the response because that sometimes messes
-    //with the address auto-increment feature.
     if(cc3200_jtagdp_DPACC_write(0x08,APSELECT,1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     return RET_SUCCESS;
@@ -279,8 +277,6 @@ int cc3200_jtagdp_DPACC_write(uint8_t addr, uint32_t value, uint8_t check_respon
     return RET_SUCCESS;
 }
 
-//TODO: DO NOT USE PIPELINED READS: buggy!
-//Something is going wrong when the chip sends "wait" replies.
 int cc3200_jtagdp_APACC_pipeline_read(uint8_t addr, uint32_t len, uint32_t* dst)
 {
     if(!cc3200_jtagdp_state.initialized || !cc3200_jtagdp_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -302,19 +298,29 @@ int cc3200_jtagdp_APACC_pipeline_read(uint8_t addr, uint32_t len, uint32_t* dst)
         response = (uint8_t)(result & 0x07);
         if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) {RETURN_ERROR(ERROR_UNKNOWN);} //invalid response
     }
+    if(response == CC3200_JTAGDP_WAIT){
+        LOG(LOG_VERBOSE, "[CC3200] Pipelined read: number of WAIT retries exceeded.");
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
 
     for(uint32_t j = 0; j<len; j++){
+        response = CC3200_JTAGDP_WAIT;
         for(int i = 0; (i<CC3200_JTAGDP_ACC_RETRIES) && response == CC3200_JTAGDP_WAIT; i++){
             if(cc3200_jtagdp_accResponseRead(&response, &(dst[j]), JTAG_STATE_SCAN_PAUSE) == RET_FAILURE){
-                {RETURN_ERROR(ERROR_UNKNOWN);}
+                RETURN_ERROR(ERROR_UNKNOWN);
             }
             if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) {RETURN_ERROR(ERROR_UNKNOWN);} //invalid response
+        }
+        if(response == CC3200_JTAGDP_WAIT){
+            LOG(LOG_VERBOSE, "[CC3200] Pipelined read: number of WAIT retries exceeded.");
+            RETURN_ERROR(ERROR_UNKNOWN);
         }
     }
 
     uint32_t csr;
     cc3200_jtagdp_checkCSR(&csr);
     if(csr & CC3200_JTAGDP_STICKYERR) {
+        LOG(LOG_IMPORTANT, "[CC3200] JTAG Sticky Error");
         //clear the sticky flag
         cc3200_jtagdp_clearCSR();
         RETURN_ERROR(csr);
@@ -347,9 +353,10 @@ int cc3200_jtagdp_APACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* val
             response = (uint8_t)(result & 0x07);
 
             if( (response != CC3200_JTAGDP_WAIT) && (response != CC3200_JTAGDP_OKFAULT) ) {RETURN_ERROR(ERROR_UNKNOWN);} //invalid response
-            if(response == CC3200_JTAGDP_WAIT){
-                LOG(LOG_VERBOSE, "[CC3200] WAIT during pipelined write");
-            }
+        }
+        if(response == CC3200_JTAGDP_WAIT){
+            LOG(LOG_VERBOSE, "[CC3200] Pipelined write: number of WAIT retries exceeded.");
+            RETURN_ERROR(ERROR_UNKNOWN);
         }
     }
     if(check_response){
@@ -361,6 +368,7 @@ int cc3200_jtagdp_APACC_pipeline_write(uint8_t addr, uint32_t len, uint32_t* val
     uint32_t csr;
     cc3200_jtagdp_checkCSR(&csr);
     if(csr & CC3200_JTAGDP_STICKYERR) {
+        LOG(LOG_IMPORTANT, "[CC3200] JTAG Sticky Error @ 0x%8X", addr);
         //clear the sticky flag
         cc3200_jtagdp_clearCSR();
         RETURN_ERROR(csr);
@@ -464,9 +472,6 @@ int cc3200_jtagdp_APACC_read(uint8_t addr, uint32_t* result, uint8_t check_respo
 
 int cc3200_jtagdp_powerUpDebug(void)
 {
-    //FYI: learned through trail-and-error that this doesn't work at all if only CSYSPWRUPREQ is asserted first.
-    //It works if either CDBGPWRUPREQ is asserted, or both at the same time.
-
     if(!cc3200_jtagdp_state.initialized || !cc3200_jtagdp_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     if(cc3200_jtagdp_DPACC_write(0x04, CC3200_JTAGDP_CDBGPWRUPREQ | CC3200_JTAGDP_CSYSPWRUPREQ, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
