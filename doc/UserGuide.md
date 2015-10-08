@@ -1,9 +1,9 @@
 Doc pages:
-* [**Build Guide**](doc/BuildGuide.md)
-* [**User Guide**](doc/UserGuide.md)
-* [**Wiring**](doc/Wiring.md)
-* [**Report**](doc/Report.md)
-* [**Known Issues**](doc/KnownIssues.md)
+* [**Build Guide**](BuildGuide.md)
+* [**User Guide**](UserGuide.md)
+* [**Wiring**](Wiring.md)
+* [**Report**](Report.md)
+* [**Known Issues**](KnownIssues.md)
 
 # Leash Debugger: User's Guide
 

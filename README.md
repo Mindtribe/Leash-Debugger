@@ -16,6 +16,7 @@ Currently, the only supported target configuration is a Texas Instruments CC3200
 * [**User Guide**](doc/UserGuide.md)
 * [**Wiring**](doc/Wiring.md)
 * [**Report**](doc/Report.md)
+* [**Known Issues**](doc/KnownIssues.md)
 
 
 
