@@ -108,8 +108,8 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x07, 5);
         break;
     default:
-    {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
-    break;
+        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        break;
     }
 
     //do shifting
@@ -127,8 +127,8 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEDR;
         break;
     default:
-    {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
-    break;
+        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        break;
     }
 
     return RET_SUCCESS;
@@ -151,8 +151,8 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x0F, 6);
         break;
     default:
-    {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
-    break;
+        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        break;
     }
 
     //do shifting
@@ -170,8 +170,8 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEIR;
         break;
     default:
-    {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
-    break;
+        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        break;
     }
 
     return RET_SUCCESS;
