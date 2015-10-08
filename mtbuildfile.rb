@@ -1,4 +1,4 @@
-workspace :wifidebugger, File.dirname(__FILE__) do |w|
+workspace :leash, File.dirname(__FILE__) do |w|
 
 	w.set_configuration_defaults :Debug,
     		toolchain: toolchain(:arm_none_eabi_gcc,
@@ -13,8 +13,8 @@ workspace :wifidebugger, File.dirname(__FILE__) do |w|
 	w.add_project('lib/cc3200-sdk/middleware')
 	w.add_project('lib/cc3200-sdk/simplelink')
 	w.add_project('testapp')
-	w.add_project('wifidebugger')
+	w.add_project('leash')
 
-	w.add_default_tasks(['testapp:Debug', 'wifidebugger:Debug'])
+	w.add_default_tasks(['testapp:Debug', 'leash:Debug'])
 end
 
