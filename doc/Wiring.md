@@ -1,4 +1,10 @@
-# Leash Debugger Wiring
+Doc pages:
+* [**Build Guide**](doc/BuildGuide.md)
+* [**User Guide**](doc/UserGuide.md)
+* [**Wiring**](doc/Wiring.md)
+* [**Report**](doc/Report.md)
+
+# Leash Debugger: Wiring
 
 Leash debugger uses 4-wire JTAG with an optional nRST connection. The pin assignments on the Leash Debugger side are as follows:
 
