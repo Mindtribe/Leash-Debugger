@@ -4,6 +4,10 @@
 set remotetimeout 120
 
 #connect to serial link
+<<<<<<< HEAD:scripts/gdbinit_debuggee_tcp
+=======
+#NOTE: set this up with your Leash board's IP address.
+>>>>>>> master:scripts/GDB/gdbinit_testapp_tcp
 target remote tcp:192.168.169.85:49154
 
 #load the program
