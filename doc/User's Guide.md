@@ -23,7 +23,7 @@ In Station mode, the debugger tries to connect to one of the stored network prof
 
 ### Buttons
 
-Only the LaunchpadXL SW3 button is used. If this is held down during boot, the Leash Debugger will run in AP mode. Otherwise, it will run in Station mode.
+Only the LaunchpadXL **SW3** button is used. If this is held down during boot, the Leash Debugger will run in **AP mode** (its own access point). Otherwise, it will run in **Station mode** (connect to an existing WiFi network).
 
 ### LEDs
 
