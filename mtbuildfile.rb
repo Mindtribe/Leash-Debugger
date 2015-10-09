@@ -23,6 +23,6 @@ workspace :leash, File.dirname(__FILE__) do |w|
 	w.add_project('testapp')
 	w.add_project('leash')
 
-	w.add_default_tasks(['testapp:Debug', 'leash:Debug'])
+	w.add_default_tasks(['testapp:Debug', 'leash:Debug', 'cc3200_flashstub:Debug'])
 end
 

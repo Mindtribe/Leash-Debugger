@@ -9,7 +9,7 @@
     --------------------------------------------------------- */
 
 #include "cc3200_flashfs.h"
-#include "cc3200_flash.h" //in flash stub project
+#include "cc3200_flashstub.h" //in flash stub project
 #include "cc3200.h"
 #include "cc3200_reg.h"
 

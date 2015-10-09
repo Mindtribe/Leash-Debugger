@@ -14,7 +14,7 @@
 #include "prcm.h"
 #include "rom_map.h"
 #include "args.h"
-#include "cc3200_flash.h"
+#include "cc3200_flashstub.h"
 
 #include "simplelink.h"
 #include "fs.h"
