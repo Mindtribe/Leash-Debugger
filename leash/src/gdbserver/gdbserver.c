@@ -34,13 +34,12 @@
 #include "ui.h"
 
 #define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
-#define GDBSERVER_KEEP_CHARS_NUM 256 //for debugging: number of chars to keep track of
+#define GDBSERVER_KEEP_CHARS_NUM 512 //for debugging: number of chars to keep track of
 
-//note: keep <256 or change PacketSize response in gdbserver
-#define GDBSERVER_MAX_PACKET_LEN_RX 256
-#define GDBSERVER_MAX_PACKET_LEN_TX 256
+#define GDBSERVER_MAX_PACKET_LEN_RX 512
+#define GDBSERVER_MAX_PACKET_LEN_TX 512
 
-#define GDBSERVER_MAX_BLOCK_ACCESS 256
+#define GDBSERVER_MAX_BLOCK_ACCESS 512
 #define GDBSERVER_NUM_BKPT 256
 #define GDBSERVER_POLL_INTERVAL 100
 
@@ -52,6 +51,9 @@ unsigned int curChar = 0;
 enum gdbserver_packet_phase{
     PACKET_NONE = 0,
     PACKET_DATA,
+    PACKET_DATA_FIRST_CHAR,
+    PACKET_HEADER_FOR_BINARY_DATA,
+    PACKET_BINARY_DATA,
     PACKET_CHECKSUM
 };
 
@@ -154,7 +156,8 @@ struct gdbserver_state_t{
     int gdb_connected;
     char last_sent_packet[GDBSERVER_MAX_PACKET_LEN_TX];
     char cur_packet[GDBSERVER_MAX_PACKET_LEN_RX];
-    char cur_checksum[2];
+    char cur_checksum_chars[2];
+    uint8_t cur_checksum;
     int cur_packet_index;
     enum stop_reason stop_reason;
     struct target_al_interface *target;
@@ -162,6 +165,8 @@ struct gdbserver_state_t{
     uint8_t halted;
     uint8_t gave_info;
     struct fileio_state_t fileio_state;
+    unsigned int binary_rx_counter;
+    unsigned int escapechar;
 };
 
 //disable GCC warning - braces bug 53119 in GCC
@@ -173,16 +178,29 @@ struct gdbserver_state_t gdbserver_state = {
     .awaiting_ack = 0,
     .last_sent_packet = {0},
     .cur_packet = {0},
-    .cur_checksum = {0},
+    .cur_checksum_chars = {0},
     .cur_packet_index = 0,
     .stop_reason = STOPREASON_UNKNOWN,
     .gdb_connected = 0,
     .breakpoints = {0},
     .halted = 0,
     .gave_info = 0,
-    .fileio_state = {0}
+    .fileio_state = {0},
+    .binary_rx_counter = 0,
+    .escapechar = 0,
+    .cur_checksum = 0
 };
 #pragma GCC diagnostic pop
+
+static int gdbserver_getBinaryCount(void)
+{
+    unsigned int addr,len;
+    if(sscanf(gdbserver_state.cur_packet, "X%X,%X:", &addr, &len) != 2){
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+    gdbserver_state.binary_rx_counter = len;
+    return RET_SUCCESS;
+}
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target)
 {
@@ -312,7 +330,66 @@ int gdbserver_processChar(void)
             gdbserver_state.cur_packet_index = 0;
         }
         else if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);} //too long
-        else {gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c; }
+        else {
+            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
+            gdbserver_state.cur_checksum += (uint8_t)c;
+        }
+    }
+    else if(gdbserver_state.packet_phase == PACKET_DATA_FIRST_CHAR){
+        if(c == '$') {gdbserver_reset_error(__LINE__, c);}
+        else if(c == '#'){
+            gdbserver_state.packet_phase = PACKET_CHECKSUM; //next state
+            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
+            gdbserver_state.cur_packet_index = 0;
+        }
+        else {
+            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
+            gdbserver_state.cur_checksum += (uint8_t)c;
+            if(c=='X') {gdbserver_state.packet_phase = PACKET_HEADER_FOR_BINARY_DATA;}
+            else {gdbserver_state.packet_phase = PACKET_DATA;}
+        }
+    }
+    else if(gdbserver_state.packet_phase == PACKET_HEADER_FOR_BINARY_DATA){
+        if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);} //too long
+        else {
+            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
+            gdbserver_state.cur_checksum += (uint8_t)c;
+            if(c==':'){
+                //header of binary packet is over - now find out how many binary characters will follow.
+                if(gdbserver_getBinaryCount() == RET_FAILURE) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);}
+                gdbserver_state.packet_phase = PACKET_BINARY_DATA;
+            }
+        }
+    }
+    else if(gdbserver_state.packet_phase == PACKET_BINARY_DATA){
+        //receive a fixed number of binary characters
+        if(gdbserver_state.binary_rx_counter>0){
+            if(gdbserver_state.escapechar){
+                gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] =
+                        (char)(((unsigned char)c) ^ ((unsigned char)0x20));
+                gdbserver_state.binary_rx_counter--;
+                gdbserver_state.escapechar = 0;
+            }
+            else if(c == '}'){
+                gdbserver_state.escapechar = 1;
+            }
+            else{
+                gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
+                gdbserver_state.binary_rx_counter--;
+            }
+            gdbserver_state.cur_checksum += (uint8_t)c;
+        }
+        else{
+            //binary data should be over now
+            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
+            if(c!='#') {
+                gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);
+            }
+            else{
+                gdbserver_state.packet_phase = PACKET_CHECKSUM;
+                gdbserver_state.cur_packet_index = 0;
+            }
+        }
     }
     else{ //all other cases
         switch(c){
@@ -326,7 +403,8 @@ int gdbserver_processChar(void)
             break;
         case '$':
             if(gdbserver_state.packet_phase != PACKET_NONE) { gdbserver_reset_error(__LINE__, ERROR_UNKNOWN); break; } //invalid character in packet
-            gdbserver_state.packet_phase = PACKET_DATA;
+            gdbserver_state.packet_phase = PACKET_DATA_FIRST_CHAR;
+            gdbserver_state.cur_checksum = 0;
             gdbserver_state.cur_packet_index = 0;
             break;
         case CHAR_END_TEXT: //CTRL-C in GDB
@@ -343,11 +421,11 @@ int gdbserver_processChar(void)
             case PACKET_CHECKSUM:
                 if(!isxdigit((int)c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
                 if(gdbserver_state.cur_packet_index == 0) {
-                    gdbserver_state.cur_checksum[0] = c;
+                    gdbserver_state.cur_checksum_chars[0] = c;
                     gdbserver_state.cur_packet_index++;
                 }
                 else{
-                    gdbserver_state.cur_checksum[1] = c;
+                    gdbserver_state.cur_checksum_chars[1] = c;
                     gdbserver_state.packet_phase = PACKET_NONE; //finished
                     if(gdbserver_processPacket() == RET_FAILURE) gdbserver_reset_error(__LINE__, ERROR_UNKNOWN); //process the last received packet.
                 }
@@ -369,6 +447,8 @@ void gdbserver_reset_error(int line, int error_code)
     gdbserver_state.packet_phase = PACKET_NONE;
     gdbserver_state.cur_packet_index = 0;
     gdbserver_state.awaiting_ack = 0;
+    gdbserver_state.escapechar = 0;
+    gdbserver_state.binary_rx_counter = 0;
 }
 
 enum gdbserver_query_name gdbserver_getGeneralQueryName(char* query)
@@ -491,19 +571,32 @@ void gdbserver_sendInfo(void)
 int gdbserver_processPacket(void)
 {
     //check the checksum
-    unsigned int checksum;
-    sscanf(gdbserver_state.cur_checksum, "%02X", &checksum);
-    if((uint8_t)checksum != gdb_helpers_getChecksum(gdbserver_state.cur_packet)){
-        gdbserver_reset_error(__LINE__, gdb_helpers_getChecksum(gdbserver_state.cur_packet));
+    unsigned int checksum_parse;
+    sscanf(gdbserver_state.cur_checksum_chars, "%02X", &checksum_parse);
+    if((uint8_t)checksum_parse != gdbserver_state.cur_checksum){
+        gdbserver_reset_error(__LINE__, gdbserver_state.cur_checksum);
         gdb_helpers_Nack();
         return RET_SUCCESS;
     }
 
+
+    uint8_t gdb_helpers_getChecksum(char* data);
     //acknowledge
     gdb_helpers_Ack();
 
     //log the packet
-    LOG(LOG_VERBOSE, "[GDBSERV] RX: %s" , gdbserver_state.cur_packet);
+    if(gdbserver_state.cur_packet[0] == 'X'){
+        char logmsg[64];
+        unsigned int i;
+        for(i=0; (gdbserver_state.cur_packet[i] != ':') && (i<64); i++){
+            logmsg[i] = gdbserver_state.cur_packet[i];
+        }
+        logmsg[i] = 0;
+        LOG(LOG_VERBOSE, "[GDBSERV] RX: %s:(Binary data)", logmsg);
+    }
+    else{
+        LOG(LOG_VERBOSE, "[GDBSERV] RX: %s" , gdbserver_state.cur_packet);
+    }
 
     //process the packet based on header character
     switch(gdbserver_state.cur_packet[0]){
@@ -549,6 +642,12 @@ int gdbserver_processPacket(void)
         break;
     case 'M': //write memory
         if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
+            gdbserver_TransmitPacket("E00");
+            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        }
+        break;
+    case 'X': //write memory (binary data)
+        if(gdbserver_writeMemoryBinary(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
             gdbserver_TransmitPacket("E00");
             error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
         }
@@ -785,6 +884,60 @@ int gdbserver_doMemCRC(char* argstring)
             (unsigned int) (0xFF & (crc)));
 
     gdbserver_TransmitPacket(retstring);
+
+    return RET_SUCCESS;
+}
+
+int gdbserver_writeMemoryBinary(char* argstring)
+{
+    //First, get the arguments
+    char* addrstring;
+    char* lenstring;
+    char* datastring;
+    for(int i=0; i<30; i++){
+        if(argstring[i] == ','){
+            argstring[i] = 0;
+            addrstring = argstring;
+            lenstring = &(argstring[i+1]);
+            break;
+        }
+        if(i>=29) {
+            SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+            RETURN_ERROR(ERROR_UNKNOWN);
+        } //no comma found
+    }
+    for(int i=0; i<30; i++){
+        if(lenstring[i] == ':'){
+            lenstring[i] = 0;
+            datastring = &(lenstring[i+1]);
+            break;
+        }
+        if(i>=29) {
+            SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+            RETURN_ERROR(ERROR_UNKNOWN);
+        } //no colon found
+    }
+
+    uint32_t addr = strtol(addrstring, NULL, 16);
+    uint32_t len = strtol(lenstring, NULL, 16);
+    uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
+
+    if(len>GDBSERVER_MAX_BLOCK_ACCESS){
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(len);
+    }
+
+    //convert data
+    for(uint32_t i=0; i<len; i++){
+        data[i] = (uint8_t) datastring[i];
+    }
+
+    if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {
+        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    gdbserver_TransmitPacket("OK");
 
     return RET_SUCCESS;
 }

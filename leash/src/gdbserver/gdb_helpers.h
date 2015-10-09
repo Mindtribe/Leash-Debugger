@@ -28,8 +28,6 @@ void gdb_helpers_Ack(void);
 
 void gdb_helpers_Nack(void);
 
-uint8_t gdb_helpers_getChecksum(char* data);
-
 void gdb_helpers_TransmitPacket(char* packet_data);
 
 int gdb_helpers_isInitialized(void);

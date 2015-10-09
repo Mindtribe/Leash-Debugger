@@ -223,26 +223,27 @@ int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
     uint32_t data;
     uint8_t *data_bytes = (uint8_t*)&data;
 
-    /* TODO: this code is buggy due to buggy pipelined read access. (unreliable)
-    if((bytes%4 ==0) && (addr%4 ==0)){ //word-aligned full-word reads
+    if((bytes%4 ==0) && (addr%4 ==0) && (bytes>4)){ //word-aligned full-word reads
         if(cc3200_core_pipeline_read_mem_addr(addr, bytes/4, (uint32_t*) dst) == RET_FAILURE){
             {RETURN_ERROR(ERROR_UNKNOWN);}
         }
     }
-    else*/
-    //non-word-aligned or incomplete words
+    else{
+        //non-word-aligned or incomplete words
 
-    uint32_t last_read_addr = addr & 0xFFFFFFFC;
-    if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        uint32_t last_read_addr = addr & 0xFFFFFFFC;
+        if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    int out_byte = 0;
-    for(uint32_t i=0; i<bytes; i++){
-        if((addr+i)/4 != last_read_addr/4){ //different word?
-            last_read_addr = (addr+i)& 0xFFFFFFFC;
-            if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        int out_byte = 0;
+        for(uint32_t i=0; i<bytes; i++){
+            if((addr+i)/4 != last_read_addr/4){ //different word?
+                last_read_addr = (addr+i)& 0xFFFFFFFC;
+                if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            }
+            dst[out_byte++] = data_bytes[(addr+i)%4];
         }
-        dst[out_byte++] = data_bytes[(addr+i)%4];
     }
+
 
     return RET_SUCCESS;
 }
@@ -254,35 +255,34 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
     uint8_t *data_bytes = (uint8_t*)&data;
     uint8_t *src_bytes = src;
 
-    //aligned, word-sized accesses
-    //TODO: pipelined accesses have proven unreliable. Needs to be improved before we can enable this again!
-    /*
-    if((bytes%4 == 0) && (addr%4 == 0)){
+    if((bytes%4 == 0) && (addr%4 == 0) && (bytes>4)){
         return cc3200_core_pipeline_write_mem_addr(addr, bytes/4, (uint32_t*)src);
     }
-    else{*/
-    //BELOW IS THE SLOW METHOD FOR BLOCKS THAT ARE (PARTIALLY) UNALIGNED OR NON-WORD-SIZED
-    for(uint32_t cur_addr = addr - (addr%4); cur_addr <= (addr+bytes); cur_addr+=4){
-        if(bytes_left>=4 && cur_addr >= addr){ //aligned, whole-word write
-            for(int i=0; i<4; i++){ data_bytes[i] = src_bytes[i]; } //prepare the word
-            if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //write the word
-            bytes_left -= 4;
-            src_bytes = &(src_bytes[4]);
-        }
-        else{ //non-aligned and/or partial word access - read-modify-write required
-            if(cc3200_core_read_mem_addr(cur_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //read original
-            for(uint32_t i=0; i<4; i++){
-                if(cur_addr+i >= addr && bytes_left > 0){
-                    data_bytes[i] = src_bytes[0];
-                    bytes_left--;
-                    src_bytes = &(src_bytes[1]);
-                }
+    else{
+
+        //BELOW IS THE SLOW METHOD FOR BLOCKS THAT ARE (PARTIALLY) UNALIGNED OR NON-WORD-SIZED
+        for(uint32_t cur_addr = addr - (addr%4); cur_addr <= (addr+bytes); cur_addr+=4){
+            if(bytes_left>=4 && cur_addr >= addr){ //aligned, whole-word write
+                for(int i=0; i<4; i++){ data_bytes[i] = src_bytes[i]; } //prepare the word
+                if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //write the word
+                bytes_left -= 4;
+                src_bytes = &(src_bytes[4]);
             }
-            if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //write modified value
+            else{ //non-aligned and/or partial word access - read-modify-write required
+                if(cc3200_core_read_mem_addr(cur_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //read original
+                for(uint32_t i=0; i<4; i++){
+                    if(cur_addr+i >= addr && bytes_left > 0){
+                        data_bytes[i] = src_bytes[0];
+                        bytes_left--;
+                        src_bytes = &(src_bytes[1]);
+                    }
+                }
+                if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //write modified value
+            }
+            data = 0;
         }
-        data = 0;
+
     }
-    //}
 
     return RET_SUCCESS;
 }

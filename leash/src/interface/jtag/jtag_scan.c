@@ -13,19 +13,39 @@
 #include <stdint.h>
 
 #include "jtag_pinctl.h"
-#include "jtag_statemachine.h"
 #include "misc_hal.h"
 #include "error.h"
+
+enum jtag_state{
+    JTAG_STATE_TLR = 0,
+    JTAG_STATE_RTI,
+    JTAG_STATE_DRSCAN,
+    JTAG_STATE_CAPTDR,
+    JTAG_STATE_SHIFTDR,
+    JTAG_STATE_EXIT1DR,
+    JTAG_STATE_PAUSEDR,
+    JTAG_STATE_EXIT2DR,
+    JTAG_STATE_UPDATEDR,
+    JTAG_STATE_IRSCAN,
+    JTAG_STATE_CAPTIR,
+    JTAG_STATE_SHIFTIR,
+    JTAG_STATE_EXIT1IR,
+    JTAG_STATE_PAUSEIR,
+    JTAG_STATE_EXIT2IR,
+    JTAG_STATE_UPDATEIR
+};
 
 //state struct
 struct jtag_scan_state_t{
     unsigned char initialized;
     uint64_t shift_out;
+    enum jtag_state cur_jtag_state;
 };
 //instantiate state struct
 struct jtag_scan_state_t jtag_scan_state = {
     .initialized = 0,
-    .shift_out = 0
+    .shift_out = 0,
+    .cur_jtag_state = 0
 };
 
 int jtag_scan_init(void)
@@ -33,6 +53,8 @@ int jtag_scan_init(void)
     if(jtag_scan_state.initialized) return RET_SUCCESS;
 
     if(jtag_pinctl_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    jtag_scan_state.cur_jtag_state = JTAG_STATE_TLR;
 
     jtag_scan_state.initialized = 1;
     return RET_SUCCESS;
@@ -44,9 +66,11 @@ int jtag_scan_hardRst(void)
 
     //hardware reset using the reset pin
     jtag_pinctl_assertPins(JTAG_RST);
-    delay_loop(100000);
+    delay_loop(10000000);
     jtag_pinctl_deAssertPins(JTAG_RST);
     delay_loop(20000000);
+
+    jtag_scan_state.cur_jtag_state = JTAG_STATE_TLR;
 
     return RET_SUCCESS;
 }
@@ -58,8 +82,11 @@ int jtag_scan_rstStateMachine(void)
     //five consecutive TMS 1's will reset the JTAG state machine of everything
     //in the chain.
     for(int i=0; i<5; i++) {
-        jtag_pinctl_doClock(JTAG_TMS);
+        uint8_t dummy;
+        jtag_pinctl_doClock(1,0,&dummy);
     }
+
+    jtag_scan_state.cur_jtag_state = JTAG_STATE_TLR;
 
     return RET_SUCCESS;
 }
@@ -71,8 +98,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     jtag_scan_state.shift_out = 0;
 
     //Get to Shift-DR state
-    enum jtag_state cur_state = jtag_statemachine_getState();
-    switch(cur_state){
+    switch(jtag_scan_state.cur_jtag_state){
     case JTAG_STATE_RTI:
     case JTAG_STATE_TLR:
         jtag_scan_doStateMachine(0x02, 4);
@@ -82,7 +108,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x07, 5);
         break;
     default:
-        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
+        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
         break;
     }
 
@@ -91,18 +117,17 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 
     //get back to Run-Test/Idle state from current state (Exit-DR)
     //Get to Shift-DR state
-    cur_state = jtag_statemachine_getState();
     switch(toState){
     case JTAG_STATE_SCAN_RUNIDLE:
         jtag_scan_doStateMachine(0x01, 2);
-        if(jtag_statemachine_getState() != JTAG_STATE_RTI) RETURN_ERROR(jtag_statemachine_getState());
+        jtag_scan_state.cur_jtag_state = JTAG_STATE_RTI;
         break;
     case JTAG_STATE_SCAN_PAUSE:
         jtag_scan_doStateMachine(0x00, 1);
-        if(jtag_statemachine_getState() != JTAG_STATE_PAUSEDR) RETURN_ERROR(jtag_statemachine_getState());
+        jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEDR;
         break;
     default:
-        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
+        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
         break;
     }
 
@@ -116,8 +141,7 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     jtag_scan_state.shift_out = 0;
 
     //Get to Shift-IR state
-    enum jtag_state cur_state = jtag_statemachine_getState();
-    switch(cur_state){
+    switch(jtag_scan_state.cur_jtag_state){
     case JTAG_STATE_RTI:
     case JTAG_STATE_TLR:
         jtag_scan_doStateMachine(0x06, 5);
@@ -127,7 +151,7 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x0F, 6);
         break;
     default:
-        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
+        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
         break;
     }
 
@@ -139,14 +163,14 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     switch(toState){
     case JTAG_STATE_SCAN_RUNIDLE:
         jtag_scan_doStateMachine(0x01, 2);
-        if(jtag_statemachine_getState() != JTAG_STATE_RTI) {RETURN_ERROR(ERROR_UNKNOWN);}
+        jtag_scan_state.cur_jtag_state = JTAG_STATE_RTI;
         break;
     case JTAG_STATE_SCAN_PAUSE:
         jtag_scan_doStateMachine(0x00, 1);
-        if(jtag_statemachine_getState() != JTAG_STATE_PAUSEIR) {RETURN_ERROR(ERROR_UNKNOWN);}
+        jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEIR;
         break;
     default:
-        {RETURN_ERROR(ERROR_UNKNOWN);} //invalid state
+        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
         break;
     }
 
@@ -159,7 +183,8 @@ int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
     if(num_clk>=32) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     for(unsigned int i=0; i<num_clk; i++){
-        jtag_pinctl_doClock((tms_bits_lsb_first&(1<<i)) ? JTAG_TMS : JTAG_NONE);
+        uint8_t dummy;
+        jtag_pinctl_doClock((tms_bits_lsb_first&(1<<i)) ? 1:0, 0, &dummy);
     }
 
     return RET_SUCCESS;
@@ -173,13 +198,14 @@ int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
     jtag_scan_state.shift_out = 0;
 
     for(unsigned int i=0; i<(num_clk-1); i++){
-        jtag_pinctl_doClock((tdi_bits_lsb_first & 1) * JTAG_TDI);
+        uint8_t tdo;
+        jtag_pinctl_doClock(0, (tdi_bits_lsb_first & 1), &tdo);
         tdi_bits_lsb_first >>= 1;
-        //jtag_pinctl_doClock((tdi_bits_lsb_first&(1<<i)) ? JTAG_TDI : JTAG_NONE);
-        if(jtag_pinctl_getLastTDO()) jtag_scan_state.shift_out |= (((uint64_t)1)<<((uint64_t)i));
+        if(tdo) jtag_scan_state.shift_out |= (((uint64_t)1)<<((uint64_t)i));
     }
     //last bit with TMS high
-    jtag_pinctl_doClock(JTAG_TMS | (tdi_bits_lsb_first & 1) * JTAG_TDI);
+    uint8_t dummy;
+    jtag_pinctl_doClock(1, (tdi_bits_lsb_first & 1), &dummy);
 
     return RET_SUCCESS;
 }
