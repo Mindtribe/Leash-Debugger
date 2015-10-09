@@ -217,7 +217,7 @@ int cc3200_core_read_APreg(uint8_t ap, uint8_t regaddr, uint32_t* result, uint8_
 {
     if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    if(!cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_jtagdp_APACC_read(regaddr & 0xF, result, check_response) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     return RET_SUCCESS;
@@ -227,7 +227,7 @@ int cc3200_core_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t value, uint8_t
 {
     if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    if(!cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_jtagdp_APACC_write(regaddr & 0xF, value, check_response) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     return RET_SUCCESS;
@@ -237,7 +237,7 @@ int cc3200_core_pipeline_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, 
 {
     if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    if(!cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_jtagdp_APACC_pipeline_write(regaddr & 0xF, len, values, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     return RET_SUCCESS;
@@ -247,7 +247,7 @@ int cc3200_core_pipeline_read_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, u
 {
     if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    if(!cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_jtagdp_APACC_pipeline_read(regaddr & 0xF, len, dst) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     return RET_SUCCESS;
@@ -267,8 +267,23 @@ int cc3200_core_pipeline_write_mem_addr(uint32_t addr, uint32_t len, uint32_t* v
 {
     if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,addr, 0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_core_pipeline_write_APreg(0,CC3200_CORE_AP_DATARW_ADDR,len,values) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    uint32_t next_kb_boundary = (addr&0xFFFFFC00)+0x400;
+    uint32_t chunk_words = (next_kb_boundary - addr)/4;
+    uint32_t cur_addr = addr;
+    uint32_t *cur_val = values;
+    uint32_t words_left = len;
+    if(words_left<chunk_words) { chunk_words = words_left; }
+
+    while(cur_addr < (addr+len*4)){
+        if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,cur_addr, 0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_core_pipeline_write_APreg(0,CC3200_CORE_AP_DATARW_ADDR,chunk_words,cur_val) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        cur_addr += chunk_words*4;
+        next_kb_boundary += 0x400;
+        words_left -= chunk_words;
+        cur_val += chunk_words;
+        chunk_words = (next_kb_boundary - cur_addr)/4;
+        if(words_left<chunk_words) { chunk_words = words_left; }
+    }
 
     return RET_SUCCESS;
 }
@@ -277,8 +292,23 @@ int cc3200_core_pipeline_read_mem_addr(uint32_t addr, uint32_t len, uint32_t *ds
 {
     if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
 
-    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,addr, 0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_core_pipeline_read_APreg(0,CC3200_CORE_AP_DATARW_ADDR,len,dst) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    uint32_t next_kb_boundary = (addr&0xFFFFFC00)+0x400;
+    uint32_t chunk_words = (next_kb_boundary - addr)/4;
+    uint32_t cur_addr = addr;
+    uint32_t *cur_dst = dst;
+    uint32_t words_left = len;
+    if(words_left<chunk_words) { chunk_words = words_left; }
+
+    while(cur_addr < (addr+len*4)){
+        if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,cur_addr, 0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_core_pipeline_read_APreg(0,CC3200_CORE_AP_DATARW_ADDR,chunk_words,cur_dst) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        cur_addr += chunk_words*4;
+        next_kb_boundary += 0x400;
+        words_left -= chunk_words;
+        cur_dst += chunk_words;
+        chunk_words = (next_kb_boundary - cur_addr)/4;
+        if(words_left<chunk_words) { chunk_words = words_left; }
+    }
 
     return RET_SUCCESS;
 }

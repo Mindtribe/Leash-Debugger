@@ -37,11 +37,7 @@ enum jtagPinBit{
 int jtag_pinctl_init(void);
 
 //Generate a TCK clock period, with the specified pin(s) active.
-//JTAG_RST is a special case: when made "active" it goes LOW.
-int jtag_pinctl_doClock(uint8_t active_pins);
-
-//Get the most recent TDO bit (typically after performing a clock cycle).
-unsigned char jtag_pinctl_getLastTDO(void);
+void jtag_pinctl_doClock(uint8_t TMS, uint8_t TDI, uint8_t* TDO_result);
 
 //for direct control
 int jtag_pinctl_assertPins(uint8_t pins);

@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "log.h"
 #include "error.h"
 
 struct gdb_helpers_state_t{
@@ -68,16 +69,6 @@ void gdb_helpers_Nack(void)
 {
     gdb_helpers_state.pPutChar('-');
     return;
-}
-
-uint8_t gdb_helpers_getChecksum(char* data)
-{
-    uint8_t checksum = 0;
-    for(int i=0; data[i] != 0; i++){
-        checksum += (uint8_t)(data[i]);
-    }
-
-    return checksum;
 }
 
 void gdb_helpers_TransmitPacket(char* packet_data)
