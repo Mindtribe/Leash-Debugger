@@ -27,6 +27,8 @@ enum flash_command_type{
 
 #define FLASH_RESPONSE_INITIALIZED 2
 
+#define FLASHSTUB_FILENAME "/cc3200_flashstub.bin"
+
 enum mem_sync_state{
     SYNC_UNINIT = 0,
     SYNC_WAIT,

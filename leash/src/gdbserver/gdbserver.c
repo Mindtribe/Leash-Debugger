@@ -509,6 +509,7 @@ int gdbserver_processVCommand(char* commandString)
         else{
             (void)response;
             retval = (*gdbserver_state.target->target_flash_fs_open)();
+            gdbserver_TransmitPacket("");
         }
         break;
     default:
