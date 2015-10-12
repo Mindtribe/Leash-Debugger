@@ -20,6 +20,9 @@
 #include "simplelink.h"
 #include "fs.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #define TARGET_SRAM_ORIGIN 0x20004000
 #define FLASH_LOAD_CHUNK_SIZE 128
 
@@ -30,6 +33,8 @@ int cc3200_flashfs_loadstub(void)
     int retval;
     unsigned char databuf[FLASH_LOAD_CHUNK_SIZE];
     int filehandle = -1;
+    unsigned int stackptaddr;
+    unsigned int entryaddr;
 
     LOG(LOG_IMPORTANT, "[CC3200] Checking flash stub binary @ %s", FLASHSTUB_FILENAME);
 
@@ -54,6 +59,15 @@ int cc3200_flashfs_loadstub(void)
             sl_FsClose((_i32) filehandle, NULL, NULL, 0);
             RETURN_ERROR(retval);
         }
+        if(bytes_left == (unsigned int)stubinfo.FileLen){ //first iteration
+            //Read stack pointer and entry address from the binary
+            if(bytes_left < 8){
+                sl_FsClose((_i32) filehandle, NULL, NULL, 0);
+                RETURN_ERROR(retval);
+            }
+            stackptaddr = ((unsigned int*)databuf)[0];
+            entryaddr = ((unsigned int*)databuf)[1];
+        }
         retval = cc3200_mem_block_write(TARGET_SRAM_ORIGIN+rel_write_addr,
                 write_bytes,
                 databuf);
@@ -68,17 +82,17 @@ int cc3200_flashfs_loadstub(void)
     retval = sl_FsClose((_i32) filehandle, NULL, NULL, 0);
     if(retval < 0) { RETURN_ERROR(retval); }
 
-    return RET_SUCCESS;
-
-    LOG(LOG_VERBOSE, "[CC3200] Starting flash stub execution...");
-
+    LOG(LOG_VERBOSE, "[CC3200] Stack ptr: 0x%8X Entry: 0x%8X", stackptaddr, entryaddr);
 
     retval = cc3200_mem_write(FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_UNINIT);
     if(retval == RET_FAILURE) RETURN_ERROR(retval);
-    retval = cc3200_reg_write(CC3200_REG_SP, 0x2000897c); //TODO: make this kosher
+    retval = cc3200_reg_write(CC3200_REG_SP, stackptaddr);
     if(retval == RET_FAILURE) RETURN_ERROR(retval);
-    retval = cc3200_reg_write(CC3200_REG_PC, 0x200044b1); //TODO: make this kosher
+    retval = cc3200_reg_write(CC3200_REG_PC, entryaddr);
     if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    LOG(LOG_VERBOSE, "[CC3200] Starting flash stub execution...");
+
     retval = cc3200_continue();
     if(retval == RET_FAILURE) RETURN_ERROR(retval);
 
@@ -86,6 +100,7 @@ int cc3200_flashfs_loadstub(void)
 
     uint32_t syncstate = SYNC_UNINIT;
     do{
+        vTaskDelay(1);
         retval = cc3200_mem_read((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, &syncstate);
         if(retval == RET_FAILURE) RETURN_ERROR(retval);
     }while(syncstate != SYNC_READY);
