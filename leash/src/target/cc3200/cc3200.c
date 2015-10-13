@@ -64,11 +64,13 @@ struct cc3200_state_t{
     char regstring[CC3200_REG_LAST+1];
     unsigned int alloc_size;
     unsigned int file_create_flags;
+    unsigned int flash_mode;
 };
 struct cc3200_state_t cc3200_state = {
     .regstring = {0},
     .alloc_size = CC3200_DEFAULT_FILE_ALLOC_SIZE,
-    .file_create_flags = CC3200_DEFAULT_FILE_ACCESS_FLAGS
+    .file_create_flags = CC3200_DEFAULT_FILE_ACCESS_FLAGS,
+    .flash_mode = 0
 };
 
 int cc3200_init(void)
@@ -387,22 +389,43 @@ int cc3200_flashfs_al_supported(void)
 
 int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* data, unsigned int len)
 {
-    int retval = cc3200_flashfs_read(fd, offset, data, len);
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        retval = cc3200_flashfs_loadstub();
+        if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+        cc3200_state.flash_mode = 1;
+    }
+
+    retval = cc3200_flashfs_read(fd, offset, data, len);
     if(retval < 0) { RETURN_ERROR(retval); }
     return retval;
 }
 
 int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* data, unsigned int len)
 {
-    int retval = cc3200_flashfs_write(fd, offset, data, len);
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        retval = cc3200_flashfs_loadstub();
+        if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+        cc3200_state.flash_mode = 1;
+    }
+
+    retval = cc3200_flashfs_write(fd, offset, data, len);
     if(retval < 0) { RETURN_ERROR(retval); }
     return retval;
 }
 
 int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
 {
-    int retval = cc3200_flashfs_loadstub();
-    if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        retval = cc3200_flashfs_loadstub();
+        if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+        cc3200_state.flash_mode = 1;
+    }
 
     unsigned int AccessModeAndMaxSize = 0;
     long tempfd;
@@ -425,14 +448,30 @@ int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
 
 int cc3200_flashfs_al_close(int fd)
 {
-    int retval = cc3200_flashfs_close(fd);
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        retval = cc3200_flashfs_loadstub();
+        if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+        cc3200_state.flash_mode = 1;
+    }
+
+    retval = cc3200_flashfs_close(fd);
     if(retval<0) {RETURN_ERROR(retval);}
     return RET_SUCCESS;
 }
 
 int cc3200_flashfs_al_delete(char* filename)
 {
-    int retval = cc3200_flashfs_delete((unsigned char*) filename);
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        retval = cc3200_flashfs_loadstub();
+        if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+        cc3200_state.flash_mode = 1;
+    }
+
+    retval = cc3200_flashfs_delete((unsigned char*) filename);
     if(retval < 0) { RETURN_ERROR(retval); }
     return RET_SUCCESS;
 }
