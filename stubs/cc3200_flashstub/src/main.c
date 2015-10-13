@@ -13,7 +13,6 @@
 #include "interrupt.h"
 #include "prcm.h"
 #include "rom_map.h"
-#include "args.h"
 #include "cc3200_flashstub.h"
 
 #include "simplelink.h"
@@ -44,8 +43,14 @@ int main(void)
         ((unsigned char*)flash)[i] = 0;
     }
 
+    //start the SL driver
+    int retval = sl_Start(0,0,0);
+    if(retval < 0) {return 1;}
+
+    //TEST: delete mcuimg.bin
+    retval = sl_FsDel((unsigned char*)"/sys/mcuimg.bin", 0);
+
     //tell the debugger stub is ready
-    flash->response.data_size = 0;
     flash->response.retval = FLASH_RESPONSE_INITIALIZED;
     flash->response_sync = SYNC_READY;
 
@@ -54,6 +59,7 @@ int main(void)
             ;
         while(flash->command_sync != SYNC_READY)
             ;
+        flash->command_sync = SYNC_WAIT;
 
         switch(flash->command.type){
         case FD_OPEN:
@@ -61,7 +67,7 @@ int main(void)
                     ((struct command_file_open_args_t*)flash_data)->pFileName,
                     ((struct command_file_open_args_t*)flash_data)->AccessModeAndMaxSize,
                     NULL,
-                    ((struct command_file_open_args_t*)flash_data)->pFileHandle);
+                    &((struct command_file_open_args_t*)flash_data)->FileHandle);
             break;
         case FD_CLOSE:
             flash->response.retval = sl_FsClose(

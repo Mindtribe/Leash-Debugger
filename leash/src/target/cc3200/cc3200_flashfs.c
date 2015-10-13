@@ -105,7 +105,250 @@ int cc3200_flashfs_loadstub(void)
         if(retval == RET_FAILURE) RETURN_ERROR(retval);
     }while(syncstate != SYNC_READY);
 
+    retval = cc3200_mem_write((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_WAIT);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
     LOG(LOG_IMPORTANT, "[CC3200] Flash stub ready.");
 
     return RET_SUCCESS;
+}
+
+int cc3200_flashfs_open(unsigned int AccessModeAndMaxSize, unsigned char* pFileName, long* pFileHandle)
+{
+    struct flash_command_t cmd;
+    struct command_file_open_args_t args;
+    struct flash_command_response_t response;
+    int retval;
+
+    //memory structure in shared data region:
+    //1. command_file_open_args_t struct
+    //2. file name input string
+
+    args.AccessModeAndMaxSize = AccessModeAndMaxSize;
+    args.pFileName = (unsigned char*)(FLASH_DATA_ADDR + sizeof(struct command_file_open_args_t));
+    args.FileHandle = 0;
+
+    cmd.type = FD_OPEN;
+
+    LOG(LOG_VERBOSE, "[CC3200] Opening file '%s'...", (char*) pFileName);
+
+    retval = cc3200_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_write((unsigned int)FLASH_DATA_ADDR, sizeof(struct command_file_open_args_t), (unsigned char*)&args);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_write((unsigned int)FLASH_DATA_ADDR + sizeof(struct command_file_open_args_t),
+            strlen((char*)pFileName)+1, pFileName);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    //execute
+    retval = cc3200_mem_write((unsigned int)FLASH_CMD_SYNC_OBJECT_ADDR, SYNC_READY);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //wait to finish
+    uint32_t syncstate = SYNC_UNINIT;
+    do{
+        vTaskDelay(1);
+        retval = cc3200_mem_read((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, &syncstate);
+        if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    }while(syncstate != SYNC_READY);
+    retval = cc3200_mem_write((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_WAIT);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //read response
+    retval = cc3200_mem_block_read((unsigned int)FLASH_RESPONSE_ADDR, sizeof(struct flash_command_response_t), (unsigned char*)&response);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_read((unsigned int)FLASH_DATA_ADDR, sizeof(struct command_file_open_args_t), (unsigned char*)&args);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    *pFileHandle = args.FileHandle;
+
+    if(response.retval < 0){LOG(LOG_VERBOSE, "[CC3200] ...Failed.");}
+    else{LOG(LOG_VERBOSE, "[CC3200] ...Success.");}
+    return response.retval;
+}
+
+int cc3200_flashfs_close(int FileHdl)
+{
+    struct flash_command_t cmd;
+    struct command_file_close_args_t args;
+    struct flash_command_response_t response;
+    int retval;
+
+    //memory structure in shared data region:
+    //1. command_file_close_args_t struct
+
+    args.FileHdl = FileHdl;
+
+    cmd.type = FD_CLOSE;
+
+    LOG(LOG_VERBOSE, "[CC3200] Closing file...");
+
+    retval = cc3200_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_write((unsigned int)FLASH_DATA_ADDR, sizeof(struct command_file_close_args_t), (unsigned char*)&args);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    //execute
+    retval = cc3200_mem_write((unsigned int)FLASH_CMD_SYNC_OBJECT_ADDR, SYNC_READY);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //wait to finish
+    uint32_t syncstate = SYNC_UNINIT;
+    do{
+        vTaskDelay(1);
+        retval = cc3200_mem_read((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, &syncstate);
+        if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    }while(syncstate != SYNC_READY);
+    retval = cc3200_mem_write((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_WAIT);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //read response
+    retval = cc3200_mem_block_read((unsigned int)FLASH_RESPONSE_ADDR, sizeof(struct flash_command_response_t), (unsigned char*)&response);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    if(response.retval < 0){LOG(LOG_VERBOSE, "[CC3200] ...Failed.");}
+    else{LOG(LOG_VERBOSE, "[CC3200] ...Success.");}
+    return response.retval;
+}
+
+int cc3200_flashfs_read(int FileHdl, unsigned int Offset, unsigned char* pData, unsigned int Len)
+{
+    struct flash_command_t cmd;
+    struct command_file_read_args_t args;
+    struct flash_command_response_t response;
+    int retval;
+
+    //memory structure in shared data region:
+    //1. command_file_read_args_t struct
+    //2. file data read buffer
+
+    args.FileHdl = FileHdl;
+    args.Len = Len;
+    args.Offset = Offset;
+    args.pData = (unsigned char*)(FLASH_DATA_ADDR + sizeof(struct command_file_read_args_t));
+
+    cmd.type = FD_READ;
+
+    retval = cc3200_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_write((unsigned int)FLASH_DATA_ADDR, sizeof(struct command_file_read_args_t), (unsigned char*)&args);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    //execute
+    retval = cc3200_mem_write((unsigned int)FLASH_CMD_SYNC_OBJECT_ADDR, SYNC_READY);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //wait to finish
+    uint32_t syncstate = SYNC_UNINIT;
+    do{
+        vTaskDelay(1);
+        retval = cc3200_mem_read((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, &syncstate);
+        if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    }while(syncstate != SYNC_READY);
+    retval = cc3200_mem_write((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_WAIT);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //read response
+    retval = cc3200_mem_block_read((unsigned int)FLASH_RESPONSE_ADDR, sizeof(struct flash_command_response_t), (unsigned char*)&response);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_read((unsigned int)FLASH_DATA_ADDR + sizeof(struct command_file_read_args_t),
+            Len, pData);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //GDB tests the "boundary" by reading at the end of the file.
+    //SimpleLink regards this as an error, but the correct response for GDB would be 0 (EOF, 0 bytes read).
+    if(response.retval == SL_FS_ERR_OFFSET_OUT_OF_RANGE) { response.retval = 0; }
+
+    return response.retval;
+}
+
+int cc3200_flashfs_write(int FileHdl, unsigned int Offset, unsigned char* pData, unsigned int Len)
+{
+    struct flash_command_t cmd;
+    struct command_file_write_args_t args;
+    struct flash_command_response_t response;
+    int retval;
+
+    //memory structure in shared data region:
+    //1. command_file_write_args_t struct
+    //2. file data write buffer
+
+    args.FileHdl = FileHdl;
+    args.Len = Len;
+    args.Offset = Offset;
+    args.pData = (unsigned char*)(FLASH_DATA_ADDR + sizeof(struct command_file_write_args_t));
+
+    cmd.type = FD_WRITE;
+
+    retval = cc3200_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_write((unsigned int)FLASH_DATA_ADDR, sizeof(struct command_file_write_args_t), (unsigned char*)&args);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_write((unsigned int)FLASH_DATA_ADDR + sizeof(struct command_file_write_args_t),
+            Len, pData);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    //execute
+    retval = cc3200_mem_write((unsigned int)FLASH_CMD_SYNC_OBJECT_ADDR, SYNC_READY);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //wait to finish
+    //TODO timeouts!!!
+    uint32_t syncstate = SYNC_UNINIT;
+    do{
+        vTaskDelay(1);
+        retval = cc3200_mem_read((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, &syncstate);
+        if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    }while(syncstate != SYNC_READY);
+    retval = cc3200_mem_write((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_WAIT);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //read response
+    retval = cc3200_mem_block_read((unsigned int)FLASH_RESPONSE_ADDR, sizeof(struct flash_command_response_t), (unsigned char*)&response);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    return response.retval;
+}
+
+int cc3200_flashfs_delete(unsigned char* pFileName)
+{
+    struct flash_command_t cmd;
+    struct command_file_delete_args_t args;
+    struct flash_command_response_t response;
+    int retval;
+
+    //memory structure in shared data region:
+    //1. command_file_delete_args_t struct
+    //2. file name input string
+
+    args.pFileName = (unsigned char*)(FLASH_DATA_ADDR + sizeof(struct command_file_open_args_t));
+
+    cmd.type = FD_DELETE;
+
+    LOG(LOG_VERBOSE, "[CC3200] Deleting file '%s'...", (char*) pFileName);
+
+    retval = cc3200_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_write((unsigned int)FLASH_DATA_ADDR, sizeof(struct command_file_delete_args_t), (unsigned char*)&args);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    retval = cc3200_mem_block_write((unsigned int)FLASH_DATA_ADDR + sizeof(struct command_file_delete_args_t),
+            strlen((char*)pFileName)+1, pFileName);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    //execute
+    retval = cc3200_mem_write((unsigned int)FLASH_CMD_SYNC_OBJECT_ADDR, SYNC_READY);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //wait to finish
+    uint32_t syncstate = SYNC_UNINIT;
+    do{
+        vTaskDelay(1);
+        retval = cc3200_mem_read((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, &syncstate);
+        if(retval == RET_FAILURE) RETURN_ERROR(retval);
+    }while(syncstate != SYNC_READY);
+    retval = cc3200_mem_write((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_WAIT);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    //read response
+    retval = cc3200_mem_block_read((unsigned int)FLASH_RESPONSE_ADDR, sizeof(struct flash_command_response_t), (unsigned char*)&response);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval);
+
+    if(response.retval < 0){LOG(LOG_VERBOSE, "[CC3200] ...Failed.");}
+    else{LOG(LOG_VERBOSE, "[CC3200] ...Success.");}
+    return response.retval;
 }

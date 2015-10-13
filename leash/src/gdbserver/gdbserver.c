@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stddef.h>
+#include <fcntl.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -34,14 +35,17 @@
 #include "ui.h"
 
 #define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
-#define GDBSERVER_KEEP_CHARS_NUM 512 //for debugging: number of chars to keep track of
+#define GDBSERVER_KEEP_CHARS_NUM 532 //for debugging: number of chars to keep track of
 
-#define GDBSERVER_MAX_PACKET_LEN_RX 512
-#define GDBSERVER_MAX_PACKET_LEN_TX 512
+#define GDBSERVER_MAX_PACKET_LEN_RX 532
+#define GDBSERVER_MAX_PACKET_LEN_TX 532
+#define GDBSERVER_REPORT_MAX_PACKET_LEN 512
 
 #define GDBSERVER_MAX_BLOCK_ACCESS 512
 #define GDBSERVER_NUM_BKPT 256
 #define GDBSERVER_POLL_INTERVAL 100
+
+#define GDBSERVER_FILENAME_MAX 128
 
 #ifdef GDBSERVER_KEEP_CHARS
 char lastChars[GDBSERVER_KEEP_CHARS_NUM];
@@ -167,6 +171,7 @@ struct gdbserver_state_t{
     struct fileio_state_t fileio_state;
     unsigned int binary_rx_counter;
     unsigned int escapechar;
+    unsigned int cur_packet_len;
 };
 
 //disable GCC warning - braces bug 53119 in GCC
@@ -188,7 +193,8 @@ struct gdbserver_state_t gdbserver_state = {
     .fileio_state = {0},
     .binary_rx_counter = 0,
     .escapechar = 0,
-    .cur_checksum = 0
+    .cur_checksum = 0,
+    .cur_packet_len = 0
 };
 #pragma GCC diagnostic pop
 
@@ -250,6 +256,40 @@ void gdbserver_TransmitPacket(char* packet_data)
     gdbserver_state.awaiting_ack = 1;
     //log the packet
     LOG(LOG_VERBOSE, "[GDBSERV] TX: %s" , packet_data);
+
+    return;
+}
+
+void gdbserver_TransmitBinaryPacket(unsigned char* packet_data, unsigned int len)
+{
+    //do the transmission
+    uint8_t checksum = 0;
+    gdb_helpers_PutChar('$');
+    for(unsigned int i=0; i<len; i++){
+        if((packet_data[i]=='}') ||
+                (packet_data[i]=='#') ||
+                (packet_data[i]=='$') ||
+                (packet_data[i]=='*')){
+            gdb_helpers_PutChar('}');
+            gdb_helpers_PutChar(packet_data[i]^0x20);
+            checksum += (uint8_t)'}' + (((uint8_t)packet_data[i])^0x20);
+        }
+        else{
+            gdb_helpers_PutChar(packet_data[i]);
+            checksum += packet_data[i];
+        }
+    }
+    gdb_helpers_PutChar('#');
+    //put the checksum
+    char chksm_nibbles[3];
+    sprintf(chksm_nibbles, "%02X", checksum);
+    gdb_helpers_PutChar(chksm_nibbles[0]);
+    gdb_helpers_PutChar(chksm_nibbles[1]);
+
+    //update state
+    gdbserver_state.awaiting_ack = 1;
+    //log the packet
+    LOG(LOG_VERBOSE, "[GDBSERV] TX: (Binary data)");
 
     return;
 }
@@ -327,6 +367,7 @@ int gdbserver_processChar(void)
         else if(c == '#'){
             gdbserver_state.packet_phase = PACKET_CHECKSUM; //next state
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
+            gdbserver_state.cur_packet_len = gdbserver_state.cur_packet_index;
             gdbserver_state.cur_packet_index = 0;
         }
         else if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);} //too long
@@ -497,7 +538,6 @@ int gdbserver_processVCommand(char* commandString)
         gdbserver_TransmitPacket("");
     }
 
-    char response[50];
     int retval;
 
     switch(qname){
@@ -505,12 +545,167 @@ int gdbserver_processVCommand(char* commandString)
         retval = (*gdbserver_state.target->target_flash_fs_supported)();
         if(retval == TARGET_FLASH_FS_UNSUPPORTED){
             gdbserver_TransmitPacket("");
+            return RET_SUCCESS;
         }
-        else{
-            (void)response;
-            retval = (*gdbserver_state.target->target_flash_fs_open)();
+
+        char * tok = strtok(commandString, ":");
+        tok = strtok(NULL, ":");
+        if(tok == NULL) { RETURN_ERROR(ERROR_UNKNOWN); }
+        if(strcmp(tok, "open") == 0){
+            char filename[GDBSERVER_FILENAME_MAX];
+            unsigned int flags, mode;
+            char* filename_hex = strtok(NULL, ",");
+            char* flags_hex = strtok(NULL, ",");
+            char* mode_hex = strtok(NULL, ",");
+            if((mode_hex == NULL) || (filename_hex == NULL) || (flags_hex == NULL)){
+                gdbserver_TransmitPacket("F-1,270F");
+                return RET_SUCCESS;
+            }
+            unsigned int i;
+            for(i=0; (i*2)<strlen(filename_hex); i++){
+                unsigned int val;
+                sscanf(&(filename_hex[i*2]), "%2X", &val);
+                filename[i] = (char)val;
+            }
+            filename[i] = 0;
+            sscanf(flags_hex, "%X", &flags);
+            sscanf(mode_hex, "%X", &mode);
+            int fd;
+            unsigned int sl_mode;
+            if(flags & O_WRONLY){ sl_mode = TARGET_FLASH_MODE_CREATEANDWRITE; }
+            else{ sl_mode = TARGET_FLASH_MODE_READ; }
+            retval = (*gdbserver_state.target->target_flash_fs_open)(
+                    sl_mode,
+                    filename,
+                    &fd);
+            if(retval<0){
+                gdbserver_TransmitPacket("F-1,270F");
+            }
+            else{
+                char response[20];
+                snprintf(response, 20, "F%02X%02X%02X%02X",
+                        (((unsigned int)fd)>>24)&0xFF,
+                        (((unsigned int)fd)>>16)&0xFF,
+                        (((unsigned int)fd)>>8)&0xFF,
+                        (((unsigned int)fd)>>0)&0xFF);
+                gdbserver_TransmitPacket(response);
+            }
+            return RET_SUCCESS;
+        }
+        else if(strcmp(tok, "close") == 0){
+            char *fd_hex = strtok(NULL, ",");
+            if(fd_hex == NULL){
+                gdbserver_TransmitPacket("F-1,270F");
+                return RET_SUCCESS;
+            }
+            unsigned int fd;
+            sscanf(fd_hex, "%X", &fd);
+            retval = (*gdbserver_state.target->target_flash_fs_close)((int)fd);
+            if(retval<0){
+                gdbserver_TransmitPacket("F-1,270F");
+            }
+            else{
+                gdbserver_TransmitPacket("F0");
+            }
+            return RET_SUCCESS;
+        }
+        else if(strcmp(tok, "pread") == 0){
+            char *fd_hex = strtok(NULL, ",");
+            char *count_hex = strtok(NULL, ",");
+            char *offset_hex = strtok(NULL, ",");
+            if((offset_hex == NULL) || (count_hex == NULL) || (fd_hex == NULL)){
+                gdbserver_TransmitPacket("F-1,270F");
+                return RET_SUCCESS;
+            }
+            unsigned int fd;
+            sscanf(fd_hex, "%X", &fd);
+            unsigned int count;
+            sscanf(count_hex, "%X", &count);
+            unsigned int offset;
+            sscanf(offset_hex, "%X", &offset);
+            unsigned char data[GDBSERVER_MAX_PACKET_LEN_TX];
+            if(count > (GDBSERVER_MAX_PACKET_LEN_TX - 10)){ //truncate to max packet length
+                count = (GDBSERVER_MAX_PACKET_LEN_TX - 10);
+            }
+            retval = (*gdbserver_state.target->target_flash_fs_read)(
+                    (int)fd,
+                    offset,
+                    &(data[10]),
+                    count);
+            if(retval < 0) {
+                gdbserver_TransmitPacket("F-1,270F");
+                return RET_SUCCESS;
+            }
+            if((unsigned int)retval > count){ retval = (int)count; }
+            sprintf((char*)data, "F%08X", (unsigned int)retval);
+            data[9] = ';'; //this one separately to overwrite sprintf's trailing 0
+            gdbserver_TransmitBinaryPacket(data, retval+10);
+        }
+        else if(strcmp(tok, "pwrite") == 0){
+            char *fd_hex = strtok(NULL, ",");
+            char *offset_hex = strtok(NULL, ",");
+            char *data_ptr = strtok(NULL, 0);
+            if((offset_hex == NULL) || (fd_hex == NULL)){
+                error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+                gdbserver_TransmitPacket("F-1,270F");
+                return RET_SUCCESS;
+            }
+            unsigned int fd;
+            sscanf(fd_hex, "%X", &fd);
+            unsigned int offset;
+            sscanf(offset_hex, "%X", &offset);
+            unsigned char data[GDBSERVER_MAX_PACKET_LEN_RX];
+            unsigned int j;
+            unsigned int i = (unsigned int)data_ptr - (unsigned int)commandString;
+            for(j=0; i<(gdbserver_state.cur_packet_len-1); i++){
+                if(commandString[i] == '}'){
+                    i++;
+                    commandString[i] |= 0x20;
+                }
+                data[j++] = (unsigned char)commandString[i];
+            }
+
+            retval = (*gdbserver_state.target->target_flash_fs_write)(
+                    (int)fd,
+                    offset,
+                    data,
+                    j);
+            if(retval < 0){
+                gdbserver_TransmitPacket("F-1,270F");
+                return RET_SUCCESS;
+            }
+            char response[20];
+            snprintf(response, 20, "F%08X", (unsigned int)retval);
+            gdbserver_TransmitPacket(response);
+        }
+        else if(strcmp(tok, "unlink") == 0){
+            char filename[GDBSERVER_FILENAME_MAX];
+            char* filename_hex = strtok(NULL, ",");
+            if(filename_hex == NULL) {
+                gdbserver_TransmitPacket("F-1,270F");
+                return RET_SUCCESS;
+            }
+            unsigned int i;
+            for(i=0; (i*2)<strlen(filename_hex); i++){
+                unsigned int val;
+                sscanf(&(filename_hex[i*2]), "%2X", &val);
+                filename[i] = (char)val;
+            }
+            filename[i] = 0;
+            retval = (*gdbserver_state.target->target_flash_fs_delete)(
+                    filename);
+            if(retval<0){
+                gdbserver_TransmitPacket("F-1,270F");
+            }
+            else{
+                gdbserver_TransmitPacket("F0");
+            }
+            return RET_SUCCESS;
+        }
+        else {
             gdbserver_TransmitPacket("");
         }
+
         break;
     default:
         gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"
@@ -532,7 +727,7 @@ int gdbserver_processGeneralQuery(char* queryString)
 
     switch(qname){
     case QUERY_SUPPORTED: //ask whether certain packet types are supported
-        sprintf(response, "PacketSize=%04X", GDBSERVER_MAX_PACKET_LEN_RX);
+        sprintf(response, "PacketSize=%04X", GDBSERVER_REPORT_MAX_PACKET_LEN);
         gdbserver_TransmitPacket(response);
         break;
     case QUERY_TSTATUS: //ask whether a trace experiment is currently running.

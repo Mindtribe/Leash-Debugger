@@ -35,6 +35,11 @@ enum target_flash_support{
     TARGET_FLASH_FS_SUPPORTED
 };
 
+enum target_flash_modes{
+    TARGET_FLASH_MODE_READ = 1,
+    TARGET_FLASH_MODE_CREATEANDWRITE = 2
+};
+
 struct semihost_operation{
     enum semihost_opcode opcode;
     uint32_t param1;
@@ -64,11 +69,11 @@ struct target_al_interface{
     int (*target_handleHalt)(enum stop_reason *);
     int (*target_querySemiHostOp)(struct semihost_operation *);
     int (*target_flash_fs_supported)(void);
-    int (*target_flash_fs_read)(void);
-    int (*target_flash_fs_write)(void);
-    int (*target_flash_fs_open)(void);
-    int (*target_flash_fs_close)(void);
-    int (*target_flash_fs_delete)(void);
+    int (*target_flash_fs_read)(int, unsigned int, unsigned char*, unsigned int);
+    int (*target_flash_fs_write)(int, unsigned int, unsigned char*, unsigned int);
+    int (*target_flash_fs_open)(unsigned int, char*, int*);
+    int (*target_flash_fs_close)(int);
+    int (*target_flash_fs_delete)(char*);
 };
 
 #endif

@@ -37,15 +37,39 @@ enum mem_sync_state{
 
 struct flash_command_t{
     unsigned int type;
-    int fd;
-    void* pData;
     unsigned int data_size;
 };
 
 struct flash_command_response_t{
     int retval;
-    void *pData;
-    unsigned int data_size;
+};
+
+struct command_file_open_args_t{
+    unsigned int AccessModeAndMaxSize;
+    unsigned char* pFileName;
+    long FileHandle;
+};
+
+struct command_file_close_args_t{
+    int FileHdl;
+};
+
+struct command_file_read_args_t{
+    int FileHdl;
+    unsigned int Offset;
+    unsigned int Len;
+    unsigned char* pData;
+};
+
+struct command_file_write_args_t{
+    int FileHdl;
+    unsigned int Offset;
+    unsigned int Len;
+    unsigned char* pData;
+};
+
+struct command_file_delete_args_t{
+    unsigned char* pFileName;
 };
 
 //The following list consists of absolute memory addresses/sizes used for communication.

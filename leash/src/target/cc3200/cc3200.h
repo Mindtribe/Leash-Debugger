@@ -57,16 +57,16 @@ int cc3200_get_pc(uint32_t* dst);
 
 int cc3200_querySemiHostOp(struct semihost_operation *op);
 
-int cc3200_flash_fs_supported(void);
+int cc3200_flashfs_al_supported(void);
 
-int cc3200_flash_fs_read(void);
+int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* data, unsigned int len);
 
-int cc3200_flash_fs_write(void);
+int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* data, unsigned int len);
 
-int cc3200_flash_fs_open(void);
+int cc3200_flashfs_al_delete(char* filename);
 
-int cc3200_flash_fs_close(void);
+int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd);
 
-int cc3200_flash_fs_delete(void);
+int cc3200_flashfs_al_close(int fd);
 
 #endif

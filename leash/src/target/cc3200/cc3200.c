@@ -13,6 +13,8 @@
 #include <stdio.h>
 #include "log.h"
 
+#include "fs.h"
+
 #include "error.h"
 #include "jtag_scan.h"
 #include "cc3200_icepick.h"
@@ -23,6 +25,9 @@
 #define CC3200_CORE_DFSR_BKPT (1<<1)
 
 #define CC3200_OPCODE_BKPT 0xBE00
+
+#define CC3200_DEFAULT_FILE_ALLOC_SIZE (72*(4096-512)) //default filesize = equal to max RAM of CC3200 (good for image files)
+#define CC3200_DEFAULT_FILE_ACCESS_FLAGS (0)
 
 #define CC3200_SEMIHOST_WRITE0 0x04
 #define CC3200_SEMIHOST_READ 0x06
@@ -47,19 +52,23 @@ struct target_al_interface cc3200_interface = {
     .target_querySemiHostOp = &cc3200_querySemiHostOp,
     .target_set_pc = &cc3200_set_pc,
     .target_get_pc = &cc3200_get_pc,
-    .target_flash_fs_supported = &cc3200_flash_fs_supported,
-    .target_flash_fs_read = &cc3200_flash_fs_read,
-    .target_flash_fs_write = &cc3200_flash_fs_write,
-    .target_flash_fs_open = &cc3200_flash_fs_open,
-    .target_flash_fs_close = &cc3200_flash_fs_close,
-    .target_flash_fs_delete = &cc3200_flash_fs_delete,
+    .target_flash_fs_supported = &cc3200_flashfs_al_supported,
+    .target_flash_fs_read = &cc3200_flashfs_al_read,
+    .target_flash_fs_write = &cc3200_flashfs_al_write,
+    .target_flash_fs_open = &cc3200_flashfs_al_open,
+    .target_flash_fs_close = &cc3200_flashfs_al_close,
+    .target_flash_fs_delete = &cc3200_flashfs_al_delete,
 };
 
 struct cc3200_state_t{
     char regstring[CC3200_REG_LAST+1];
+    unsigned int alloc_size;
+    unsigned int file_create_flags;
 };
 struct cc3200_state_t cc3200_state = {
-    .regstring = {0}
+    .regstring = {0},
+    .alloc_size = CC3200_DEFAULT_FILE_ALLOC_SIZE,
+    .file_create_flags = CC3200_DEFAULT_FILE_ACCESS_FLAGS
 };
 
 int cc3200_init(void)
@@ -371,36 +380,60 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
     return RET_SUCCESS;
 }
 
-int cc3200_flash_fs_supported(void)
+int cc3200_flashfs_al_supported(void)
 {
     return TARGET_FLASH_FS_SUPPORTED;
 }
 
-int cc3200_flash_fs_read(void)
+int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* data, unsigned int len)
 {
-    return RET_SUCCESS;
+    int retval = cc3200_flashfs_read(fd, offset, data, len);
+    if(retval < 0) { RETURN_ERROR(retval); }
+    return retval;
 }
 
-int cc3200_flash_fs_write(void)
+int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* data, unsigned int len)
 {
-    return RET_SUCCESS;
+    int retval = cc3200_flashfs_write(fd, offset, data, len);
+    if(retval < 0) { RETURN_ERROR(retval); }
+    return retval;
 }
 
-int cc3200_flash_fs_open(void)
+int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
 {
     int retval = cc3200_flashfs_loadstub();
-    if(retval == RET_FAILURE) RETURN_ERROR(ERROR_UNKNOWN);
+    if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+
+    unsigned int AccessModeAndMaxSize = 0;
+    long tempfd;
+
+    if(flags & TARGET_FLASH_MODE_READ){
+        AccessModeAndMaxSize = FS_MODE_OPEN_READ;
+    }
+    else if(flags & TARGET_FLASH_MODE_CREATEANDWRITE){
+        retval = cc3200_flashfs_delete((unsigned char*)filename);
+        AccessModeAndMaxSize = FS_MODE_OPEN_CREATE(cc3200_state.alloc_size,cc3200_state.file_create_flags);
+    }
+    else{ RETURN_ERROR(ERROR_UNKNOWN); }
+
+    retval = cc3200_flashfs_open(AccessModeAndMaxSize, (unsigned char*)filename, &tempfd);
+    if(retval < 0) {RETURN_ERROR(retval);}
+    *fd = (int)tempfd;
 
     return RET_SUCCESS;
 }
 
-int cc3200_flash_fs_close(void)
+int cc3200_flashfs_al_close(int fd)
 {
+    int retval = cc3200_flashfs_close(fd);
+    if(retval<0) {RETURN_ERROR(retval);}
     return RET_SUCCESS;
 }
 
-int cc3200_flash_fs_delete(void)
+int cc3200_flashfs_al_delete(char* filename)
 {
+    int retval = cc3200_flashfs_delete((unsigned char*) filename);
+    if(retval < 0) { RETURN_ERROR(retval); }
     return RET_SUCCESS;
 }
 

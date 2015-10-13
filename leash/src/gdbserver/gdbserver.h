@@ -34,6 +34,8 @@ void gdbserver_loop_task(void* params);
 
 void gdbserver_TransmitPacket(char* packet_data);
 
+void gdbserver_TransmitBinaryPacket(unsigned char* packet_data, unsigned int len);
+
 void gdbserver_TransmitStopReason(void);
 
 int gdbserver_readMemory(char* argstring);
