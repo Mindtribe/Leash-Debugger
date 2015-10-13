@@ -201,7 +201,6 @@ int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCh
     gdbserver_state.target = target;
 
     if((*target->target_init)() == RET_FAILURE) {goto error;}
-    if((*target->target_halt)() == RET_FAILURE) {goto error;}
 
     if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {goto error;}
     if(!gdbserver_state.halted) {goto error;}

@@ -57,18 +57,7 @@ struct cc3200_state_t cc3200_state = {
 
 int cc3200_init(void)
 {
-    jtag_scan_init();
-
-    //ICEPICK router detection and configuration
-    if(cc3200_icepick_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_icepick_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_icepick_connect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_icepick_configure() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    LOG(LOG_VERBOSE, "[CC3200] ICEPICK OK.");
-
-    //warm reset
-    if(cc3200_icepick_warm_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    LOG(LOG_VERBOSE, "CC3200 - Reset done.");
+    if(cc3200_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     //ARM core debug interface (JTAG-DP) detection
     if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -80,7 +69,7 @@ int cc3200_init(void)
 
     //powerup
     if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    LOG(LOG_VERBOSE, "[CC3200] Powerup OK.");
+    LOG(LOG_VERBOSE, "[CC3200] Debug powerup OK.");
 
     if(cc3200_jtagdp_readAPs() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     LOG(LOG_VERBOSE, "[CC3200] IDCODES OK.");
@@ -93,6 +82,12 @@ int cc3200_init(void)
     //enable debug
     if(cc3200_core_debug_enable() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     LOG(LOG_VERBOSE, "[CC3200] Debug Enabled.");
+
+    //halt and reset
+    if(cc3200_core_debug_halt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    LOG(LOG_VERBOSE, "[CC3200] Core halted.");
+    if(cc3200_core_debug_reset_halt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    LOG(LOG_VERBOSE, "[CC3200] Local reset vector catch successful.");
 
     return RET_SUCCESS;
 }
