@@ -39,7 +39,7 @@
 #*****************************************************************************
 #Connect To the tartget using OpenOCD
 #*****************************************************************************
-target remote | openocd -c "gdb_port pipe; log_output ~/openocd.log" -f OpenOCD/cc3200.cfg
+target remote | openocd -c "gdb_port pipe; log_output ~/openocd.log" -f ./OpenOCD/cc3200.cfg
 
 #*****************************************************************************
 # Load the binary

@@ -67,7 +67,8 @@ const char* socket_mdns_descriptions[NUM_SOCKETS] = {
 
 struct socket_state_t{
     unsigned int status;
-    int id;
+    int parent_id;
+    int child_id;
     SlSockAddrIn_t addr_local;
     SlSockAddrIn_t addr_remote;
     SemaphoreHandle_t buf_access;
@@ -223,8 +224,13 @@ int StartSockets(void)
 void StopSockets(void)
 {
     for(int i = 0; i<NUM_SOCKETS; i++){
+        if(IS_SOCK_CONNECTED(i)){
+            sl_Close(socket_state[i].child_id);
+            socket_state[i].child_id = -1;
+        }
         if(IS_SOCK_STARTED(i)){
-            sl_Close(socket_state[i].id);
+            sl_Close(socket_state[i].parent_id);
+            socket_state[i].parent_id = -1;
         }
         socket_state[i].status = 0;
     }
@@ -405,7 +411,7 @@ int UpdateSockets(void)
 
             //Update TX
             if(socket_state[i].tx_buf_occupancy){
-                retval = sl_Send(socket_state[i].id,
+                retval = sl_Send(socket_state[i].child_id,
                         &(socket_state[i].tx_buf[socket_state[i].tx_buf_i_out % SOCKET_RXBUF_SIZE]),
                         MIN(socket_state[i].tx_buf_occupancy,
                                 SOCKET_TXBUF_SIZE - (socket_state[i].tx_buf_i_out % SOCKET_RXBUF_SIZE)), //Prevent overflow at wraparound point
@@ -425,7 +431,7 @@ int UpdateSockets(void)
             }
 
             //Update RX
-            retval = sl_Recv(socket_state[i].id,
+            retval = sl_Recv(socket_state[i].child_id,
                     &(socket_state[i].rx_buf[socket_state[i].rx_buf_i_in % SOCKET_RXBUF_SIZE]),
                     MIN((SOCKET_RXBUF_SIZE - socket_state[i].rx_buf_occupancy),
                             SOCKET_RXBUF_SIZE - (socket_state[i].rx_buf_i_in % SOCKET_RXBUF_SIZE)), //Prevent overflow at wraparound point
@@ -440,9 +446,7 @@ int UpdateSockets(void)
             else if(retval==0){
                 socket_state[i].status = SOCKET_STARTED;
                 LOG(LOG_VERBOSE, "Socket %d: client disconnected/broken.", i);
-                ListenSerialSock(i);
-                while(1)
-                    ;
+                sl_Close(socket_state[i].child_id);
             }
             else if((retval<0) && (retval!=SL_EAGAIN)) {
                 LogSLError(retval);
@@ -461,16 +465,16 @@ static int ListenSerialSock(unsigned int slot)
 {
     long nonblock = 1;
 
-    int retval = sl_Listen(socket_state[slot].id, 0);
+    int retval = sl_Listen(socket_state[slot].parent_id, 0);
     if(retval < 0){
-        sl_Close(socket_state[slot].id);
+        sl_Close(socket_state[slot].parent_id);
         RETURN_ERROR(retval);
     }
 
     //set to non-blocking
-    retval = sl_SetSockOpt(socket_state[slot].id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
+    retval = sl_SetSockOpt(socket_state[slot].parent_id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
     if(retval < 0){
-        sl_Close(socket_state[slot].id);
+        sl_Close(socket_state[slot].parent_id);
         RETURN_ERROR(retval);
     }
 
@@ -490,12 +494,12 @@ int StartSerialSock(unsigned short port, unsigned int slot)
     socket_state[slot].addr_local.sin_port = sl_Htons(port);
     socket_state[slot].addr_local.sin_addr.s_addr = 0;
 
-    socket_state[slot].id = sl_Socket(SL_AF_INET, SL_SOCK_STREAM, 0);
-    if(socket_state[slot].id < 0) {RETURN_ERROR(socket_state[slot].id);}
+    socket_state[slot].parent_id = sl_Socket(SL_AF_INET, SL_SOCK_STREAM, 0);
+    if(socket_state[slot].parent_id < 0) {RETURN_ERROR(socket_state[slot].parent_id);}
 
-    retval = sl_Bind(socket_state[slot].id, (SlSockAddr_t*)&(socket_state[slot].addr_local), sizeof(SlSockAddrIn_t));
+    retval = sl_Bind(socket_state[slot].parent_id, (SlSockAddr_t*)&(socket_state[slot].addr_local), sizeof(SlSockAddrIn_t));
     if(retval < 0){
-        sl_Close(socket_state[slot].id);
+        sl_Close(socket_state[slot].parent_id);
         RETURN_ERROR(retval);
     }
 
@@ -512,16 +516,16 @@ int SockAccept(unsigned int slot)
     if(!IS_SOCK_STARTED(slot) || IS_SOCK_CONNECTED(slot)) {RETURN_ERROR(ERROR_UNKNOWN)};
 
     int addrsize = sizeof(SlSockAddrIn_t);
-    int newid = sl_Accept(socket_state[slot].id, (SlSockAddr_t*)&(socket_state[slot].addr_local), (SlSocklen_t *) &addrsize);
+    int newid = sl_Accept(socket_state[slot].parent_id, (SlSockAddr_t*)&(socket_state[slot].addr_local), (SlSocklen_t *) &addrsize);
     if((newid != SL_EAGAIN) && (newid>=0)){
         LOG(LOG_VERBOSE, "Socket %d: client connected.", slot);
         socket_state[slot].status |= SOCKET_CONNECTED;
-        socket_state[slot].id = newid;
+        socket_state[slot].child_id = newid;
         //set to non-blocking again
         long nonblock = 1;
-        int retval = sl_SetSockOpt(newid, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
+        int retval = sl_SetSockOpt(socket_state[slot].child_id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
         if(retval < 0){
-            sl_Close(newid);
+            sl_Close(socket_state[slot].child_id);
             RETURN_ERROR(retval);
         }
         if(slot == SOCKET_LOG){
@@ -530,8 +534,8 @@ int SockAccept(unsigned int slot)
         }
     }
     else if(newid != SL_EAGAIN){
-        sl_Close(socket_state[slot].id);
-        sl_Close(newid);
+        sl_Close(socket_state[slot].child_id);
+        sl_Close(socket_state[slot].parent_id);
         socket_state[slot].status = 0;
         RETURN_ERROR(newid);
     }
