@@ -11,6 +11,7 @@
 #include "gdb_helpers.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "log.h"
 #include "error.h"
@@ -91,5 +92,17 @@ void gdb_helpers_TransmitPacket(char* packet_data)
 
 int gdb_helpers_isInitialized(void){
     return gdb_helpers_state.initialized;
+}
+
+void gdb_helpers_hexStrToStr(char* hexStr, char* str)
+{
+    unsigned int i;
+    for(i=0; (i*2)<strlen(hexStr); i++){
+        unsigned int val;
+        sscanf(&(hexStr[i*2]), "%2X", &val);
+        str[i] = (char)val;
+    }
+    str[i] = 0;
+    return;
 }
 
