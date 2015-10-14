@@ -47,9 +47,6 @@ int main(void)
     int retval = sl_Start(0,0,0);
     if(retval < 0) {return 1;}
 
-    //TEST: delete mcuimg.bin
-    retval = sl_FsDel((unsigned char*)"/sys/mcuimg.bin", 0);
-
     //tell the debugger stub is ready
     flash->response.retval = FLASH_RESPONSE_INITIALIZED;
     flash->response_sync = SYNC_READY;

@@ -644,7 +644,6 @@ int gdbserver_processVCommand(char* commandString)
         else if(strcmp(tok, "pwrite") == 0){
             char *fd_hex = strtok(NULL, ",");
             char *offset_hex = strtok(NULL, ",");
-            char *data_ptr = strtok(NULL, 0);
             if((offset_hex == NULL) || (fd_hex == NULL)){
                 error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
                 gdbserver_TransmitPacket("F-1,270F");
@@ -656,7 +655,7 @@ int gdbserver_processVCommand(char* commandString)
             sscanf(offset_hex, "%X", &offset);
             unsigned char data[GDBSERVER_MAX_PACKET_LEN_RX];
             unsigned int j;
-            unsigned int i = (unsigned int)data_ptr - (unsigned int)commandString;
+            unsigned int i = strlen("File:pwrite:") + strlen(fd_hex) + strlen(offset_hex) + 2;
             for(j=0; i<(gdbserver_state.cur_packet_len-1); i++){
                 if(commandString[i] == '}'){
                     i++;
@@ -664,7 +663,7 @@ int gdbserver_processVCommand(char* commandString)
                 }
                 data[j++] = (unsigned char)commandString[i];
             }
-
+            LOG(LOG_VERBOSE, "Writing %04X bytes", j);
             retval = (*gdbserver_state.target->target_flash_fs_write)(
                     (int)fd,
                     offset,

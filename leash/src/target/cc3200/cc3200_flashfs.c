@@ -317,7 +317,7 @@ int cc3200_flashfs_delete(unsigned char* pFileName)
     //1. command_file_delete_args_t struct
     //2. file name input string
 
-    args.pFileName = (unsigned char*)(FLASH_DATA_ADDR + sizeof(struct command_file_open_args_t));
+    args.pFileName = (unsigned char*)(FLASH_DATA_ADDR + sizeof(struct command_file_delete_args_t));
 
     cmd.type = FD_DELETE;
 
