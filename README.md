@@ -4,7 +4,7 @@ Leash Debugger is a JTAG debug adapter for use over a WiFi connection with GDB. 
 
 ### Platform
 
-Leash debugger runs on the Texas Instruments CC3200 SoC, and was designed for running on the LaunchpadXL development board. (link)
+Leash debugger runs on the Texas Instruments CC3200 SoC, and was designed for running on the [CC3200 Launchpad](http://processors.wiki.ti.com/index.php/CC32xx_LaunchPad_Hardware) development board. 
 
 ### Supported Target Platforms
 

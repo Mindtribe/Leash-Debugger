@@ -6,6 +6,10 @@ Doc pages:
 * [**Known Issues**](KnownIssues.md)
 
 # Leash Debugger: Build Guide
+Jump to:
+* [**Prerequisites**](###Prerequisites)
+* [**Building**](###Building)
+* [**Running/Flashing**](###Running/Flashing)
 
 ### Prerequisites
 

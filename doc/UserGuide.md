@@ -83,7 +83,7 @@ For the **Log socket** and the **Target socket**, the intended use-case is to us
 ```sh
 nc 192.168.1.1 49152
 ```
-Upon the first connection to this socket, all log information produced so far should immediately start appearing in the terminal.
+Upon the first connection to this socket, all log information produced so far should immediately start appearing in the terminal. Note that using the log socket is not necessary, but it may give useful information about the state of the debugger.
 
 For the **GDB socket**, GDB should be configured to connect to the socket. In typical projects using OpenOCD instead of Leash Debugger, the GDB connection would be to OpenOCD using a pipe, usually using a line resembling the following in the GDB initialization script:
 
@@ -104,7 +104,17 @@ If you want to test whether Leash Debugger is responding at all to GDB commands,
 (gdb) set debug remote 1
 ```
 
+Also, it is recommended to increase GDB's remote time-out value to deal with possible long network latencies. For example:
+
+```
+(gdb) set remote timeout 30
+```
+
+The above steps and settings can be put in a GDB script file, for example for use with GDB-supporting IDE's like Eclipse.
+
 **Note: make sure that you use the GDB version applicable for your target architecture. For debugging the CC3200 (ARM Cortex-M4-based), that means installing and using arm-none-eabi-gdb.**
+
+## Usage
 
 ## Network Configuration
 
@@ -127,6 +137,50 @@ When a connection to the **Log port** is opened, you should see log information 
 * **help**: Show a list of these supported commands.
 
 It is not necessary to supply arguments when issuing these commands: you will be prompted to enter the required information, such as SSID, security type (open, WEP and WPA are supported) and security key.
+
+## Flashing the target
+
+Leash Debugger supports a few commands to manipulate the flash memory on the target CC3200. However, its features are limited, mostly due to the fact that Texas Instruments operates a proprietary filesystem on the CC3200's external flash. Only a subset of functionality is exposed to the public. Leash Debugger supports:
+
+* Writing files to flash
+* Reading files from flash
+* Deleting specific files from flash
+
+Leash Debugger **does not** support:
+
+* Getting a list of files on the flash (TI Uniflash cannot do this either)
+* Formatting flash memory (TI Uniflash is able to do this, and it is sometimes needed to recover a non-bootable device).
+
+**Before using the flashing features, please carefully read the instructions below.**
+
+### Flash mode and the Flash stub
+
+The method Leash Debugger uses to perform flash operations is as follows: it loads a small program, called the **flash stub**, onto the target RAM and executes it. Then it can communicate to the **flash stub** using the JTAG link, and instruct it to perform flash operations. That means that in order to perform flash operations, the current debug session will be aborted - after all, whatever is running on the target will first need to be replaced by the **flash stub**.
+
+In practice, this means that Leash Debugger needs to be instructed by the user to enter "**flash mode**" (loading the stub and executing it) before operations can be performed. A special GDB command is used for this:
+
+```
+(gdb) monitor flashmode=1
+```
+
+A message should appear after several seconds, notifying you that flash mode has been entered. If you need to see more verbose information, the **Log Socket** can be inspected during this operation.
+At this moment, **it is not possible to exit flash mode once entered** - to start a new debugging session, Leash Debugger and the target must be reset.
+
+Once in flash mode, GDB's remote filesystem commands can be used to manipulate flash. The supported operations are:
+
+```
+(gdb) remote put (localfile) (remotefile)
+(gdb) remote get (remotefile) (localfile)
+(gdb) remote delete (remotefile)
+```
+where (localfile) is the filename on the host system, and (remotefile) the filename on the CC3200 (don't include the parentheses). The file which gets booted by the bootloader on CC3200 startup is called **/sys/mcuimg.bin**.
+
+**Note: an important extra step is required to write files using remote put.** This has to do with TI's proprietary filesystem: it is necessary to specify what will be the maximum size the file will take on flash, before writing it. By default, Leash Debugger uses 176kB as the maximum file size when writing a new file, because this is the maximum size that is guaranteed to be bootable as a .bin image. If a different size is required, you will have to specify this **before using remote put**:
+
+```
+(gdb) monitor setmaxalloc=(bytes)
+```
+where (bytes) is the number of bytes required, in decimal notation (don't include the parentheses). After using this command, all subsequent files which are opened for writing will use this maximum size.
 
 ## Name Resolution using mDNS/Apple Bonjour
 
