@@ -36,7 +36,7 @@
 #define SPAWNTASK_STACK_SIZE (2048)
 #define SPAWNTASK_PRIORITY (9)
 
-#define WIFI_AP_SSID "WIFIDEBUGGER"
+#define WIFI_AP_SSID "LeashDebugger"
 #define WIFI_SCAN_TIME_S 5
 
 //SimpleLink spawn message type: specifies

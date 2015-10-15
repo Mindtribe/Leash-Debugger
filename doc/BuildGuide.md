@@ -1,4 +1,5 @@
 Doc pages:
+* [**Quick-start Guide**](QuickStart.md)
 * [**Build Guide**](BuildGuide.md)
 * [**User Guide**](UserGuide.md)
 * [**Wiring**](Wiring.md)
