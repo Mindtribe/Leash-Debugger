@@ -20,8 +20,8 @@ This guide aims to get you up and running with Leash Debugger in the shortest po
 ## 1: Installing Tools and Building
 
 * [Download and install the **arm-none-eabi**](https://launchpad.net/gcc-arm-embedded/+download) toolchain for your operating system.
-* Check your version of Ruby ("ruby --version" on the command line). If it is not present, or the version is below v2.x.x, [download and install Ruby.](https://www.ruby-lang.org/en/downloads/). Make sure the version being used is v2.x.x by running "ruby --version" again.
-* Download and install **MTBuild**, the build tool used for building Leash Debugger. For installing instructions, see [MTBuild's Ruby gem page.](https://rubygems.org/gems/mtbuild/)
+* Check your version of Ruby ("ruby --version" on the command line). If it is not present, or the version is below v2.x.x, [download and install Ruby](https://www.ruby-lang.org/en/downloads/). Make sure the version being used is v2.x.x by running "ruby --version" again.
+* Download and install **MTBuild**, the build tool used for building Leash Debugger. For installing instructions, see [MTBuild's Ruby gem page](https://rubygems.org/gems/mtbuild/).
 * If you haven't already, clone (*git clone https://github.com/Mindtribe/Leash-Debugger*) or download the Leash Debugger source.
 
 Now, you should have all the tools necessary to build Leash Debugger:
@@ -49,14 +49,16 @@ After the programming has completed, remove the SOP2 header and reset the board.
 ## 3: Connecting to / Configuring Leash Debugger
 
 To use Leash Debugger over a WiFi connection, it will need to be connected. There are two ways to do this: 
+
 1. Start Leash Debugger as a WiFi Access Point, then connect to it using your host machine.
+
 2. Configure Leash Debugger to connect to your local network (Station Mode) through an existing WiFi access point, and connect your host machine to the same local network.
 
 Approach 1 requires the extra step of connecting to the AP using your host machine, but has the advantage that no pre-existing WiFi network is required. Both approaches first require us to start Leash Debugger in AP mode. To do this:
 
 * hold down SW3 on the Launchpad while, at the same time, resetting the board. You can let go of SW3 after about a second after you release the reset button. 
 
-After some time, the green LED should be lit, while repeatedly going briefly off (a long-on, short-off flashing pattern). This means Leash Debugger has started in AP mode. If you rescan for WiFi networks using your host machine, there should be an access point called "**LeashDebugger**" in the list. If you want to use Leash Debugger in AP mode, you can move on and skip the next part about configuring Station Mode. In that case, just make sure to always boot Leash Debugger with SW3 held down, to ensure it always starts in AP mode.
+After some time, the green LED should be lit, while repeatedly going briefly off (a long-on, short-off flashing pattern). This means Leash Debugger has started in AP mode. If you rescan for WiFi networks using your host machine, there should be an access point called "**LeashDebugger**" in the list. If you want to use Leash Debugger in AP mode, you can move on and skip to step 4. In that case, just make sure to always boot Leash Debugger with SW3 held down, to ensure it always starts in AP mode.
 
 #### 3.1: Station mode
 
@@ -79,7 +81,7 @@ Once you have found Leash Debugger's IP address, you should be able to connect t
 
 ## 4 Connecting Leash Debugger to a target
 
-To start debugging using Leash Debugger, it should first be wired to a target board which is to be debugged. Please see the * [**Wiring**](Wiring.md) document to find the pin assignments and a diagram for wiring it up to another Launchpad board.
+To start debugging using Leash Debugger, it should first be wired to a target board which is to be debugged. Please see the [**Wiring**](Wiring.md) document to find the pin assignments and a diagram for wiring it up to another Launchpad board.
 
 * Wire up Leash Debugger to the target.
 * Reboot the target with SOP2 connected (this ensures the target hardware is in a debuggable state)
@@ -145,7 +147,7 @@ You can use a binary comparison tool to check whether readback.bin is equal to .
 * Remove the SOP2 header from the target and reset it.
 * The blinky program should now execute from flash, blinking all LEDs one by one.
 
-The flash filesystem has a tendency to get corrupted, making the system unbootable even if GDB reports the flashing was successful. This can happen due to writing files too large for the filesystem or writing too many files. If this happens, unfortunately, you will have to format the external flash using TI's Uniflash tool. Leash Debugger does not support formatting the external flash.
+The flash filesystem has a tendency to get corrupted, making the system unbootable even if GDB reports the flashing was successful. This can happen due to writing files too large for the filesystem or writing too many files. If this happens, unfortunately, you will have to format the external flash using TI's Uniflash tool. Leash Debugger itself is not able to format the external flash.
 
 
 
