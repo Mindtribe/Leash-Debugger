@@ -61,6 +61,7 @@
 #define CC3200_CORE_BASEOFFSET_MEMTYPE 0xFCC
 
 //SCS
+#define CC3200_CORE_MEM_AIRCR 0xD0C
 #define CC3200_CORE_MEM_DFSR 0xD30
 #define CC3200_CORE_MEM_DHCSR 0xDF0
 #define CC3200_CORE_MEM_DCRSR 0xDF4
@@ -76,6 +77,14 @@
 #define CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET 16
 #define CC3200_CORE_MEM_DHCSR_DBGKEY_MASK (0xFFFF<<CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET)
 
+//DEMCR bitmasks
+#define CC3200_CORE_MEM_DEMCR_VC_CORERESET (1)
+
+//AIRCR bitmasks
+#define CC3200_CORE_MEM_AIRCR_VECTRESET (1)
+#define CC3200_CORE_MEM_AIRCR_KEY_OFFSET 16
+#define CC3200_CORE_MEM_AIRCR_KEY_MASK (0xFFFF<<CC3200_CORE_MEM_AIRCR_KEY_MASK)
+
 //DCRSR bitmasks
 #define CC3200_CORE_MEM_DCRSR_REGWNR (1<<16)
 #define CC3200_CORE_MEM_REGSEL_MASK 0x1F
@@ -84,7 +93,11 @@
 #define CC3200_CORE_DFSR_BKPT (1<<1)
 
 //misc
-#define CC3200_CORE_DBGKEY 0xA05F //"key" to unlock debug halting register writes
+
+//"keys" to unlock certain core register writes
+#define CC3200_CORE_KEY_DFSR 0xA05F //debug control
+#define CC3200_CORE_KEY_AIRCR 0x05FA //reset control
+
 #define CC3200_CORE_CSW_SIZE_WORD 0x02 //this setting of SIZE bits in MEM-AP CSW enables 32-bit memory accesses.
 
 //ROM table
@@ -328,7 +341,7 @@ int cc3200_core_debug_halt(void)
     if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            (CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
+            (CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
             (CC3200_CORE_MEM_DHCSR_C_DEBUGEN) |
             CC3200_CORE_MEM_DHCSR_C_HALT) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
@@ -342,13 +355,43 @@ int cc3200_core_debug_halt(void)
     return RET_SUCCESS;
 }
 
+int cc3200_core_debug_reset_halt(void)
+{
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected || !cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    uint32_t demcr;
+    if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DEMCR,
+            &demcr) == RET_FAILURE) {
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+    demcr |= CC3200_CORE_MEM_DEMCR_VC_CORERESET; //set reset debug trap flag
+    if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DEMCR,
+            demcr) == RET_FAILURE) {
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    //request a local core reset
+    if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_AIRCR,
+            (CC3200_CORE_KEY_AIRCR << CC3200_CORE_MEM_AIRCR_KEY_OFFSET) |
+            (CC3200_CORE_MEM_AIRCR_VECTRESET)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+
+    uint8_t halted = 0;
+    while(!halted){
+        if(cc3200_core_poll_halted(&halted) == RET_FAILURE){
+            RETURN_ERROR(ERROR_UNKNOWN);
+        }
+    }
+
+    return RET_SUCCESS;
+}
+
 int cc3200_core_debug_step(void)
 {
     if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            (CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
+            (CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
             (CC3200_CORE_MEM_DHCSR_C_DEBUGEN) |
             CC3200_CORE_MEM_DHCSR_C_STEP) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
@@ -368,7 +411,7 @@ int cc3200_core_debug_continue(void)
     if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            (CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
+            (CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
             (CC3200_CORE_MEM_DHCSR_C_DEBUGEN)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     uint32_t temp;
@@ -460,9 +503,9 @@ int cc3200_core_debug_enable(void)
 
     //unlock debugging using the debug key
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            (CC3200_CORE_DBGKEY << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
+            (CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
             CC3200_CORE_MEM_DHCSR_C_DEBUGEN) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
     uint32_t temp;
