@@ -1,4 +1,5 @@
 Doc pages:
+* [**Quick-start Guide**](QuickStart.md)
 * [**Build Guide**](BuildGuide.md)
 * [**User Guide**](UserGuide.md)
 * [**Wiring**](Wiring.md)
@@ -7,7 +8,7 @@ Doc pages:
 
 # Leash Debugger: User's Guide
 
-Leash Debugger is a JTAG debug adapter for use over a WiFi connection with GDB. It allows GDB to connect directly to it, as opposed to using additional debugging software such as OpenOCD.
+Leash Debugger is a JTAG debug adapter for use over a WiFi connection with GDB. It allows GDB to connect directly to it, as opposed to using additional debugging software such as OpenOCD. This document aims to give a complete overview of its features and instructions on how to use them. For using Leash Debugger for the first time, in most cases it is easier to start by reading the [**Quick-start Guide**](QuickStart.md).
 
 ### Platform
 
