@@ -28,6 +28,9 @@ enum jtag_state_scan{
 //Initializer - call once before using.
 int jtag_scan_init(void);
 
+//De-initializer - after this, may be re-initialized using jtag_scan_init().
+int jtag_scan_deinit(void);
+
 //Perform a hardware reset on target using RST line.
 int jtag_scan_hardRst(void);
 

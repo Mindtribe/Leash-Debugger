@@ -14,6 +14,8 @@
 #include "led.h"
 #include "gpio_if.h"
 #include "ui.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -21,16 +23,15 @@
 void error_wait(char* file, int line, uint32_t error_code)
 {
     error_add(file, line, error_code);
+    SetLEDBlink(LED_RED, LED_BLINK_PATTERN_ERROR);
 
-    while(1){};
+    vTaskDelete(NULL);
     return;
 }
 
 void error_add(char* file, int line, uint32_t error_code)
 {
     LOG(LOG_ERROR, "[ERROR %d] @ %s:%d", (unsigned int) error_code, file, (unsigned int) line);
-
-    SetLEDBlink(LED_RED, LED_BLINK_PATTERN_ERROR);
 
     return;
 }

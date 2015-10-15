@@ -60,6 +60,12 @@ int jtag_scan_init(void)
     return RET_SUCCESS;
 }
 
+int jtag_scan_deinit(void)
+{
+    jtag_scan_state.initialized = 0;
+    return RET_SUCCESS;
+}
+
 int jtag_scan_hardRst(void)
 {
     if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}

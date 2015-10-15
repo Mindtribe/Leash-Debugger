@@ -69,7 +69,7 @@ enum gdbserver_packet_phase{
         "------------------------------------------\n"\
         "\n"\
         "Note: this is a work-in-progress.\n"\
-        "Please see KNOWN_BUGS before using.\n"\
+        "Please see known bugs in the README before using.\n"\
                 "\n"
 
 
@@ -158,6 +158,7 @@ struct gdbserver_state_t{
     enum gdbserver_packet_phase packet_phase;
     int awaiting_ack;
     int gdb_connected;
+    int target_connected;
     char last_sent_packet[GDBSERVER_MAX_PACKET_LEN_TX];
     char cur_packet[GDBSERVER_MAX_PACKET_LEN_RX];
     char cur_checksum_chars[2];
@@ -194,7 +195,8 @@ struct gdbserver_state_t gdbserver_state = {
     .binary_rx_counter = 0,
     .escapechar = 0,
     .cur_checksum = 0,
-    .cur_packet_len = 0
+    .cur_packet_len = 0,
+    .target_connected = 0
 };
 #pragma GCC diagnostic pop
 
@@ -221,6 +223,33 @@ static int gdbserver_vFileDelete(char* argstring);
 static int gdbserver_vFilePRead(char* argstring);
 static int gdbserver_vFilePWrite(char* argstring);
 static int gdbserver_getBinaryCount(void);
+static int gdbserver_connectTarget(int* targetConnected);
+
+static int gdbserver_connectTarget(int* targetConnected)
+{
+    if((*gdbserver_state.target->target_init)() == RET_FAILURE) {goto fail_connect;}
+    if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {goto fail_connect;}
+    if(!gdbserver_state.halted) {goto fail_connect;}
+
+    gdbserver_state.gave_info = 0;
+    gdbserver_state.fileio_state.fileio_waiting = 0;
+    gdbserver_state.initialized = 1;
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
+    *targetConnected = 1;
+    return RET_SUCCESS;
+
+    fail_connect:
+    *targetConnected = 0;
+    if((*gdbserver_state.target->target_deinit)() == RET_FAILURE) {goto error;}
+    return RET_SUCCESS;
+
+    error:
+    *targetConnected = 0;
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+    RETURN_ERROR(ERROR_UNKNOWN);
+    return RET_FAILURE;
+
+}
 
 static int gdbserver_getBinaryCount(void)
 {
@@ -240,17 +269,6 @@ int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCh
 
     gdbserver_state.target = target;
 
-    if((*target->target_init)() == RET_FAILURE) {goto error;}
-
-    if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {goto error;}
-    if(!gdbserver_state.halted) {goto error;}
-
-    //TODO: report the halted state to GDB
-
-    gdbserver_state.gave_info = 0;
-    gdbserver_state.fileio_state.fileio_waiting = 0;
-    gdbserver_state.initialized = 1;
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
     return RET_SUCCESS;
 
     error:
@@ -1235,14 +1253,19 @@ static int gdbserver_writeMemory(char* argstring)
     return RET_SUCCESS;
 }
 
-void gdbserver_loop_task(void* params)
+void Task_gdbserver(void* params)
 {
     for(;;){
-        if(!gdbserver_state.halted) gdbserver_pollTarget();
-        if(gdb_helpers_CharsAvaliable()){
-            gdbserver_processChar();
-            while(gdbserver_state.packet_phase != PACKET_NONE){
+        if(!gdbserver_state.target_connected){
+            gdbserver_connectTarget(&gdbserver_state.target_connected);
+        }
+        else {
+            if(!gdbserver_state.halted) gdbserver_pollTarget();
+            if(gdb_helpers_CharsAvaliable()){
                 gdbserver_processChar();
+                while(gdbserver_state.packet_phase != PACKET_NONE){
+                    gdbserver_processChar();
+                }
             }
         }
         //TODO: replace delay-loop polling by timer-based polling

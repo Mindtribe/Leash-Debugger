@@ -130,6 +130,12 @@ int cc3200_jtagdp_init(int num_precede_ir_bits, uint64_t precede_ir_bits, int nu
     return RET_SUCCESS;
 }
 
+int cc3200_jtagdp_deinit(void)
+{
+    cc3200_jtagdp_state.initialized = 0;
+    return RET_SUCCESS;
+}
+
 int cc3200_jtagdp_detect(void)
 {
     if(!cc3200_jtagdp_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}

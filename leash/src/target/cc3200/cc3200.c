@@ -32,8 +32,37 @@
 #define CC3200_SEMIHOST_WRITE0 0x04
 #define CC3200_SEMIHOST_READ 0x06
 
+static int cc3200_init(void);
+static int cc3200_deinit(void);
+static int cc3200_reset(void);
+static int cc3200_halt(void);
+static int cc3200_continue(void);
+static int cc3200_step(void);
+static int cc3200_mem_read(uint32_t addr, uint32_t* dst);
+static int cc3200_mem_write(uint32_t addr, uint32_t value);
+static int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst);
+static int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src);
+static int cc3200_reg_read(uint8_t regnum, uint32_t *dst);
+static int cc3200_reg_write(uint8_t regnum, uint32_t value);
+static int cc3200_get_gdb_reg_string(char* string);
+static int cc3200_put_gdb_reg_string(char* string);
+static int cc3200_set_pc(uint32_t addr);
+static int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes);
+static int cc3200_poll_halted(uint8_t *result);
+static int cc3200_handleHalt(enum stop_reason *reason);
+static int cc3200_get_pc(uint32_t* dst);
+static int cc3200_querySemiHostOp(struct semihost_operation *op);
+static int cc3200_flashfs_al_supported(void);
+static int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* data, unsigned int len);
+static int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* data, unsigned int len);
+static int cc3200_flashfs_al_delete(char* filename);
+static int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd);
+static int cc3200_flashfs_al_close(int fd);
+static int cc3200_rcmd(char* command, void (*pMsgCallback)(char*));
+
 struct target_al_interface cc3200_interface = {
     .target_init = &cc3200_init,
+    .target_deinit = &cc3200_deinit,
     .target_reset = &cc3200_reset,
     .target_halt = &cc3200_halt,
     .target_continue = &cc3200_continue,
@@ -58,7 +87,6 @@ struct target_al_interface cc3200_interface = {
     .target_flash_fs_open = &cc3200_flashfs_al_open,
     .target_flash_fs_close = &cc3200_flashfs_al_close,
     .target_flash_fs_delete = &cc3200_flashfs_al_delete,
-    .target_flash_fs_load = &cc3200_flashfs_al_load,
     .target_rcmd = &cc3200_rcmd
 };
 
@@ -75,7 +103,7 @@ struct cc3200_state_t cc3200_state = {
     .flash_mode = 0
 };
 
-int cc3200_init(void)
+static int cc3200_init(void)
 {
     if(cc3200_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
 
@@ -112,7 +140,22 @@ int cc3200_init(void)
     return RET_SUCCESS;
 }
 
-int cc3200_reset(void)
+static int cc3200_deinit(void)
+{
+    cc3200_state.regstring[0] = 0;
+    cc3200_state.alloc_size = CC3200_DEFAULT_FILE_ALLOC_SIZE;
+    cc3200_state.file_create_flags = CC3200_DEFAULT_FILE_ACCESS_FLAGS;
+    cc3200_state.flash_mode = 0;
+
+    jtag_scan_deinit();
+    cc3200_jtagdp_deinit();
+    cc3200_core_deinit();
+    cc3200_icepick_deinit();
+
+    return RET_SUCCESS;
+}
+
+static int cc3200_reset(void)
 {
     jtag_scan_init();
 
@@ -130,22 +173,22 @@ int cc3200_reset(void)
     return RET_SUCCESS;
 }
 
-int cc3200_halt(void)
+static int cc3200_halt(void)
 {
     return cc3200_core_debug_halt();
 }
 
-int cc3200_continue(void)
+static int cc3200_continue(void)
 {
     return cc3200_core_debug_continue();
 }
 
-int cc3200_step(void)
+static int cc3200_step(void)
 {
     return cc3200_core_debug_step();
 }
 
-int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes)
+static int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes)
 {
     if(len_bytes != 2) {RETURN_ERROR(ERROR_UNKNOWN);} //only support 2-byte breakpoints
     if(addr&1) {RETURN_ERROR(ERROR_UNKNOWN);} //non-aligned
@@ -170,17 +213,17 @@ int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes)
     return RET_SUCCESS;
 }
 
-int cc3200_mem_read(uint32_t addr, uint32_t* dst)
+static int cc3200_mem_read(uint32_t addr, uint32_t* dst)
 {
     return cc3200_core_read_mem_addr(addr, dst);
 }
 
-int cc3200_mem_write(uint32_t addr, uint32_t value)
+static int cc3200_mem_write(uint32_t addr, uint32_t value)
 {
     return cc3200_core_write_mem_addr(addr, value);
 }
 
-int cc3200_get_gdb_reg_string(char* string)
+static int cc3200_get_gdb_reg_string(char* string)
 {
     struct cc3200_reg_list reglst;
 
@@ -204,7 +247,7 @@ int cc3200_get_gdb_reg_string(char* string)
     return RET_SUCCESS;
 }
 
-int cc3200_put_gdb_reg_string(char* string)
+static int cc3200_put_gdb_reg_string(char* string)
 {
     //TODO: string validity tests
 
@@ -226,7 +269,7 @@ int cc3200_put_gdb_reg_string(char* string)
     return RET_SUCCESS;
 }
 
-int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
+static int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
 {
     uint32_t data;
     uint8_t *data_bytes = (uint8_t*)&data;
@@ -256,7 +299,7 @@ int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
     return RET_SUCCESS;
 }
 
-int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
+static int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
 {
     uint32_t data = 0;
     uint32_t bytes_left = bytes;
@@ -295,22 +338,22 @@ int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
     return RET_SUCCESS;
 }
 
-int cc3200_set_pc(uint32_t addr)
+static int cc3200_set_pc(uint32_t addr)
 {
     return cc3200_core_set_pc(addr);
 }
 
-int cc3200_get_pc(uint32_t* dst)
+static int cc3200_get_pc(uint32_t* dst)
 {
     return cc3200_core_get_pc(dst);
 }
 
-int cc3200_poll_halted(uint8_t *result)
+static int cc3200_poll_halted(uint8_t *result)
 {
     return cc3200_core_poll_halted(result);
 }
 
-int cc3200_handleHalt(enum stop_reason *reason)
+static int cc3200_handleHalt(enum stop_reason *reason)
 {
     uint32_t dfsr;
     if(cc3200_core_getDFSR(&dfsr) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -332,20 +375,19 @@ int cc3200_handleHalt(enum stop_reason *reason)
     return RET_SUCCESS;
 }
 
-int cc3200_reg_read(uint8_t regnum, uint32_t *dst)
+static int cc3200_reg_read(uint8_t regnum, uint32_t *dst)
 {
     return cc3200_core_read_reg((enum cc3200_reg_index) regnum, dst);
 }
 
-int cc3200_reg_write(uint8_t regnum, uint32_t value)
+static int cc3200_reg_write(uint8_t regnum, uint32_t value)
 {
     return cc3200_core_write_reg((enum cc3200_reg_index) regnum, value);
 }
 
-int cc3200_querySemiHostOp(struct semihost_operation *op)
+static int cc3200_querySemiHostOp(struct semihost_operation *op)
 {
     //determine what kind of semihosting operation is required.
-    //TODO: expand support.
 
     uint32_t r0, r1;
     if(cc3200_reg_read(CC3200_REG_0, &r0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
@@ -379,12 +421,12 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
     return RET_SUCCESS;
 }
 
-int cc3200_flashfs_al_supported(void)
+static int cc3200_flashfs_al_supported(void)
 {
     return TARGET_FLASH_FS_SUPPORTED;
 }
 
-int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* data, unsigned int len)
+static int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* data, unsigned int len)
 {
     int retval;
 
@@ -398,7 +440,7 @@ int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* data, uns
     return retval;
 }
 
-int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* data, unsigned int len)
+static int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* data, unsigned int len)
 {
     int retval;
 
@@ -412,7 +454,7 @@ int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* data, un
     return retval;
 }
 
-int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
+static int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
 {
     int retval;
 
@@ -447,7 +489,7 @@ int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
     return RET_SUCCESS;
 }
 
-int cc3200_flashfs_al_close(int fd)
+static int cc3200_flashfs_al_close(int fd)
 {
     int retval;
 
@@ -461,12 +503,7 @@ int cc3200_flashfs_al_close(int fd)
     return RET_SUCCESS;
 }
 
-int cc3200_flashfs_al_load(char* filename)
-{
-    return cc3200_flashfs_load(filename);
-}
-
-int cc3200_rcmd(char* command, void (*pMsgCallback)(char*))
+static int cc3200_rcmd(char* command, void (*pMsgCallback)(char*))
 {
     unsigned int temp_uint;
     if(strcmp(command, "help") == 0){
@@ -502,7 +539,7 @@ int cc3200_rcmd(char* command, void (*pMsgCallback)(char*))
     return RET_SUCCESS;
 }
 
-int cc3200_flashfs_al_delete(char* filename)
+static int cc3200_flashfs_al_delete(char* filename)
 {
     int retval;
 

@@ -184,6 +184,12 @@ struct cc3200_core_state_t cc3200_core_state = {
 };
 #pragma GCC diagnostic pop
 
+int cc3200_core_deinit(void)
+{
+    cc3200_core_state.initialized = 0;
+    return RET_SUCCESS;
+}
+
 int cc3200_core_init(void)
 {
     if(cc3200_core_state.initialized) {return RET_SUCCESS;}

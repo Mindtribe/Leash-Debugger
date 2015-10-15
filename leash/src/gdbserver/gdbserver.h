@@ -23,6 +23,6 @@
 struct target_al_interface;
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target);
-void gdbserver_loop_task(void* params);
+void Task_gdbserver(void* params);
 
 #endif

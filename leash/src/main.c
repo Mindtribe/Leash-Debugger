@@ -88,8 +88,8 @@ int main(void)
             0);
 
     //add task for GDBServer
-    xTaskCreate(gdbserver_loop_task,
-            "GDBServer Loop",
+    xTaskCreate(Task_gdbserver,
+            "GDBServer",
             GDBSERVER_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
             0,
             GDBSERVER_TASK_PRIORITY,

@@ -79,6 +79,13 @@ struct cc3200_icepick_state_t cc3200_icepick_state = {
     }
 };
 
+int cc3200_icepick_deinit(void)
+{
+    cc3200_icepick_state.initialized = 0;
+
+    return RET_SUCCESS;
+}
+
 int cc3200_icepick_init(void)
 {
     if(cc3200_icepick_state.initialized) {return RET_SUCCESS;}
