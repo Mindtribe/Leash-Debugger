@@ -520,7 +520,7 @@ static enum gdbserver_query_name gdbserver_getGeneralQueryName(char* query)
 {
     char queryName[20];
     int qi;
-    for(qi=0; qi<19 && query[qi]!=':'; qi++){
+    for(qi=0; (qi<19) && (query[qi]!=':') && (query[qi]!=','); qi++){
         queryName[qi] = query[qi];
     }
     queryName[qi] = 0;
@@ -787,12 +787,12 @@ static int gdbserver_processGeneralQuery(char* queryString)
         gdbserver_TransmitPacket("");
     }
 
-    char response[50];
+    char charbuf[80];
 
     switch(qname){
     case QUERY_SUPPORTED: //ask whether certain packet types are supported
-        sprintf(response, "PacketSize=%04X", GDBSERVER_REPORT_MAX_PACKET_LEN);
-        gdbserver_TransmitPacket(response);
+        sprintf(charbuf, "PacketSize=%04X", GDBSERVER_REPORT_MAX_PACKET_LEN);
+        gdbserver_TransmitPacket(charbuf);
         break;
     case QUERY_TSTATUS: //ask whether a trace experiment is currently running.
         gdbserver_TransmitPacket("");
@@ -812,6 +812,24 @@ static int gdbserver_processGeneralQuery(char* queryString)
         break;
     case QUERY_CRC: //get a CRC checksum of memory region to verify memory
         if(gdbserver_doMemCRC(&(queryString[4])) == RET_FAILURE) { error_add(__FILE__,__LINE__,ERROR_UNKNOWN); }
+        break;
+    case QUERY_RCMD: //send a general, custom command to the debugger.
+        if(sscanf(queryString, "Rcmd,%s", charbuf) != 1){
+            gdbserver_TransmitPacket("E00");
+        }
+        else{
+            char rcmd[40];
+            int retval;
+            gdb_helpers_hexStrToStr(charbuf, rcmd);
+            LOG(LOG_VERBOSE, "[GDBSERV] Rcmd: %s", rcmd);
+            retval = (*gdbserver_state.target->target_rcmd)(rcmd, &gdbserver_TransmitDebugMsgPacket);
+            if(retval == RET_SUCCESS) {
+                gdbserver_TransmitPacket("OK");
+            }
+            else{
+                gdbserver_TransmitPacket("E00");
+            }
+        }
         break;
     default:
         gdbserver_TransmitPacket(""); //GDB reads this as "unsupported packet"

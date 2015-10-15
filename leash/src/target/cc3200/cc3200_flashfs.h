@@ -17,5 +17,6 @@ int cc3200_flashfs_close(int FileHdl);
 int cc3200_flashfs_read(int FileHdl, unsigned int Offset, unsigned char* pData, unsigned int Len);
 int cc3200_flashfs_write(int FileHdl, unsigned int Offset, unsigned char* pData, unsigned int Len);
 int cc3200_flashfs_delete(unsigned char* pFileName);
+int cc3200_flashfs_load(char* pFileName);
 
 #endif

@@ -74,6 +74,8 @@ struct target_al_interface{
     int (*target_flash_fs_open)(unsigned int, char*, int*);
     int (*target_flash_fs_close)(int);
     int (*target_flash_fs_delete)(char*);
+    int (*target_flash_fs_load)(char*);
+    int (*target_rcmd)(char*, void(*)(char*));
 };
 
 #endif

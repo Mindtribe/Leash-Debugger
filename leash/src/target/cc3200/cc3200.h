@@ -69,4 +69,8 @@ int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd);
 
 int cc3200_flashfs_al_close(int fd);
 
+int cc3200_flashfs_al_load(char* filename);
+
+int cc3200_rcmd(char* command, void (*pMsgCallback)(char*));
+
 #endif
