@@ -12,7 +12,7 @@ Currently, the only supported target configuration is a Texas Instruments CC3200
 
 # More information
 
-* [**Quick-start Guide**](QuickStart.md)
+* [**Quick-start Guide**](doc/QuickStart.md)
 * [**Build Guide**](doc/BuildGuide.md)
 * [**User Guide**](doc/UserGuide.md)
 * [**Wiring**](doc/Wiring.md)
