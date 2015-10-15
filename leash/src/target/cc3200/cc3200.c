@@ -105,36 +105,36 @@ struct cc3200_state_t cc3200_state = {
 
 static int cc3200_init(void)
 {
-    if(cc3200_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Reset fail");}
 
     //ARM core debug interface (JTAG-DP) detection
-    if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_jtagdp_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_jtagdp_clearCSR() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_init(6, ICEPICK_IR_BYPASS, 1, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "JTAGDP init fail");}
+    if(cc3200_jtagdp_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "JTAGDP detect fail");}
+    if(cc3200_jtagdp_clearCSR() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "JTAGDP clear CSR fail");}
     uint32_t csr;
-    if(cc3200_jtagdp_checkCSR(&csr) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_checkCSR(&csr) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "check CSR fail");}
     LOG(LOG_VERBOSE, "[CC3200] JTAG-DP OK.");
 
     //powerup
-    if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_powerUpDebug() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Debug pwr fail");}
     LOG(LOG_VERBOSE, "[CC3200] Debug powerup OK.");
 
-    if(cc3200_jtagdp_readAPs() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_readAPs() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP read fail");}
     LOG(LOG_VERBOSE, "[CC3200] IDCODES OK.");
 
     //core module
-    if(cc3200_core_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_core_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Core init fail");}
+    if(cc3200_core_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Core detect fail");}
     LOG(LOG_VERBOSE, "[CC3200] MEM-AP OK.");
 
     //enable debug
-    if(cc3200_core_debug_enable() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_debug_enable() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Core debug enable fail");}
     LOG(LOG_VERBOSE, "[CC3200] Debug Enabled.");
 
     //halt and reset
-    if(cc3200_core_debug_halt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_debug_halt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Core halt fail");}
     LOG(LOG_VERBOSE, "[CC3200] Core halted.");
-    if(cc3200_core_debug_reset_halt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_debug_reset_halt() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Core reset fail");}
     LOG(LOG_VERBOSE, "[CC3200] Local reset vector catch successful.");
 
     return RET_SUCCESS;
@@ -160,14 +160,14 @@ static int cc3200_reset(void)
     jtag_scan_init();
 
     //ICEPICK router detection and configuration
-    if(cc3200_icepick_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_icepick_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_icepick_connect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_icepick_configure() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ICEPICK init fail");}
+    if(cc3200_icepick_detect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ICEPICK detect fail");}
+    if(cc3200_icepick_connect() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ICEPICK connect fail");}
+    if(cc3200_icepick_configure() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ICEPICK configure fail");}
     LOG(LOG_VERBOSE, "CC3200 - ICEPICK OK.");
 
     //warm reset
-    if(cc3200_icepick_warm_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_icepick_warm_reset() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ICEPICK warmrst fail");}
     LOG(LOG_VERBOSE, "CC3200 - Reset done.");
 
     return RET_SUCCESS;
@@ -190,12 +190,12 @@ static int cc3200_step(void)
 
 static int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes)
 {
-    if(len_bytes != 2) {RETURN_ERROR(ERROR_UNKNOWN);} //only support 2-byte breakpoints
-    if(addr&1) {RETURN_ERROR(ERROR_UNKNOWN);} //non-aligned
+    if(len_bytes != 2) {RETURN_ERROR(ERROR_UNKNOWN, "Invalid arg");} //only support 2-byte breakpoints
+    if(addr&1) {RETURN_ERROR(ERROR_UNKNOWN, "Invalid arg");} //non-aligned
 
     //get word at that memory location
     uint32_t ori;
-    if(cc3200_core_read_mem_addr(addr&0xFFFFFFFC, &ori) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_read_mem_addr(addr&0xFFFFFFFC, &ori) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
 
     //modify word
     if(addr&0x02){
@@ -208,7 +208,7 @@ static int cc3200_set_sw_bkpt(uint32_t addr, uint8_t len_bytes)
     }
 
     //write back
-    if(cc3200_core_write_mem_addr(addr&0xFFFFFFFC, ori) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_write_mem_addr(addr&0xFFFFFFFC, ori) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     return RET_SUCCESS;
 }
@@ -228,7 +228,7 @@ static int cc3200_get_gdb_reg_string(char* string)
     struct cc3200_reg_list reglst;
 
     for(uint32_t i=0; i<=(uint32_t)CC3200_REG_LAST; i++){
-        if(cc3200_core_read_reg(i, &(((uint32_t *)&reglst)[i])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_core_read_reg(i, &(((uint32_t *)&reglst)[i])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Reg read fail");}
     }
 
     string[8*CC3200_REG_LAST] = 0; //zero-terminate
@@ -264,7 +264,7 @@ static int cc3200_put_gdb_reg_string(char* string)
                 &reg24);
         reg = reg0 | (reg8<<8) | (reg16<<16) | (reg24<<24);
 
-        if(cc3200_core_write_reg(i, reg) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_core_write_reg(i, reg) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Reg write fail");}
     }
     return RET_SUCCESS;
 }
@@ -276,20 +276,20 @@ static int cc3200_mem_block_read(uint32_t addr, uint32_t bytes, uint8_t *dst)
 
     if((bytes%4 ==0) && (addr%4 ==0) && (bytes>4)){ //word-aligned full-word reads
         if(cc3200_core_pipeline_read_mem_addr(addr, bytes/4, (uint32_t*) dst) == RET_FAILURE){
-            {RETURN_ERROR(ERROR_UNKNOWN);}
+            {RETURN_ERROR(ERROR_UNKNOWN, "Mem pipe read fail");}
         }
     }
     else{
         //non-word-aligned or incomplete words
 
         uint32_t last_read_addr = addr & 0xFFFFFFFC;
-        if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
 
         int out_byte = 0;
         for(uint32_t i=0; i<bytes; i++){
             if((addr+i)/4 != last_read_addr/4){ //different word?
                 last_read_addr = (addr+i)& 0xFFFFFFFC;
-                if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                if(cc3200_core_read_mem_addr(last_read_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
             }
             dst[out_byte++] = data_bytes[(addr+i)%4];
         }
@@ -315,12 +315,12 @@ static int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
         for(uint32_t cur_addr = addr - (addr%4); cur_addr <= (addr+bytes); cur_addr+=4){
             if(bytes_left>=4 && cur_addr >= addr){ //aligned, whole-word write
                 for(int i=0; i<4; i++){ data_bytes[i] = src_bytes[i]; } //prepare the word
-                if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //write the word
+                if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");} //write the word
                 bytes_left -= 4;
                 src_bytes = &(src_bytes[4]);
             }
             else{ //non-aligned and/or partial word access - read-modify-write required
-                if(cc3200_core_read_mem_addr(cur_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //read original
+                if(cc3200_core_read_mem_addr(cur_addr, &data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");} //read original
                 for(uint32_t i=0; i<4; i++){
                     if(cur_addr+i >= addr && bytes_left > 0){
                         data_bytes[i] = src_bytes[0];
@@ -328,7 +328,7 @@ static int cc3200_mem_block_write(uint32_t addr, uint32_t bytes, uint8_t *src)
                         src_bytes = &(src_bytes[1]);
                     }
                 }
-                if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //write modified value
+                if(cc3200_core_write_mem_addr(cur_addr, data) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");} //write modified value
             }
             data = 0;
         }
@@ -356,16 +356,16 @@ static int cc3200_poll_halted(uint8_t *result)
 static int cc3200_handleHalt(enum stop_reason *reason)
 {
     uint32_t dfsr;
-    if(cc3200_core_getDFSR(&dfsr) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_getDFSR(&dfsr) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "DFSR read fail");}
 
     if(dfsr & CC3200_CORE_DFSR_BKPT){
         uint16_t instruction;
         uint32_t pc;
-        if(cc3200_get_pc(&pc) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-        if(cc3200_mem_block_read(pc, 2, (uint8_t*)&instruction) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_get_pc(&pc) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "PC read fail");}
+        if(cc3200_mem_block_read(pc, 2, (uint8_t*)&instruction) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
 
         //double-check that this is a BKPT instruction
-        if((instruction & 0xFF00) != CC3200_OPCODE_BKPT) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if((instruction & 0xFF00) != CC3200_OPCODE_BKPT) {RETURN_ERROR(ERROR_UNKNOWN, "BKPT check fail");}
 
         //0xAB is a special BKPT for semi-hosting
         if((instruction & 0x00FF) == 0xAB) {*reason = STOPREASON_SEMIHOSTING;}
@@ -390,8 +390,8 @@ static int cc3200_querySemiHostOp(struct semihost_operation *op)
     //determine what kind of semihosting operation is required.
 
     uint32_t r0, r1;
-    if(cc3200_reg_read(CC3200_REG_0, &r0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_reg_read(CC3200_REG_1, &r1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_reg_read(CC3200_REG_0, &r0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Reg read fail");}
+    if(cc3200_reg_read(CC3200_REG_1, &r1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Reg read fail");}
 
     switch(r0){
     case CC3200_SEMIHOST_WRITE0: //write a 0-terminated string
@@ -400,7 +400,7 @@ static int cc3200_querySemiHostOp(struct semihost_operation *op)
         uint32_t len = 0;
         uint8_t c = 1;
         for(uint32_t addr = r1; c != 0 ;len++){
-            if(cc3200_mem_block_read(addr++, 1, &c) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            if(cc3200_mem_block_read(addr++, 1, &c) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
         }
         op->param1 = r1; //pointer to the string
         op->param2 = len; //length of the string
@@ -408,7 +408,7 @@ static int cc3200_querySemiHostOp(struct semihost_operation *op)
     case CC3200_SEMIHOST_READ: //read characters
         op->opcode = SEMIHOST_READCONSOLE;
         uint32_t args[3];
-        if(cc3200_mem_block_read(r1, 12, (uint8_t*)args) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_mem_block_read(r1, 12, (uint8_t*)args) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
         op->param1 = args[0]; //file descriptor
         op->param2 = args[1]; //buffer pointer
         op->param3 = args[2]; //character count
@@ -432,11 +432,11 @@ static int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* da
 
     if(!cc3200_state.flash_mode){
         LOG(LOG_IMPORTANT, "[CC3200] Error: flash action requested while not in flash mode.");
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Flash mode fail");
     }
 
     retval = cc3200_flashfs_read(fd, offset, data, len);
-    if(retval < 0) { RETURN_ERROR(retval); }
+    if(retval < 0) { RETURN_ERROR(retval, "CC3200: Flash read failed."); }
     return retval;
 }
 
@@ -446,11 +446,11 @@ static int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* d
 
     if(!cc3200_state.flash_mode){
         LOG(LOG_IMPORTANT, "[CC3200] Error: flash action requested while not in flash mode.");
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Flash mode fail");
     }
 
     retval = cc3200_flashfs_write(fd, offset, data, len);
-    if(retval < 0) { RETURN_ERROR(retval); }
+    if(retval < 0) { RETURN_ERROR(retval, "CC3200: Flash Write Failed."); }
     return retval;
 }
 
@@ -460,7 +460,7 @@ static int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
 
     if(!cc3200_state.flash_mode){
         LOG(LOG_IMPORTANT, "[CC3200] Error: flash action requested while not in flash mode.");
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Flash mode fail");
     }
 
     unsigned int AccessModeAndMaxSize = 0;
@@ -480,10 +480,10 @@ static int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
             AccessModeAndMaxSize = FS_MODE_OPEN_CREATE(cc3200_state.alloc_size,cc3200_state.file_create_flags);
         }
     }
-    else{ RETURN_ERROR(ERROR_UNKNOWN); }
+    else{ RETURN_ERROR(ERROR_UNKNOWN, "File flags fail"); }
 
     retval = cc3200_flashfs_open(AccessModeAndMaxSize, (unsigned char*)filename, &tempfd);
-    if(retval < 0) {RETURN_ERROR(retval);}
+    if(retval < 0) {RETURN_ERROR(retval, "Flash open fail");}
     *fd = (int)tempfd;
 
     return RET_SUCCESS;
@@ -495,11 +495,11 @@ static int cc3200_flashfs_al_close(int fd)
 
     if(!cc3200_state.flash_mode){
         LOG(LOG_IMPORTANT, "[CC3200] Error: flash action requested while not in flash mode.");
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Flash mode fail");
     }
 
     retval = cc3200_flashfs_close(fd);
-    if(retval<0) {RETURN_ERROR(retval);}
+    if(retval<0) {RETURN_ERROR(retval, "Flash close fail");}
     return RET_SUCCESS;
 }
 
@@ -545,12 +545,12 @@ static int cc3200_flashfs_al_delete(char* filename)
 
     if(!cc3200_state.flash_mode){
         retval = cc3200_flashfs_loadstub();
-        if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+        if(retval == RET_FAILURE) {RETURN_ERROR(retval, "CC3200: Flash Stub load failed.");}
         cc3200_state.flash_mode = 1;
     }
 
     retval = cc3200_flashfs_delete((unsigned char*) filename);
-    if(retval < 0) { RETURN_ERROR(retval); }
+    if(retval < 0) { RETURN_ERROR(retval, "CC3200: Flash Delete Failed."); }
     return RET_SUCCESS;
 }
 

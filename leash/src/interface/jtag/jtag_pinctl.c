@@ -76,7 +76,7 @@ int jtag_pinctl_init(void)
 
 int jtag_pinctl_assertPins(uint8_t pins)
 {
-    if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN); //not initialized
+    if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail"); //not initialized
 
     if(pins & JTAG_RST) {
         JTAG_SET_PIN(RST_REG, RST_VAL, 0);
@@ -100,7 +100,7 @@ int jtag_pinctl_assertPins(uint8_t pins)
 
 int jtag_pinctl_deAssertPins(uint8_t pins)
 {
-    if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN); //not initialized
+    if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail"); //not initialized
 
     if(pins & JTAG_RST) {
         JTAG_SET_PIN(RST_REG, RST_VAL, 1);

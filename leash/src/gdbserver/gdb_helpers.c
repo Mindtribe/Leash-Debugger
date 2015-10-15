@@ -37,7 +37,7 @@ int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGet
 
 void gdb_helpers_PutChar(char c)
 {
-    if(!gdb_helpers_state.initialized) {WAIT_ERROR(ERROR_UNKNOWN);}
+    if(!gdb_helpers_state.initialized) {WAIT_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     gdb_helpers_state.pPutChar(c);
 
@@ -46,7 +46,7 @@ void gdb_helpers_PutChar(char c)
 
 void gdb_helpers_GetChar(char* c)
 {
-    if(!gdb_helpers_state.initialized) {WAIT_ERROR(ERROR_UNKNOWN);}
+    if(!gdb_helpers_state.initialized) {WAIT_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     gdb_helpers_state.pGetChar(c);
 
@@ -55,7 +55,7 @@ void gdb_helpers_GetChar(char* c)
 
 int gdb_helpers_CharsAvaliable(void)
 {
-    if(!gdb_helpers_state.initialized) {WAIT_ERROR(ERROR_UNKNOWN);}
+    if(!gdb_helpers_state.initialized) {WAIT_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     return gdb_helpers_state.pGetCharsAvail();
 }

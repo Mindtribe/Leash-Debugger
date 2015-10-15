@@ -43,7 +43,7 @@ static void UartIntHandler(void)
     while((c = MAP_UARTCharGetNonBlocking(CONSOLE)) != -1){
         rxbuf[(rxbuf_iwrite++)%UART_BUF_SIZE] = (char) c;
         if(rxbuf_iwrite == rxbuf_iread) {
-            ADD_ERROR(ERROR_OVERFLOW);
+            ADD_ERROR(ERROR_OVERFLOW, "UART Overflow");
             rxbuf_iwrite--;
         }
     }

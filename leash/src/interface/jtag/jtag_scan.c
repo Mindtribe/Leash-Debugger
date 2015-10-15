@@ -52,7 +52,7 @@ int jtag_scan_init(void)
 {
     if(jtag_scan_state.initialized) return RET_SUCCESS;
 
-    if(jtag_pinctl_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(jtag_pinctl_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "JTAG pin init fail");}
 
     jtag_scan_state.cur_jtag_state = JTAG_STATE_TLR;
 
@@ -68,7 +68,7 @@ int jtag_scan_deinit(void)
 
 int jtag_scan_hardRst(void)
 {
-    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     //hardware reset using the reset pin
     jtag_pinctl_assertPins(JTAG_RST);
@@ -83,7 +83,7 @@ int jtag_scan_hardRst(void)
 
 int jtag_scan_rstStateMachine(void)
 {
-    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     //five consecutive TMS 1's will reset the JTAG state machine of everything
     //in the chain.
@@ -99,7 +99,7 @@ int jtag_scan_rstStateMachine(void)
 
 int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 {
-    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     jtag_scan_state.shift_out = 0;
 
@@ -114,7 +114,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x07, 5);
         break;
     default:
-        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        RETURN_ERROR(ERROR_UNKNOWN, "JTAG state fail"); //invalid state
         break;
     }
 
@@ -133,7 +133,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEDR;
         break;
     default:
-        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        RETURN_ERROR(ERROR_UNKNOWN, "JTAG state fail"); //invalid state
         break;
     }
 
@@ -142,7 +142,7 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 
 int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 {
-    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     jtag_scan_state.shift_out = 0;
 
@@ -157,7 +157,7 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_doStateMachine(0x0F, 6);
         break;
     default:
-        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        RETURN_ERROR(ERROR_UNKNOWN, "JTAG state fail"); //invalid state
         break;
     }
 
@@ -176,7 +176,7 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
         jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEIR;
         break;
     default:
-        RETURN_ERROR(ERROR_UNKNOWN); //invalid state
+        RETURN_ERROR(ERROR_UNKNOWN, "JTAG state fail"); //invalid state
         break;
     }
 
@@ -185,8 +185,8 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 
 int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
 {
-    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(num_clk>=32) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
+    if(num_clk>=32) {RETURN_ERROR(ERROR_UNKNOWN, "Arg fail");}
 
     for(unsigned int i=0; i<num_clk; i++){
         uint8_t dummy;
@@ -198,8 +198,8 @@ int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
 
 int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
 {
-    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(num_clk>64) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
+    if(num_clk>64) {RETURN_ERROR(ERROR_UNKNOWN, "Arg fail");}
 
     jtag_scan_state.shift_out = 0;
 
