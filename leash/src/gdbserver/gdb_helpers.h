@@ -34,4 +34,6 @@ int gdb_helpers_isInitialized(void);
 
 int gdb_helpers_CharsAvaliable(void);
 
+void gdb_helpers_hexStrToStr(char* hexStr, char* str);
+
 #endif

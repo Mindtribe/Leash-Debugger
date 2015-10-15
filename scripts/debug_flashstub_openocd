@@ -1,0 +1,1 @@
+arm-none-eabi-gdb -x ./GDB/gdbinit_openocd ./../build/leash/cc3200_flashstub/Debug/leash-cc3200_flashstub-Debug.elf

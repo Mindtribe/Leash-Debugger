@@ -30,6 +30,16 @@ enum semihost_opcode{
     SEMIHOST_UNKNOWN
 };
 
+enum target_flash_support{
+    TARGET_FLASH_FS_UNSUPPORTED = 0,
+    TARGET_FLASH_FS_SUPPORTED
+};
+
+enum target_flash_modes{
+    TARGET_FLASH_MODE_READ = 1,
+    TARGET_FLASH_MODE_CREATEANDWRITE = 2
+};
+
 struct semihost_operation{
     enum semihost_opcode opcode;
     uint32_t param1;
@@ -57,7 +67,15 @@ struct target_al_interface{
     int (*target_set_sw_bkpt)(uint32_t, uint8_t);
     int (*target_poll_halted)(uint8_t*);
     int (*target_handleHalt)(enum stop_reason *);
-    int (*target_querySemiHostOp)(struct semihost_operation *op);
+    int (*target_querySemiHostOp)(struct semihost_operation *);
+    int (*target_flash_fs_supported)(void);
+    int (*target_flash_fs_read)(int, unsigned int, unsigned char*, unsigned int);
+    int (*target_flash_fs_write)(int, unsigned int, unsigned char*, unsigned int);
+    int (*target_flash_fs_open)(unsigned int, char*, int*);
+    int (*target_flash_fs_close)(int);
+    int (*target_flash_fs_delete)(char*);
+    int (*target_flash_fs_load)(char*);
+    int (*target_rcmd)(char*, void(*)(char*));
 };
 
 #endif

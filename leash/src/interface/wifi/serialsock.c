@@ -18,6 +18,10 @@
 #include "semphr.h"
 #include "serialconfig.h"
 
+#include "simplelink_defs.h"
+#include "simplelink.h"
+#include "socket.h"
+
 #define NUM_SOCKETS 3
 
 enum{

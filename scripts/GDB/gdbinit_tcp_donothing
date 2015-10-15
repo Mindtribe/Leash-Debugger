@@ -1,0 +1,5 @@
+set remotetimeout 120
+
+#connect to serial link
+#NOTE: set this up with your Leash board's IP address.
+target remote tcp:192.168.169.85:49154

@@ -13,15 +13,21 @@
 #include <stdio.h>
 #include "log.h"
 
+#include "fs.h"
+
 #include "error.h"
 #include "jtag_scan.h"
 #include "cc3200_icepick.h"
 #include "cc3200_core.h"
 #include "cc3200_jtagdp.h"
+#include "cc3200_flashfs.h"
 
 #define CC3200_CORE_DFSR_BKPT (1<<1)
 
 #define CC3200_OPCODE_BKPT 0xBE00
+
+#define CC3200_DEFAULT_FILE_ALLOC_SIZE (180224) //default filesize = max size of an mcuimg.bin on any CC3200 device
+#define CC3200_DEFAULT_FILE_ACCESS_FLAGS (0)
 
 #define CC3200_SEMIHOST_WRITE0 0x04
 #define CC3200_SEMIHOST_READ 0x06
@@ -45,14 +51,28 @@ struct target_al_interface cc3200_interface = {
     .target_write_register = &cc3200_reg_write,
     .target_querySemiHostOp = &cc3200_querySemiHostOp,
     .target_set_pc = &cc3200_set_pc,
-    .target_get_pc = &cc3200_get_pc
+    .target_get_pc = &cc3200_get_pc,
+    .target_flash_fs_supported = &cc3200_flashfs_al_supported,
+    .target_flash_fs_read = &cc3200_flashfs_al_read,
+    .target_flash_fs_write = &cc3200_flashfs_al_write,
+    .target_flash_fs_open = &cc3200_flashfs_al_open,
+    .target_flash_fs_close = &cc3200_flashfs_al_close,
+    .target_flash_fs_delete = &cc3200_flashfs_al_delete,
+    .target_flash_fs_load = &cc3200_flashfs_al_load,
+    .target_rcmd = &cc3200_rcmd
 };
 
 struct cc3200_state_t{
     char regstring[CC3200_REG_LAST+1];
+    unsigned int alloc_size;
+    unsigned int file_create_flags;
+    unsigned int flash_mode;
 };
 struct cc3200_state_t cc3200_state = {
-    .regstring = {0}
+    .regstring = {0},
+    .alloc_size = CC3200_DEFAULT_FILE_ALLOC_SIZE,
+    .file_create_flags = CC3200_DEFAULT_FILE_ACCESS_FLAGS,
+    .flash_mode = 0
 };
 
 int cc3200_init(void)
@@ -358,5 +378,144 @@ int cc3200_querySemiHostOp(struct semihost_operation *op)
 
     return RET_SUCCESS;
 }
+
+int cc3200_flashfs_al_supported(void)
+{
+    return TARGET_FLASH_FS_SUPPORTED;
+}
+
+int cc3200_flashfs_al_read(int fd, unsigned int offset, unsigned char* data, unsigned int len)
+{
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        LOG(LOG_IMPORTANT, "[CC3200] Error: flash action requested while not in flash mode.");
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    retval = cc3200_flashfs_read(fd, offset, data, len);
+    if(retval < 0) { RETURN_ERROR(retval); }
+    return retval;
+}
+
+int cc3200_flashfs_al_write(int fd, unsigned int offset, unsigned char* data, unsigned int len)
+{
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        LOG(LOG_IMPORTANT, "[CC3200] Error: flash action requested while not in flash mode.");
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    retval = cc3200_flashfs_write(fd, offset, data, len);
+    if(retval < 0) { RETURN_ERROR(retval); }
+    return retval;
+}
+
+int cc3200_flashfs_al_open(unsigned int flags, char* filename, int* fd)
+{
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        LOG(LOG_IMPORTANT, "[CC3200] Error: flash action requested while not in flash mode.");
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    unsigned int AccessModeAndMaxSize = 0;
+    long tempfd;
+
+    if(flags & TARGET_FLASH_MODE_READ){
+        AccessModeAndMaxSize = FS_MODE_OPEN_READ;
+    }
+    else if(flags & TARGET_FLASH_MODE_CREATEANDWRITE){
+        retval = cc3200_flashfs_delete((unsigned char*)filename);
+
+        if(strcmp(filename, "/sys/mcuimg.bin") == 0){
+            LOG(LOG_VERBOSE, "[CC3200] Chose to write the bootable image - overriding create flags to ROLLBACK (FAILSAFE) for bootability.");
+            AccessModeAndMaxSize = FS_MODE_OPEN_CREATE(cc3200_state.alloc_size,_FS_FILE_OPEN_FLAG_COMMIT);
+        }
+        else{
+            AccessModeAndMaxSize = FS_MODE_OPEN_CREATE(cc3200_state.alloc_size,cc3200_state.file_create_flags);
+        }
+    }
+    else{ RETURN_ERROR(ERROR_UNKNOWN); }
+
+    retval = cc3200_flashfs_open(AccessModeAndMaxSize, (unsigned char*)filename, &tempfd);
+    if(retval < 0) {RETURN_ERROR(retval);}
+    *fd = (int)tempfd;
+
+    return RET_SUCCESS;
+}
+
+int cc3200_flashfs_al_close(int fd)
+{
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        LOG(LOG_IMPORTANT, "[CC3200] Error: flash action requested while not in flash mode.");
+        RETURN_ERROR(ERROR_UNKNOWN);
+    }
+
+    retval = cc3200_flashfs_close(fd);
+    if(retval<0) {RETURN_ERROR(retval);}
+    return RET_SUCCESS;
+}
+
+int cc3200_flashfs_al_load(char* filename)
+{
+    return cc3200_flashfs_load(filename);
+}
+
+int cc3200_rcmd(char* command, void (*pMsgCallback)(char*))
+{
+    unsigned int temp_uint;
+    if(strcmp(command, "help") == 0){
+        pMsgCallback("[CC3200] Supported custom commands:\n");
+        pMsgCallback("[CC3200] help: show this message.\n");
+        pMsgCallback("[CC3200] setmaxalloc=X: set the maximum allocated filesystem size of subsequent created files to X (decimal).\n");
+        pMsgCallback("[CC3200] flashmode=X: if X nonzero, enter flash mode. If X zero, exit flash mode.\n");
+    }
+    else if(sscanf(command, "setmaxalloc=%u", &temp_uint) == 1){
+        cc3200_state.alloc_size = temp_uint;
+        char response[80];
+        snprintf(response, 80, "[CC3200] Max file allocation size set to %u bytes.\n", temp_uint);
+        pMsgCallback(response);
+    }
+    else if(sscanf(command, "flashmode=%u", &temp_uint) == 1){
+        if((!cc3200_state.flash_mode) && (temp_uint)){
+            int retval = cc3200_flashfs_loadstub();
+            if(retval == RET_SUCCESS){
+                cc3200_state.flash_mode = 1;
+                pMsgCallback("[CC3200] Entered flash mode.\n");
+            }
+            else{
+                pMsgCallback("[CC3200] Failed to enter flash mode.\n");
+            }
+        }
+        else if((cc3200_state.flash_mode) && (!temp_uint)){
+            pMsgCallback("[CC3200] Exiting flash mode not supported - please reset the device and debugger.\n");
+        }
+    }
+    else{
+        pMsgCallback("[CC3200] Command not recognized.\n");
+    }
+    return RET_SUCCESS;
+}
+
+int cc3200_flashfs_al_delete(char* filename)
+{
+    int retval;
+
+    if(!cc3200_state.flash_mode){
+        retval = cc3200_flashfs_loadstub();
+        if(retval == RET_FAILURE) {RETURN_ERROR(retval);}
+        cc3200_state.flash_mode = 1;
+    }
+
+    retval = cc3200_flashfs_delete((unsigned char*) filename);
+    if(retval < 0) { RETURN_ERROR(retval); }
+    return RET_SUCCESS;
+}
+
 
 
