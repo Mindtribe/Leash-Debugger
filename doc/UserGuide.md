@@ -166,6 +166,8 @@ In practice, this means that Leash Debugger needs to be instructed by the user t
 A message should appear after several seconds, notifying you that flash mode has been entered. If you need to see more verbose information, the **Log Socket** can be inspected during this operation.
 At this moment, **it is not possible to exit flash mode once entered** - to start a new debugging session, Leash Debugger and the target must be reset.
 
+**Note: Leash Debugger needs to have access to the flash stub binary file. It attempts to find this file on external flash memory *of the debugger*. In other words, before using this feature, it is necessary to store the flash stub binary (found under build/leash/cc3200_flashstub/debug/leash-cc3200_flashstub-Debug.bin) on the Leash Debugger flash using TI Uniflash. The name of the binary file on the CC3200 flash should be "cc3200_flashstub.bin".**
+
 Once in flash mode, GDB's remote filesystem commands can be used to manipulate flash. The supported operations are:
 
 ```
