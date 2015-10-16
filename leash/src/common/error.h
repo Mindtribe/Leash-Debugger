@@ -26,12 +26,12 @@ enum error_type{
 #define RET_SUCCESS (0)
 #define RET_FAILURE (-1)
 
-#define RETURN_ERROR(X) {error_add(__FILE__,__LINE__,X); return RET_FAILURE;}
-#define TASK_RETURN_ERROR(X) {error_add(__FILE__,__LINE__,X); vTaskDelete(NULL); return; }
-#define ADD_ERROR(X) {error_add(__FILE__,__LINE__,X);}
-#define WAIT_ERROR(X) {error_wait(__FILE__,__LINE__,X);}
+#define RETURN_ERROR(NUM, DESC) {error_add(NUM, DESC); return RET_FAILURE;}
+#define TASK_RETURN_ERROR(NUM, DESC) {error_add(NUM, DESC); vTaskDelete(NULL); return; }
+#define ADD_ERROR(NUM, DESC) {error_add(NUM, DESC);}
+#define WAIT_ERROR(NUM, DESC) {error_wait(NUM, DESC);}
 
-void error_wait(char* file, int line, uint32_t error_code);
-void error_add(char* file, int line, uint32_t error_code);
+void error_wait(uint32_t error_code, const char* description);
+void error_add(uint32_t error_code, const char* description);
 
 #endif

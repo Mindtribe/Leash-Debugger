@@ -69,7 +69,7 @@ enum gdbserver_packet_phase{
         "------------------------------------------\n"\
         "\n"\
         "Note: this is a work-in-progress.\n"\
-        "Please see KNOWN_BUGS before using.\n"\
+        "Please see known bugs in the README before using.\n"\
                 "\n"
 
 
@@ -158,6 +158,7 @@ struct gdbserver_state_t{
     enum gdbserver_packet_phase packet_phase;
     int awaiting_ack;
     int gdb_connected;
+    int target_connected;
     char last_sent_packet[GDBSERVER_MAX_PACKET_LEN_TX];
     char cur_packet[GDBSERVER_MAX_PACKET_LEN_RX];
     char cur_checksum_chars[2];
@@ -194,13 +195,14 @@ struct gdbserver_state_t gdbserver_state = {
     .binary_rx_counter = 0,
     .escapechar = 0,
     .cur_checksum = 0,
-    .cur_packet_len = 0
+    .cur_packet_len = 0,
+    .target_connected = 0
 };
 #pragma GCC diagnostic pop
 
 static int gdbserver_processChar(void);
 static int gdbserver_processPacket(void);
-static void gdbserver_reset_error(int line, int error_code);
+static void gdbserver_reset_error(int error_code, char* msg);
 static void gdbserver_TransmitPacket(char* packet_data);
 static void gdbserver_TransmitBinaryPacket(unsigned char* packet_data, unsigned int len);
 static void gdbserver_TransmitStopReason(void);
@@ -221,12 +223,39 @@ static int gdbserver_vFileDelete(char* argstring);
 static int gdbserver_vFilePRead(char* argstring);
 static int gdbserver_vFilePWrite(char* argstring);
 static int gdbserver_getBinaryCount(void);
+static int gdbserver_connectTarget(int* targetConnected);
+
+static int gdbserver_connectTarget(int* targetConnected)
+{
+    if((*gdbserver_state.target->target_init)() == RET_FAILURE) {goto fail_connect;}
+    if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {goto fail_connect;}
+    if(!gdbserver_state.halted) {goto fail_connect;}
+
+    gdbserver_state.gave_info = 0;
+    gdbserver_state.fileio_state.fileio_waiting = 0;
+    gdbserver_state.initialized = 1;
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
+    *targetConnected = 1;
+    return RET_SUCCESS;
+
+    fail_connect:
+    *targetConnected = 0;
+    if((*gdbserver_state.target->target_deinit)() == RET_FAILURE) {goto error;}
+    return RET_SUCCESS;
+
+    error:
+    *targetConnected = 0;
+    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+    RETURN_ERROR(ERROR_UNKNOWN, "Target connect fail");
+    return RET_FAILURE;
+
+}
 
 static int gdbserver_getBinaryCount(void)
 {
     unsigned int addr,len;
     if(sscanf(gdbserver_state.cur_packet, "X%X,%X:", &addr, &len) != 2){
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Arg fail");
     }
     gdbserver_state.binary_rx_counter = len;
     return RET_SUCCESS;
@@ -240,22 +269,11 @@ int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCh
 
     gdbserver_state.target = target;
 
-    if((*target->target_init)() == RET_FAILURE) {goto error;}
-
-    if((*target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {goto error;}
-    if(!gdbserver_state.halted) {goto error;}
-
-    //TODO: report the halted state to GDB
-
-    gdbserver_state.gave_info = 0;
-    gdbserver_state.fileio_state.fileio_waiting = 0;
-    gdbserver_state.initialized = 1;
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
     return RET_SUCCESS;
 
     error:
     SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-    RETURN_ERROR(ERROR_UNKNOWN);
+    RETURN_ERROR(ERROR_UNKNOWN, "GDBServer init fail");
     return RET_FAILURE;
 }
 
@@ -353,17 +371,17 @@ static void gdbserver_Interrupt(uint8_t signal)
     if((*gdbserver_state.target->target_halt)() == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        ADD_ERROR(ERROR_UNKNOWN);
+        ADD_ERROR(ERROR_UNKNOWN, "Halt fail")
     }
     if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        ADD_ERROR(ERROR_UNKNOWN);
+        ADD_ERROR(ERROR_UNKNOWN, "Poll halt fail")
     }
     if(!gdbserver_state.halted){
         gdbserver_TransmitPacket("OError halting target!");
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        ADD_ERROR(ERROR_UNKNOWN);
+        ADD_ERROR(ERROR_UNKNOWN, "Halt fail")
     }
     SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
     gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
@@ -386,21 +404,21 @@ static int gdbserver_processChar(void)
 #endif
 
     if(gdbserver_state.packet_phase == PACKET_DATA){ //in data phase
-        if(c == '$') {gdbserver_reset_error(__LINE__, c);}
+        if(c == '$') {gdbserver_reset_error(c, "GDBServer: $ during packet data");}
         else if(c == '#'){
             gdbserver_state.packet_phase = PACKET_CHECKSUM; //next state
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
             gdbserver_state.cur_packet_len = gdbserver_state.cur_packet_index;
             gdbserver_state.cur_packet_index = 0;
         }
-        else if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);} //too long
+        else if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(ERROR_UNKNOWN, "GDBServer: packet too long");} //too long
         else {
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
             gdbserver_state.cur_checksum += (uint8_t)c;
         }
     }
     else if(gdbserver_state.packet_phase == PACKET_DATA_FIRST_CHAR){
-        if(c == '$') {gdbserver_reset_error(__LINE__, c);}
+        if(c == '$') {gdbserver_reset_error(c, "GDBServer: $ during packet data");}
         else if(c == '#'){
             gdbserver_state.packet_phase = PACKET_CHECKSUM; //next state
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
@@ -414,13 +432,13 @@ static int gdbserver_processChar(void)
         }
     }
     else if(gdbserver_state.packet_phase == PACKET_HEADER_FOR_BINARY_DATA){
-        if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);} //too long
+        if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(ERROR_UNKNOWN, "GDBServer: packet too long");} //too long
         else {
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
             gdbserver_state.cur_checksum += (uint8_t)c;
             if(c==':'){
                 //header of binary packet is over - now find out how many binary characters will follow.
-                if(gdbserver_getBinaryCount() == RET_FAILURE) {gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);}
+                if(gdbserver_getBinaryCount() == RET_FAILURE) {gdbserver_reset_error(ERROR_UNKNOWN, "GDBServer: Cannot parse binary data header");}
                 gdbserver_state.packet_phase = PACKET_BINARY_DATA;
             }
         }
@@ -447,7 +465,7 @@ static int gdbserver_processChar(void)
             //binary data should be over now
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
             if(c!='#') {
-                gdbserver_reset_error(__LINE__, ERROR_UNKNOWN);
+                gdbserver_reset_error(ERROR_UNKNOWN, "GDBServer: More binary data than specified in header");
             }
             else{
                 gdbserver_state.packet_phase = PACKET_CHECKSUM;
@@ -473,8 +491,8 @@ static int gdbserver_processChar(void)
             break;
         case CHAR_END_TEXT: //CTRL-C in GDB
             gdbserver_Interrupt(SIGINT);
-            if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) { ADD_ERROR(ERROR_UNKNOWN); }
-            if(!gdbserver_state.halted) { ADD_ERROR(ERROR_UNKNOWN); }
+            if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) { ADD_ERROR(ERROR_UNKNOWN, "Interrupt fail") }
+            if(!gdbserver_state.halted) { ADD_ERROR(ERROR_UNKNOWN, "Halt fail") }
             break;
         default:
             switch(gdbserver_state.packet_phase){
@@ -483,7 +501,7 @@ static int gdbserver_processChar(void)
                 //gdbserver_reset_error(__LINE__, c); break; //invalid character at this point.
                 break;
             case PACKET_CHECKSUM:
-                if(!isxdigit((int)c)) { gdbserver_reset_error(__LINE__, c); break; } //checksum is hexadecimal chars only
+                if(!isxdigit((int)c)) { gdbserver_reset_error(c, "GDBServer: Non-hex character in checksum"); break; } //checksum is hexadecimal chars only
                 if(gdbserver_state.cur_packet_index == 0) {
                     gdbserver_state.cur_checksum_chars[0] = c;
                     gdbserver_state.cur_packet_index++;
@@ -504,9 +522,9 @@ static int gdbserver_processChar(void)
     return RET_SUCCESS;
 }
 
-static void gdbserver_reset_error(int line, int error_code)
+static void gdbserver_reset_error(int error_code, char* msg)
 {
-    error_add(__FILE__, line, error_code);
+    ADD_ERROR(error_code, msg);
     SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
     gdbserver_state.packet_phase = PACKET_NONE;
     gdbserver_state.cur_packet_index = 0;
@@ -566,6 +584,7 @@ static int gdbserver_vFileOpen(char* argstring)
     char* mode_hex = strtok(NULL, ",");
 
     if((mode_hex == NULL) || (filename_hex == NULL) || (flags_hex == NULL)){
+        error_add(ERROR_UNKNOWN, "GDBServer: Incomplete argument string.");
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
@@ -598,6 +617,7 @@ static int gdbserver_vFileClose(char* argstring)
 
     char *fd_hex = strtok(argstring, ",");
     if(fd_hex == NULL){
+        error_add(ERROR_UNKNOWN, "GDBServer: Incomplete argument string.");
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
@@ -622,6 +642,7 @@ static int gdbserver_vFileDelete(char* argstring)
     char* filename_hex = strtok(argstring, ",");
 
     if(filename_hex == NULL) {
+        error_add(ERROR_UNKNOWN, "GDBServer: Incomplete argument string.");
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
@@ -650,6 +671,7 @@ static int gdbserver_vFilePRead(char* argstring)
     char *count_hex = strtok(NULL, ",");
     char *offset_hex = strtok(NULL, ",");
     if((offset_hex == NULL) || (count_hex == NULL) || (fd_hex == NULL)){
+        error_add(ERROR_UNKNOWN, "GDBServer: Incomplete argument string.");
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
@@ -690,7 +712,7 @@ static int gdbserver_vFilePWrite(char* argstring)
     char *fd_hex = strtok(argstring, ",");
     char *offset_hex = strtok(NULL, ",");
     if((offset_hex == NULL) || (fd_hex == NULL)){
-        error_add(__FILE__, __LINE__, ERROR_UNKNOWN);
+        error_add(ERROR_UNKNOWN, "GDBServer: Incomplete argument string.");
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
@@ -748,7 +770,7 @@ static int gdbserver_processVCommand(char* commandString)
         string_index += strlen(tok) + 1;
         tok = strtok(NULL, ":");
         string_index += strlen(tok) + 1;
-        if(tok == NULL) { RETURN_ERROR(ERROR_UNKNOWN); }
+        if(tok == NULL) { RETURN_ERROR(ERROR_UNKNOWN, "Arg fail"); }
 
         if(strcmp(tok, "open") == 0){
             return gdbserver_vFileOpen(&(commandString[string_index]));
@@ -810,7 +832,7 @@ static int gdbserver_processGeneralQuery(char* queryString)
         gdbserver_TransmitPacket("1");
         break;
     case QUERY_CRC: //get a CRC checksum of memory region to verify memory
-        if(gdbserver_doMemCRC(&(queryString[4])) == RET_FAILURE) { error_add(__FILE__,__LINE__,ERROR_UNKNOWN); }
+        if(gdbserver_doMemCRC(&(queryString[4])) == RET_FAILURE) { ADD_ERROR(ERROR_UNKNOWN, "CRC fail"); }
         break;
     case QUERY_RCMD: //send a general, custom command to the debugger.
         if(sscanf(queryString, "Rcmd,%s", charbuf) != 1){
@@ -851,7 +873,7 @@ static int gdbserver_processPacket(void)
     unsigned int checksum_parse;
     sscanf(gdbserver_state.cur_checksum_chars, "%02X", &checksum_parse);
     if((uint8_t)checksum_parse != gdbserver_state.cur_checksum){
-        gdbserver_reset_error(__LINE__, gdbserver_state.cur_checksum);
+        gdbserver_reset_error(gdbserver_state.cur_checksum, "GDBServer: Checksum mismatch.");
         gdb_helpers_Nack();
         return RET_SUCCESS;
     }
@@ -878,15 +900,15 @@ static int gdbserver_processPacket(void)
     //process the packet based on header character
     switch(gdbserver_state.cur_packet[0]){
     case 'q': //general query
-        if(gdbserver_processGeneralQuery(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) ADD_ERROR(ERROR_UNKNOWN);
+        if(gdbserver_processGeneralQuery(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) ADD_ERROR(ERROR_UNKNOWN, "Parse fail")
         break;
     case 'v': //v category of commands
-        if(gdbserver_processVCommand(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) ADD_ERROR(ERROR_UNKNOWN);
+        if(gdbserver_processVCommand(&(gdbserver_state.cur_packet[1])) == RET_FAILURE) ADD_ERROR(ERROR_UNKNOWN, "Parse fail")
         break;
     case 'H': //set operation type and thread ID
         if((gdbserver_state.cur_packet[1] != 'c' && gdbserver_state.cur_packet[1] != 'g') //operation types
                 || (gdbserver_state.cur_packet[2] != '0' && (gdbserver_state.cur_packet[2] != '-' || gdbserver_state.cur_packet[3] != '1'))){ //thread 0 or -1 only
-            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Thread fail");
             gdbserver_TransmitPacket("E1"); //reply error
             break;
         }
@@ -898,7 +920,7 @@ static int gdbserver_processPacket(void)
     case 'g': //request the register status
         if((*gdbserver_state.target->target_get_gdb_reg_string)(gdbserver_state.last_sent_packet)
                 == RET_FAILURE){
-            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Reg get fail");
             gdbserver_TransmitPacket("E0");
         }
         else{ gdbserver_TransmitPacket(gdbserver_state.last_sent_packet); } //send the register string
@@ -906,7 +928,7 @@ static int gdbserver_processPacket(void)
     case 'G': //write registers
         if((*gdbserver_state.target->target_put_gdb_reg_string)(&(gdbserver_state.cur_packet[1]))
                 == RET_FAILURE){
-            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Reg put fail");
             gdbserver_TransmitPacket("E0");
         }
         else {gdbserver_TransmitPacket("OK");}
@@ -914,40 +936,40 @@ static int gdbserver_processPacket(void)
     case 'm': //read memory
         if(gdbserver_readMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
             gdbserver_TransmitPacket("E00");
-            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Mem read fail");
         }
         break;
     case 'M': //write memory
         if(gdbserver_writeMemory(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
             gdbserver_TransmitPacket("E00");
-            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Mem write fail");
         }
         break;
     case 'X': //write memory (binary data)
         if(gdbserver_writeMemoryBinary(&(gdbserver_state.cur_packet[1])) == RET_FAILURE){
             gdbserver_TransmitPacket("E00");
-            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Bin write fail");
         }
         break;
     case 'c': //continue
         if(strlen(gdbserver_state.cur_packet) != 1){
             //there is an address to go to. unsupported
-            error_add(__FILE__,__LINE__,0);
+            ADD_ERROR(ERROR_UNKNOWN, "Continue fail");
             gdbserver_TransmitPacket("E0");
         }
         if(gdbserver_continue() == RET_FAILURE){
-            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Continue fail");
         }
         break;
     case 's': //single step
         if(strlen(gdbserver_state.cur_packet) != 1){
             //there is an address to go to. unsupported
-            error_add(__FILE__,__LINE__,0);
+            ADD_ERROR(ERROR_UNKNOWN, "Single step fail");
             gdbserver_TransmitPacket("E0");
         }
         if((*gdbserver_state.target->target_step)()
                 == RET_FAILURE){
-            error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Single step fail");
             gdbserver_TransmitPacket("E0");
         }
         gdbserver_state.halted = 1; //still halted
@@ -956,7 +978,7 @@ static int gdbserver_processPacket(void)
         gdbserver_TransmitPacket(reply);
         break;
     case 'F': //reply to File I/O
-        if(!gdbserver_state.fileio_state.fileio_waiting) error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+        if(!gdbserver_state.fileio_state.fileio_waiting) ADD_ERROR(ERROR_UNKNOWN, "FileIO fail");
         gdbserver_state.fileio_state.fileio_waiting = 0;
 
         int continue_exec = 1;
@@ -987,11 +1009,11 @@ static int gdbserver_processPacket(void)
             //handle first argument: return code.
             sscanf(&(gdbserver_state.cur_packet[arg_locations[0]+1]), "%X", (unsigned int*)&return_code);
             if(return_code == -1){ //error
-                if((*gdbserver_state.target->target_write_register)(0, (uint32_t)return_code) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                if((*gdbserver_state.target->target_write_register)(0, (uint32_t)return_code) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Reg write fail");}
             }
             else{ //number of bytes read
                 if((*gdbserver_state.target->target_write_register)(
-                        0, gdbserver_state.fileio_state.count - return_code) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                        0, gdbserver_state.fileio_state.count - return_code) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Reg write fail");}
             }
             break;
         default:
@@ -1001,8 +1023,8 @@ static int gdbserver_processPacket(void)
         }
         //increment the PC to pass the BKPT instruction for continuing.
         uint32_t pc;
-        if((*gdbserver_state.target->target_get_pc)(&pc) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-        if((*gdbserver_state.target->target_set_pc)(pc+2) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if((*gdbserver_state.target->target_get_pc)(&pc) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "PC read fail");}
+        if((*gdbserver_state.target->target_set_pc)(pc+2) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "PC write fail");}
 
         //handle 3rd argument if necessary: CTRL-C flag
         if((num_return_args >= 3) && (gdbserver_state.cur_packet[arg_locations[2]+1] == 'C')){
@@ -1018,7 +1040,7 @@ static int gdbserver_processPacket(void)
 
         break;
         case 'k': //kill request - we interpret this to be a system reset.
-            if((*gdbserver_state.target->target_reset)() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            if((*gdbserver_state.target->target_reset)() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Reset fail");}
             gdbserver_state.halted = 0; //assume we are no longer halted after reset
             break;
         default:
@@ -1047,7 +1069,7 @@ static int gdbserver_readMemory(char* argstring)
         }
         if(i>=29) {
             SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-            RETURN_ERROR(ERROR_UNKNOWN);
+            RETURN_ERROR(ERROR_UNKNOWN, "Parse fail");
         } //no comma found
     }
 
@@ -1057,12 +1079,12 @@ static int gdbserver_readMemory(char* argstring)
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Max access fail");
     }
 
     if((*gdbserver_state.target->target_mem_block_read)(addr, len, data) == RET_FAILURE) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");
     }
 
     //construct the answer string
@@ -1090,7 +1112,7 @@ static int gdbserver_doMemCRC(char* argstring)
             lenstring = &(argstring[i+1]);
             break;
         }
-        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN);} //no comma found
+        if(i>=29) {RETURN_ERROR(ERROR_UNKNOWN, "Parse fail");} //no comma found
     }
 
     uint32_t addr = strtol(addrstring, NULL, 16);
@@ -1104,7 +1126,7 @@ static int gdbserver_doMemCRC(char* argstring)
         if((*gdbserver_state.target->target_mem_block_read)(addr,
                 (GDBSERVER_MAX_BLOCK_ACCESS < bytes_left) ? GDBSERVER_MAX_BLOCK_ACCESS : bytes_left,
                         data)
-                        == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);} //get some bytes
+                        == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");} //get some bytes
         crc = crc32(data,
                 (GDBSERVER_MAX_BLOCK_ACCESS < bytes_left) ? GDBSERVER_MAX_BLOCK_ACCESS : bytes_left,
                         crc);
@@ -1140,7 +1162,7 @@ static int gdbserver_writeMemoryBinary(char* argstring)
         }
         if(i>=29) {
             SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-            RETURN_ERROR(ERROR_UNKNOWN);
+            RETURN_ERROR(ERROR_UNKNOWN, "Parse fail");
         } //no comma found
     }
     for(int i=0; i<30; i++){
@@ -1151,7 +1173,7 @@ static int gdbserver_writeMemoryBinary(char* argstring)
         }
         if(i>=29) {
             SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-            RETURN_ERROR(ERROR_UNKNOWN);
+            RETURN_ERROR(ERROR_UNKNOWN, "Parse fail");
         } //no colon found
     }
 
@@ -1161,7 +1183,7 @@ static int gdbserver_writeMemoryBinary(char* argstring)
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS){
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(len);
+        RETURN_ERROR(len, "GDBServer: Memory write over maximum length requested.");
     }
 
     //convert data
@@ -1171,7 +1193,7 @@ static int gdbserver_writeMemoryBinary(char* argstring)
 
     if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");
     }
 
     gdbserver_TransmitPacket("OK");
@@ -1194,7 +1216,7 @@ static int gdbserver_writeMemory(char* argstring)
         }
         if(i>=29) {
             SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-            RETURN_ERROR(ERROR_UNKNOWN);
+            RETURN_ERROR(ERROR_UNKNOWN, "Parse fail");
         } //no comma found
     }
     for(int i=0; i<30; i++){
@@ -1205,7 +1227,7 @@ static int gdbserver_writeMemory(char* argstring)
         }
         if(i>=29) {
             SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-            RETURN_ERROR(ERROR_UNKNOWN);
+            RETURN_ERROR(ERROR_UNKNOWN, "Parse fail");
         } //no colon found
     }
 
@@ -1215,7 +1237,7 @@ static int gdbserver_writeMemory(char* argstring)
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS){
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(len);
+        RETURN_ERROR(len, "GDBServer: Memory write over maximum length requested.");
     }
 
     //convert data
@@ -1227,7 +1249,7 @@ static int gdbserver_writeMemory(char* argstring)
 
     if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");
     }
 
     gdbserver_TransmitPacket("OK");
@@ -1235,14 +1257,20 @@ static int gdbserver_writeMemory(char* argstring)
     return RET_SUCCESS;
 }
 
-void gdbserver_loop_task(void* params)
+void Task_gdbserver(void* params)
 {
     for(;;){
-        if(!gdbserver_state.halted) gdbserver_pollTarget();
-        if(gdb_helpers_CharsAvaliable()){
-            gdbserver_processChar();
-            while(gdbserver_state.packet_phase != PACKET_NONE){
+        if(!gdbserver_state.target_connected){
+            gdbserver_connectTarget(&gdbserver_state.target_connected);
+            vTaskDelay(1000);
+        }
+        else {
+            if(!gdbserver_state.halted) gdbserver_pollTarget();
+            if(gdb_helpers_CharsAvaliable()){
                 gdbserver_processChar();
+                while(gdbserver_state.packet_phase != PACKET_NONE){
+                    gdbserver_processChar();
+                }
             }
         }
         //TODO: replace delay-loop polling by timer-based polling
@@ -1259,16 +1287,16 @@ static int gdbserver_pollTarget(void)
     int old_halted = gdbserver_state.halted;
     if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Halt fail");
     }
     if(old_halted && !gdbserver_state.halted) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Halt fail");
     }
     if(!old_halted && gdbserver_state.halted){
         if(gdbserver_handleHalt() == RET_FAILURE) {
             SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-            RETURN_ERROR(ERROR_UNKNOWN);
+            RETURN_ERROR(ERROR_UNKNOWN, "Halt handle fail");
         }
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
         char reply[4];
@@ -1277,7 +1305,7 @@ static int gdbserver_pollTarget(void)
             //semihosting is special: we don't report a stop to GDB, but instead
             //perform the semihosting action.
             if(gdbserver_handleSemiHosting() == RET_FAILURE){
-                error_add(__FILE__,__LINE__,ERROR_UNKNOWN);
+                ADD_ERROR(ERROR_UNKNOWN, "Semihost handle fail");
             }
             break;
         case STOPREASON_BREAKPOINT:
@@ -1290,7 +1318,7 @@ static int gdbserver_pollTarget(void)
             break;
         case STOPREASON_UNKNOWN:
         default:
-            ADD_ERROR(ERROR_UNKNOWN);
+            ADD_ERROR(ERROR_UNKNOWN, "Stop reason fail")
             break;
         }
     }
@@ -1320,7 +1348,7 @@ static int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t
     //we must wait for the previous file I/O to finish
     if(gdbserver_state.fileio_state.fileio_waiting) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "FileIO fail");
     }
 
     char msg[28];
@@ -1347,7 +1375,7 @@ static int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t 
     //we must wait for the previous file I/O to finish
     if(gdbserver_state.fileio_state.fileio_waiting) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "FileIO fail");
     }
 
     char msg[28];
@@ -1373,7 +1401,7 @@ static int gdbserver_continue(void)
 {
     if(!gdbserver_state.halted) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Halt fail");
     }
 
     if(!gdbserver_state.gave_info){
@@ -1385,7 +1413,7 @@ static int gdbserver_continue(void)
             == RET_FAILURE){
         gdbserver_TransmitPacket("E0");
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Continue fail");
     }
     gdbserver_state.halted = 0; //force halted off so polling starts
     SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_RUNNING);
@@ -1397,21 +1425,21 @@ static int gdbserver_handleSemiHosting(void)
 {
     //a semihosting operation is supposed to happen. Find out which one
     if((*gdbserver_state.target->target_querySemiHostOp)(
-            &(gdbserver_state.fileio_state.last_semihost_op)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(gdbserver_state.fileio_state.last_semihost_op)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Semihost query fail");}
 
     switch(gdbserver_state.fileio_state.last_semihost_op.opcode){
     case SEMIHOST_WRITECONSOLE:
         if(gdbserver_TransmitFileIOWrite(1,
                 (char*)gdbserver_state.fileio_state.last_semihost_op.param1,
                 gdbserver_state.fileio_state.last_semihost_op.param2)
-                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "FileIO fail");}
         break;
     case SEMIHOST_READCONSOLE:
         if(gdbserver_TransmitFileIORead(
                 gdbserver_state.fileio_state.last_semihost_op.param1,
                 (char*)gdbserver_state.fileio_state.last_semihost_op.param2,
                 gdbserver_state.fileio_state.last_semihost_op.param3)
-                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "FileIO fail");}
         break;
     default:
         //TODO: reply

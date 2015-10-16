@@ -30,6 +30,9 @@
 //initialize the JTAG interface to the CC3200 with ICEPICK.
 int cc3200_icepick_init(void);
 
+//de-initialize. After this, the module may be re-initialized using cc3200_icepick_init().
+int cc3200_icepick_deinit(void);
+
 //read IDCODE and ICEPICKCODE to get properties of target.
 int cc3200_icepick_detect(void);
 

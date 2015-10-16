@@ -184,6 +184,12 @@ struct cc3200_core_state_t cc3200_core_state = {
 };
 #pragma GCC diagnostic pop
 
+int cc3200_core_deinit(void)
+{
+    cc3200_core_state.initialized = 0;
+    return RET_SUCCESS;
+}
+
 int cc3200_core_init(void)
 {
     if(cc3200_core_state.initialized) {return RET_SUCCESS;}
@@ -195,20 +201,20 @@ int cc3200_core_init(void)
 int cc3200_core_detect(void)
 {
     cc3200_core_state.detected = 0;
-    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
-    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_IDR_ADDR, &cc3200_core_state.AP_IDR, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_core_state.AP_IDR != CC3200_CORE_AP_IDR) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_IDR_ADDR, &cc3200_core_state.AP_IDR, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP read fail");}
+    if(cc3200_core_state.AP_IDR != CC3200_CORE_AP_IDR) {RETURN_ERROR(ERROR_UNKNOWN, "ID reg fail");}
 
     uint32_t csw;
-    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_CSW_ADDR, &csw, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_CSW_ADDR, &csw, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP read fail");}
 
     if(cc3200_core_write_APreg(0, CC3200_CORE_AP_CSW_ADDR,
             (csw & ~(CC3200_CORE_CSW_SIZE_MASK)) | CC3200_CORE_CSW_SIZE_WORD //word-size accesses
             | (CC3200_CORE_CSW_ADDRINC_SINGLE) //auto-increment address (for pipelined accesses)
-            , 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            , 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP write fail");}
 
-    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_CSW_ADDR, &csw, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_CSW_ADDR, &csw, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP read fail");}
 
     cc3200_core_state.device_enabled = (csw & CC3200_CORE_CSW_DEVICEEN) ? 1 : 0;
     cc3200_core_state.secure_priv_enabled = (csw & CC3200_CORE_CSW_SPIDEN) ? 1 : 0;
@@ -216,11 +222,11 @@ int cc3200_core_detect(void)
     cc3200_core_state.access_size = (csw & CC3200_CORE_CSW_SIZE_MASK);
 
     uint32_t cfg;
-    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_CFG_ADDR, &cfg, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_CFG_ADDR, &cfg, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP read fail");}
 
     cc3200_core_state.is_big_endian = (cfg & 1);
 
-    if(!cc3200_core_state.device_enabled) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.device_enabled) {RETURN_ERROR(ERROR_UNKNOWN, "Deviceen fail");}
 
     cc3200_core_state.detected = 1;
     return RET_SUCCESS;
@@ -228,57 +234,57 @@ int cc3200_core_detect(void)
 
 int cc3200_core_read_APreg(uint8_t ap, uint8_t regaddr, uint32_t* result, uint8_t check_response)
 {
-    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
-    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_jtagdp_APACC_read(regaddr & 0xF, result, check_response) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP Bank sel fail");}
+    if(cc3200_jtagdp_APACC_read(regaddr & 0xF, result, check_response) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "APACC read fail");}
 
     return RET_SUCCESS;
 }
 
 int cc3200_core_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t value, uint8_t check_response)
 {
-    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
-    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_jtagdp_APACC_write(regaddr & 0xF, value, check_response) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP Bank sel fail");}
+    if(cc3200_jtagdp_APACC_write(regaddr & 0xF, value, check_response) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "APACC write fail");}
 
     return RET_SUCCESS;
 }
 
 int cc3200_core_pipeline_write_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, uint32_t *values)
 {
-    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
-    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_jtagdp_APACC_pipeline_write(regaddr & 0xF, len, values, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP Bank sel fail");}
+    if(cc3200_jtagdp_APACC_pipeline_write(regaddr & 0xF, len, values, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "APACC pipe write fail");}
 
     return RET_SUCCESS;
 }
 
 int cc3200_core_pipeline_read_APreg(uint8_t ap, uint8_t regaddr, uint32_t len, uint32_t *dst)
 {
-    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
-    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_jtagdp_APACC_pipeline_read(regaddr & 0xF, len, dst) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_jtagdp_selectAPBank(ap, (regaddr>>4) & 0xF) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP Bank sel fail");}
+    if(cc3200_jtagdp_APACC_pipeline_read(regaddr & 0xF, len, dst) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "APACC pipe read fail");}
 
     return RET_SUCCESS;
 }
 
 int cc3200_core_read_mem_addr(uint32_t addr, uint32_t* result)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
-    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,addr & 0xFFFFFFF0, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_core_read_APreg(0,CC3200_CORE_AP_BD0_ADDR + (addr&0xC),result, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,addr & 0xFFFFFFF0, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP write fail");}
+    if(cc3200_core_read_APreg(0,CC3200_CORE_AP_BD0_ADDR + (addr&0xC),result, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP read fail");}
 
     return RET_SUCCESS;
 }
 
 int cc3200_core_pipeline_write_mem_addr(uint32_t addr, uint32_t len, uint32_t* values)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
     uint32_t next_kb_boundary = (addr&0xFFFFFC00)+0x400;
     uint32_t chunk_words = (next_kb_boundary - addr)/4;
@@ -288,8 +294,8 @@ int cc3200_core_pipeline_write_mem_addr(uint32_t addr, uint32_t len, uint32_t* v
     if(words_left<chunk_words) { chunk_words = words_left; }
 
     while(cur_addr < (addr+len*4)){
-        if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,cur_addr, 0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-        if(cc3200_core_pipeline_write_APreg(0,CC3200_CORE_AP_DATARW_ADDR,chunk_words,cur_val) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,cur_addr, 0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP write fail");}
+        if(cc3200_core_pipeline_write_APreg(0,CC3200_CORE_AP_DATARW_ADDR,chunk_words,cur_val) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP pipe write fail");}
         cur_addr += chunk_words*4;
         next_kb_boundary += 0x400;
         words_left -= chunk_words;
@@ -303,7 +309,7 @@ int cc3200_core_pipeline_write_mem_addr(uint32_t addr, uint32_t len, uint32_t* v
 
 int cc3200_core_pipeline_read_mem_addr(uint32_t addr, uint32_t len, uint32_t *dst)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
     uint32_t next_kb_boundary = (addr&0xFFFFFC00)+0x400;
     uint32_t chunk_words = (next_kb_boundary - addr)/4;
@@ -313,8 +319,8 @@ int cc3200_core_pipeline_read_mem_addr(uint32_t addr, uint32_t len, uint32_t *ds
     if(words_left<chunk_words) { chunk_words = words_left; }
 
     while(cur_addr < (addr+len*4)){
-        if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,cur_addr, 0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-        if(cc3200_core_pipeline_read_APreg(0,CC3200_CORE_AP_DATARW_ADDR,chunk_words,cur_dst) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,cur_addr, 0) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP write fail");}
+        if(cc3200_core_pipeline_read_APreg(0,CC3200_CORE_AP_DATARW_ADDR,chunk_words,cur_dst) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP pipe read fail");}
         cur_addr += chunk_words*4;
         next_kb_boundary += 0x400;
         words_left -= chunk_words;
@@ -328,27 +334,27 @@ int cc3200_core_pipeline_read_mem_addr(uint32_t addr, uint32_t len, uint32_t *ds
 
 int cc3200_core_write_mem_addr(uint32_t addr, uint32_t value)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
-    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,addr & 0xFFFFFFF0, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_BD0_ADDR + (addr&0xC),value, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_TRANSFERADDR_ADDR,addr & 0xFFFFFFF0, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP write fail");}
+    if(cc3200_core_write_APreg(0,CC3200_CORE_AP_BD0_ADDR + (addr&0xC),value, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP write fail");}
 
     return RET_SUCCESS;
 }
 
 int cc3200_core_debug_halt(void)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
             (CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
             (CC3200_CORE_MEM_DHCSR_C_DEBUGEN) |
-            CC3200_CORE_MEM_DHCSR_C_HALT) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            CC3200_CORE_MEM_DHCSR_C_HALT) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     uint32_t temp;
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            &temp) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!(temp & CC3200_CORE_MEM_DHCSR_S_HALT)) {RETURN_ERROR(temp);}
+            &temp) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
+    if(!(temp & CC3200_CORE_MEM_DHCSR_S_HALT)) {RETURN_ERROR(temp, "CC3200: Halt fail");}
 
     cc3200_core_state.halted = 1;
 
@@ -357,28 +363,28 @@ int cc3200_core_debug_halt(void)
 
 int cc3200_core_debug_reset_halt(void)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected || !cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected || !cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
     uint32_t demcr;
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DEMCR,
             &demcr) == RET_FAILURE) {
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");
     }
     demcr |= CC3200_CORE_MEM_DEMCR_VC_CORERESET; //set reset debug trap flag
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DEMCR,
             demcr) == RET_FAILURE) {
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");
     }
 
     //request a local core reset
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_AIRCR,
             (CC3200_CORE_KEY_AIRCR << CC3200_CORE_MEM_AIRCR_KEY_OFFSET) |
-            (CC3200_CORE_MEM_AIRCR_VECTRESET)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            (CC3200_CORE_MEM_AIRCR_VECTRESET)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     uint8_t halted = 0;
     while(!halted){
         if(cc3200_core_poll_halted(&halted) == RET_FAILURE){
-            RETURN_ERROR(ERROR_UNKNOWN);
+            RETURN_ERROR(ERROR_UNKNOWN, "Halt poll fail");
         }
     }
 
@@ -387,18 +393,18 @@ int cc3200_core_debug_reset_halt(void)
 
 int cc3200_core_debug_step(void)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
+    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN, "Not halted fail");}
 
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
             (CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
             (CC3200_CORE_MEM_DHCSR_C_DEBUGEN) |
-            CC3200_CORE_MEM_DHCSR_C_STEP) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            CC3200_CORE_MEM_DHCSR_C_STEP) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     uint32_t temp;
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            &temp) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!(temp & CC3200_CORE_MEM_DHCSR_S_HALT)) {RETURN_ERROR(temp);}
+            &temp) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
+    if(!(temp & CC3200_CORE_MEM_DHCSR_S_HALT)) {RETURN_ERROR(temp, "Halt fail");}
 
     cc3200_core_state.halted = 1;
 
@@ -407,16 +413,16 @@ int cc3200_core_debug_step(void)
 
 int cc3200_core_debug_continue(void)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
+    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN, "Not halted fail");}
 
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
             (CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
-            (CC3200_CORE_MEM_DHCSR_C_DEBUGEN)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            (CC3200_CORE_MEM_DHCSR_C_DEBUGEN)) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     uint32_t temp;
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            &temp) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &temp) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
 
     cc3200_core_state.halted = 0;
 
@@ -425,10 +431,10 @@ int cc3200_core_debug_continue(void)
 
 int cc3200_core_debug_enable(void)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
 
     //get debug space base address
-    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_BASE_ADDR, &cc3200_core_state.debug_base_addr, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(cc3200_core_read_APreg(0, CC3200_CORE_AP_BASE_ADDR, &cc3200_core_state.debug_base_addr, 1) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "AP read fail");}
     cc3200_core_state.debug_entry_present = cc3200_core_state.debug_base_addr & 1;
     cc3200_core_state.debug_base_addr &= 0xFFFFF000;
 
@@ -436,23 +442,23 @@ int cc3200_core_debug_enable(void)
     uint32_t compID[4]; //temp
     uint32_t perID[5]; //temp
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_COMPID0,
-            &(compID[0])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(compID[0])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_COMPID1,
-            &(compID[1])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(compID[1])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_COMPID2,
-            &(compID[2])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(compID[2])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_COMPID3,
-            &(compID[3])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(compID[3])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_PERID0,
-            &(perID[0])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(perID[0])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_PERID1,
-            &(perID[1])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(perID[1])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_PERID2,
-            &(perID[2])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(perID[2])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_PERID3,
-            &(perID[3])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(perID[3])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_PERID4,
-            &(perID[4])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &(perID[4])) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
 
     cc3200_core_state.compID = compID[0] | compID[1]<<8 | compID[2]<<16 | compID[3]<<24;
     cc3200_core_state.perID = perID[0] | perID[1]<<8 | perID[2]<<16 | perID[3]<<24 | ((uint64_t)perID[4])<<32;
@@ -460,13 +466,13 @@ int cc3200_core_debug_enable(void)
 
 
     //check the component ID's
-    if(cc3200_core_state.compID != CC3200_CORE_COMPID) {RETURN_ERROR(cc3200_core_state.compID);}
-    if(cc3200_core_state.perID != CC3200_CORE_PERID) {RETURN_ERROR(cc3200_core_state.perID);}
+    if(cc3200_core_state.compID != CC3200_CORE_COMPID) {RETURN_ERROR(cc3200_core_state.compID, "compID mismatch.");}
+    if(cc3200_core_state.perID != CC3200_CORE_PERID) {RETURN_ERROR(cc3200_core_state.perID, "perID mismatch.");}
 
 
     //check whether system memory is accessible.
     if(cc3200_core_read_mem_addr(cc3200_core_state.debug_base_addr + CC3200_CORE_BASEOFFSET_MEMTYPE,
-            &cc3200_core_state.system_memory_present) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &cc3200_core_state.system_memory_present) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
 
 
 
@@ -478,7 +484,7 @@ int cc3200_core_debug_enable(void)
     cc3200_core_state.has_rom_table = 0;
 
     for(int i=0; i<1023; i++){
-        if(cc3200_core_read_mem_addr(cur_addr, &temp_entry) == RET_FAILURE) {RETURN_ERROR(cur_addr);}
+        if(cc3200_core_read_mem_addr(cur_addr, &temp_entry) == RET_FAILURE) {RETURN_ERROR(cur_addr, "ROM read fail");}
         cc3200_core_state.romtable[i].valid = temp_entry&1;
         if(!cc3200_core_state.romtable[i].valid || (temp_entry == 0)){
             LOG(LOG_VERBOSE, "[CC3200 CORE] Number of ROM table entries found: %d", i);
@@ -492,7 +498,7 @@ int cc3200_core_debug_enable(void)
     }
 
     //some checks
-    if(!cc3200_core_state.has_rom_table) {RETURN_ERROR(ERROR_UNKNOWN);} //cc3200 should have a ROM table.
+    if(!cc3200_core_state.has_rom_table) {RETURN_ERROR(ERROR_UNKNOWN, "ROM table fail");} //cc3200 should have a ROM table.
     if((cc3200_core_state.has_scs = cc3200_core_state.romtable[0].valid) != 0) {cc3200_core_state.scs_addr = cc3200_core_state.romtable[0].address;   }
     if((cc3200_core_state.has_dwt = cc3200_core_state.romtable[1].valid) != 0) {cc3200_core_state.dwt_addr = cc3200_core_state.romtable[1].address;   }
     if((cc3200_core_state.has_fpb = cc3200_core_state.romtable[2].valid) != 0) {cc3200_core_state.fpb_addr = cc3200_core_state.romtable[2].address;   }
@@ -503,18 +509,18 @@ int cc3200_core_debug_enable(void)
 
     //unlock debugging using the debug key
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
             (CC3200_CORE_KEY_DFSR << CC3200_CORE_MEM_DHCSR_DBGKEY_OFFSET) |
-            CC3200_CORE_MEM_DHCSR_C_DEBUGEN) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            CC3200_CORE_MEM_DHCSR_C_DEBUGEN) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     uint32_t temp;
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
             &temp) == RET_FAILURE){
-        RETURN_ERROR(ERROR_UNKNOWN);
+        RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");
     }
     if(!(temp & CC3200_CORE_MEM_DHCSR_C_DEBUGEN)){
-        RETURN_ERROR(temp);
+        RETURN_ERROR(temp, "Debug enable fail");
     }
 
     return RET_SUCCESS;
@@ -527,51 +533,51 @@ uint32_t cc3200_core_get_debug_base(void)
 
 int cc3200_core_read_reg(enum cc3200_reg_index reg, uint32_t* dst)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);} //must be halted to read a register
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "Not init fail");}
+    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN, "Not halt fail");} //must be halted to read a register
 
     uint32_t regnum = (uint32_t) reg;
 
     //select the register
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DCRSR,
-            regnum & CC3200_CORE_MEM_REGSEL_MASK) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            regnum & CC3200_CORE_MEM_REGSEL_MASK) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     //wait for the transaction to finish
     uint32_t dhcsr = 0;
     int i;
     for(i=0; i<100 && !(dhcsr & CC3200_CORE_MEM_DHCSR_S_REGRDY); i++){
         if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR, &dhcsr)
-                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     }
-    if(i>=100) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(i>=100) {RETURN_ERROR(ERROR_UNKNOWN, "Reg read fail");}
 
     //read the result out
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DCRDR, dst)
-            == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
 
     return RET_SUCCESS;
 }
 
 int cc3200_core_write_reg(enum cc3200_reg_index reg, uint32_t value)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);} //must be halted to access a register
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
+    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN, "Not halt fail");} //must be halted to access a register
 
     uint32_t regnum = (uint32_t) reg;
 
     //prepare the data
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DCRDR, value)
-            == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     //select the register and initialize the transaction
     if(cc3200_core_write_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DCRSR,
-            (regnum & CC3200_CORE_MEM_REGSEL_MASK) | CC3200_CORE_MEM_DCRSR_REGWNR) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            (regnum & CC3200_CORE_MEM_REGSEL_MASK) | CC3200_CORE_MEM_DCRSR_REGWNR) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");}
 
     //wait for the transaction to finish
     uint32_t dhcsr;
     for(int i=0; i<100; i++){
         if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR, &dhcsr)
-                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
         if((dhcsr & CC3200_CORE_MEM_DHCSR_S_REGRDY)) {return RET_SUCCESS;}
     }
 
@@ -580,16 +586,16 @@ int cc3200_core_write_reg(enum cc3200_reg_index reg, uint32_t value)
 
 int cc3200_core_set_pc(uint32_t addr)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
+    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN, "Not halt fail");}
 
     return cc3200_core_write_reg(CC3200_REG_PC, addr);
 }
 
 int cc3200_core_get_pc(uint32_t *dst)
 {
-    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_core_state.initialized || !cc3200_core_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "CC3200 not init");}
+    if(!cc3200_core_state.halted) {RETURN_ERROR(ERROR_UNKNOWN, "Not halt fail");}
 
     return cc3200_core_read_reg(CC3200_REG_PC, dst);
 }
@@ -598,7 +604,7 @@ int cc3200_core_poll_halted(uint8_t *result)
 {
     uint32_t temp;
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DHCSR,
-            &temp) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            &temp) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     if(temp & CC3200_CORE_MEM_DHCSR_S_HALT){
         *result = cc3200_core_state.halted = 1;
     }
@@ -612,6 +618,6 @@ int cc3200_core_poll_halted(uint8_t *result)
 int cc3200_core_getDFSR(uint32_t *result)
 {
     if(cc3200_core_read_mem_addr(cc3200_core_state.scs_addr + CC3200_CORE_MEM_DFSR,
-            result) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            result) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
     return RET_SUCCESS;
 }

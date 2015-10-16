@@ -192,7 +192,7 @@ static int RegisterSocketServices(void)
             NULL,
             &maclen,
             mac);
-    if(retval < 0) { RETURN_ERROR(retval); }
+    if(retval < 0) { RETURN_ERROR(retval, "Sock: Unable to get MAC address."); }
     sprintf(macstring, "[%02X:%02X:%02X:%02X:%02X:%02X]", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
     for(int i=0; i<NUM_SOCKETS; i++){
@@ -202,7 +202,7 @@ static int RegisterSocketServices(void)
                 (signed char*)socket_mdns_descriptions[i],
                 (unsigned char)strlen(socket_mdns_descriptions[i]),
                 socket_ports[i],MDNS_SERVICE_TTL,1);
-        if(retval < 0) { RETURN_ERROR(retval); }
+        if(retval < 0) { RETURN_ERROR(retval, "Sock: Unable to register mDNS."); }
     }
 
     LOG(LOG_IMPORTANT, "[WIFI] Services registered.");
@@ -213,10 +213,10 @@ static int RegisterSocketServices(void)
 int StartSockets(void)
 {
     for(int i=0; i<NUM_SOCKETS; i++){
-        if(StartSerialSock(socket_ports[i], i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(StartSerialSock(socket_ports[i], i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Socket start fail");}
     }
 
-    if(RegisterSocketServices() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(RegisterSocketServices() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Socket register fail");}
 
     return RET_SUCCESS;
 }
@@ -404,7 +404,7 @@ int UpdateSockets(void)
 
     for(int i=0; i<NUM_SOCKETS; i++){
         if(!GetSockConnected(i)){
-            if(SockAccept(i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            if(SockAccept(i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Socket accept fail");}
         }
         else{
             xSemaphoreTake(socket_state[i].buf_access, portMAX_DELAY);
@@ -418,7 +418,7 @@ int UpdateSockets(void)
                                 0);
                 if(retval<0) {
                     LogSLError(retval);
-                    xSemaphoreGive(socket_state[i].buf_access); RETURN_ERROR(retval);
+                    xSemaphoreGive(socket_state[i].buf_access); RETURN_ERROR(retval, "Socket send fail");
                 }
                 else{
                     socket_state[i].tx_buf_occupancy -= retval;
@@ -450,7 +450,7 @@ int UpdateSockets(void)
             }
             else if((retval<0) && (retval!=SL_EAGAIN)) {
                 LogSLError(retval);
-                xSemaphoreGive(socket_state[i].buf_access); RETURN_ERROR(retval);
+                xSemaphoreGive(socket_state[i].buf_access); RETURN_ERROR(retval, "Socket recv fail");
             }
 
 
@@ -468,14 +468,14 @@ static int ListenSerialSock(unsigned int slot)
     int retval = sl_Listen(socket_state[slot].parent_id, 0);
     if(retval < 0){
         sl_Close(socket_state[slot].parent_id);
-        RETURN_ERROR(retval);
+        RETURN_ERROR(retval, "Socket listen fail");
     }
 
     //set to non-blocking
     retval = sl_SetSockOpt(socket_state[slot].parent_id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
     if(retval < 0){
         sl_Close(socket_state[slot].parent_id);
-        RETURN_ERROR(retval);
+        RETURN_ERROR(retval, "Socket nonblock fail");
     }
 
     return RET_SUCCESS;
@@ -483,8 +483,8 @@ static int ListenSerialSock(unsigned int slot)
 
 int StartSerialSock(unsigned short port, unsigned int slot)
 {
-    if(!IS_IP_ACQUIRED(wifi_state.status)) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(IS_SOCK_STARTED(slot)) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!IS_IP_ACQUIRED(wifi_state.status)) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
+    if(IS_SOCK_STARTED(slot)) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     LOG(LOG_VERBOSE, "Starting socket %d on port %d...", slot, port);
 
@@ -495,12 +495,12 @@ int StartSerialSock(unsigned short port, unsigned int slot)
     socket_state[slot].addr_local.sin_addr.s_addr = 0;
 
     socket_state[slot].parent_id = sl_Socket(SL_AF_INET, SL_SOCK_STREAM, 0);
-    if(socket_state[slot].parent_id < 0) {RETURN_ERROR(socket_state[slot].parent_id);}
+    if(socket_state[slot].parent_id < 0) {RETURN_ERROR(socket_state[slot].parent_id, "Socket create fail");}
 
     retval = sl_Bind(socket_state[slot].parent_id, (SlSockAddr_t*)&(socket_state[slot].addr_local), sizeof(SlSockAddrIn_t));
     if(retval < 0){
         sl_Close(socket_state[slot].parent_id);
-        RETURN_ERROR(retval);
+        RETURN_ERROR(retval, "Socket bind fail");
     }
 
     retval = ListenSerialSock(slot);
@@ -513,7 +513,7 @@ int StartSerialSock(unsigned short port, unsigned int slot)
 
 int SockAccept(unsigned int slot)
 {
-    if(!IS_SOCK_STARTED(slot) || IS_SOCK_CONNECTED(slot)) {RETURN_ERROR(ERROR_UNKNOWN)};
+    if(!IS_SOCK_STARTED(slot) || IS_SOCK_CONNECTED(slot)) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail")};
 
     int addrsize = sizeof(SlSockAddrIn_t);
     int newid = sl_Accept(socket_state[slot].parent_id, (SlSockAddr_t*)&(socket_state[slot].addr_local), (SlSocklen_t *) &addrsize);
@@ -526,7 +526,7 @@ int SockAccept(unsigned int slot)
         int retval = sl_SetSockOpt(socket_state[slot].child_id, SL_SOL_SOCKET, SL_SO_NONBLOCKING, &nonblock, sizeof(nonblock));
         if(retval < 0){
             sl_Close(socket_state[slot].child_id);
-            RETURN_ERROR(retval);
+            RETURN_ERROR(retval, "Socket opt fail");
         }
         if(slot == SOCKET_LOG){
             mem_log_start_putchar(&TS_LogSocketPutChar);
@@ -537,7 +537,7 @@ int SockAccept(unsigned int slot)
         sl_Close(socket_state[slot].child_id);
         sl_Close(socket_state[slot].parent_id);
         socket_state[slot].status = 0;
-        RETURN_ERROR(newid);
+        RETURN_ERROR(newid, "Socket accept fail");
     }
 
     return RET_SUCCESS;
@@ -551,10 +551,10 @@ void Task_SocketHandler(void* params)
 {
     (void)params;
     //start socket server and accept a connection
-    if(StartSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+    if(StartSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN, "Socket start fail");}
 
     for(;;){
-        if(UpdateSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN);}
+        if(UpdateSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN, "Socket update fail");}
         vTaskDelay(1);
     }
 }

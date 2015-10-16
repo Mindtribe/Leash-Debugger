@@ -63,14 +63,14 @@ static int WifiConnectSTA();
 int WifiInit(unsigned int startAP)
 {
     wifi_state.startAP = startAP;
-    if(VStartSimpleLinkSpawnTask(SPAWNTASK_PRIORITY) < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(VStartSimpleLinkSpawnTask(SPAWNTASK_PRIORITY) < 0) {RETURN_ERROR(ERROR_UNKNOWN, "SL Spawn fail");}
 
     return RET_SUCCESS;
 }
 
 int WifiDeinit(void)
 {
-    if(WifiDeleteSpawnTask() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(WifiDeleteSpawnTask() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "SL Spawn fail");}
     return RET_SUCCESS;
 }
 
@@ -108,7 +108,7 @@ static int WifiDefaultSettings(void)
 
     //initialize the SimpleLink API
     retval = sl_Start(0,0,0);
-    if(retval < 0){RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval < 0){RETURN_ERROR(ERROR_UNKNOWN, "SL start fail");}
 
     //set device in station mode
     if(retval != ROLE_STA){
@@ -121,28 +121,28 @@ static int WifiDefaultSettings(void)
         }
         //change mode to Station
         retval = sl_WlanSetMode(ROLE_STA);
-        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN, "WLAN mode fail");}
         //restart
         retval = sl_Stop(0xFF);
-        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN, "SL stop fail");}
         retval = sl_Start(0,0,0);
-        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN, "SL start fail");}
 
-        if(retval != ROLE_STA) {RETURN_ERROR(ERROR_UNKNOWN);}
+        if(retval != ROLE_STA) {RETURN_ERROR(ERROR_UNKNOWN, "WLAN mode fail");}
     }
 
     //get SimpleLink version
     config = SL_DEVICE_GENERAL_VERSION;
     config_len = sizeof(SlVersionFull);
     retval = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &config, &config_len, (unsigned char*)&wifi_state.version);
-    if(retval<0) {RETURN_ERROR(retval);}
+    if(retval<0) {RETURN_ERROR(retval, "WIFI conf fail");}
 
     //default connection policy
     retval = sl_WlanPolicySet(SL_POLICY_CONNECTION,
             SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
             NULL,
             0);
-    if(retval<0) {RETURN_ERROR(retval);}
+    if(retval<0) {RETURN_ERROR(retval, "WIFI policy fail");}
 
     //disconnect
     retval = sl_WlanDisconnect();
@@ -156,27 +156,27 @@ static int WifiDefaultSettings(void)
 
     //Enable DHCP client
     retval = sl_NetCfgSet(SL_IPV4_STA_P2P_CL_DHCP_ENABLE,1,1,&val);
-    if(retval<0) {RETURN_ERROR(retval);}
+    if(retval<0) {RETURN_ERROR(retval, "WIFI conf fail");}
 
     //Disable scan policy
     config = SL_SCAN_POLICY(0);
     retval = sl_WlanPolicySet(SL_POLICY_SCAN, config, NULL, 0);
-    if(retval<0) {RETURN_ERROR(retval);}
+    if(retval<0) {RETURN_ERROR(retval, "WIFI policy fail");}
 
     //Set Tx power level for station mode
     //Number between 0-15, as dB offset from max power - 0 will set max power
     val = 0;
     retval = sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
             WLAN_GENERAL_PARAM_OPT_STA_TX_POWER, 1, (unsigned char *)&val);
-    if(retval<0){ RETURN_ERROR(retval); }
+    if(retval<0){ RETURN_ERROR(retval, "WIFI set fail"); }
 
     // Set PM policy to normal
     retval = sl_WlanPolicySet(SL_POLICY_PM , SL_NORMAL_POLICY, NULL, 0);
-    if(retval<0){ RETURN_ERROR(retval); }
+    if(retval<0){ RETURN_ERROR(retval, "WIFI policy fail"); }
 
     // Unregister mDNS services
     retval = sl_NetAppMDNSUnRegisterService(0, 0);
-    if(retval<0){ RETURN_ERROR(retval); }
+    if(retval<0){ RETURN_ERROR(retval, "mDNS fail"); }
 
     //Set mDNS device hostname
     char hostname[64];
@@ -187,23 +187,23 @@ static int WifiDefaultSettings(void)
             NULL,
             &maclen,
             mac);
-    if(retval < 0) { RETURN_ERROR(retval); }
+    if(retval < 0) { RETURN_ERROR(retval, "WIFI conf fail"); }
     snprintf(macstring, 20,  "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     snprintf(hostname, 64,  "WiFiDebugger%s", macstring);
     retval = sl_NetAppSet (SL_NET_APP_DEVICE_CONFIG_ID,
             NETAPP_SET_GET_DEV_CONF_OPT_DEVICE_URN,
             strlen((const char *)hostname),
             (unsigned char *) hostname);
-    if(retval<0) {RETURN_ERROR(retval);}
+    if(retval<0) {RETURN_ERROR(retval, "WIFI hostname fail");}
 
     // Remove  all 64 filters (8*8)
     memset(filter_mask.FilterIdMask, 0xFF, 8);
     retval = sl_WlanRxFilterSet(SL_REMOVE_RX_FILTER, (uint8_t*)&filter_mask,
             sizeof(_WlanRxFilterOperationCommandBuff_t));
-    if(retval<0){ RETURN_ERROR(retval); }
+    if(retval<0){ RETURN_ERROR(retval, "WIFI filter fail"); }
 
     retval = sl_Stop(SL_STOP_TIMEOUT);
-    if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(retval < 0) {RETURN_ERROR(ERROR_UNKNOWN, "SL stop fail");}
 
     wifi_state.status = 0;
 
@@ -214,14 +214,14 @@ static int WifiSetModeAP()
 {
     long retval;
 
-    if((retval = sl_WlanSetMode(ROLE_AP)) < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((retval = sl_WlanSetMode(ROLE_AP)) < 0) {RETURN_ERROR(ERROR_UNKNOWN, "WLAN mode fail");}
 
     if((retval = sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SSID, strlen(WIFI_AP_SSID), (unsigned char*)WIFI_AP_SSID)) < 0){
-        RETURN_ERROR((int)retval);
+        RETURN_ERROR((int)retval, "Wifi: AP Name Set Failed");
     }
 
     //restart
-    if((retval = sl_Stop(SL_STOP_TIMEOUT)) < 0) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if((retval = sl_Stop(SL_STOP_TIMEOUT)) < 0) {RETURN_ERROR(ERROR_UNKNOWN, "SL stop fail");}
     CLR_STATUS_BIT_ALL(wifi_state.status);
     return sl_Start(0,0,0);
 }
@@ -326,7 +326,7 @@ void Task_WifiScan(void* params)
 
     error:
     SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
-    TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    TASK_RETURN_ERROR(ERROR_UNKNOWN, "WIFI scan fail");
     return;
 }
 
@@ -369,7 +369,7 @@ void Task_WifiAP(void* params)
 
     error:
     SetLED(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
-    TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    TASK_RETURN_ERROR(ERROR_UNKNOWN, "WIFI AP fail");
     return;
 
     return;
@@ -410,6 +410,6 @@ void Task_WifiSTA(void* params)
 
     error:
     SetLED(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
-    TASK_RETURN_ERROR(ERROR_UNKNOWN);
+    TASK_RETURN_ERROR(ERROR_UNKNOWN, "WIFI Station fail");
     return;
 }

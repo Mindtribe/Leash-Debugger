@@ -79,11 +79,18 @@ struct cc3200_icepick_state_t cc3200_icepick_state = {
     }
 };
 
+int cc3200_icepick_deinit(void)
+{
+    cc3200_icepick_state.initialized = 0;
+
+    return RET_SUCCESS;
+}
+
 int cc3200_icepick_init(void)
 {
     if(cc3200_icepick_state.initialized) {return RET_SUCCESS;}
 
-    if(jtag_scan_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(jtag_scan_init() == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "JTAG init fail");}
 
     cc3200_icepick_state.initialized = 1;
     return RET_SUCCESS;
@@ -91,7 +98,7 @@ int cc3200_icepick_init(void)
 
 int cc3200_icepick_detect(void)
 {
-    if(!cc3200_icepick_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_icepick_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     jtag_scan_rstStateMachine();
 
@@ -107,7 +114,7 @@ int cc3200_icepick_detect(void)
     if( (cc3200_icepick_state.properties.IDCODE_MANUFACTURER != IDCODE_MANUFACTURER_TI) ||
             (cc3200_icepick_state.properties.IDCODE_PARTNUMBER != IDCODE_PARTNUMBER_CC3200) ){
         cc3200_icepick_state.detected = 0;
-        {RETURN_ERROR(ERROR_UNKNOWN);}
+        {RETURN_ERROR(ERROR_UNKNOWN, "Wrong IDCODE");}
     }
 
     jtag_scan_shiftIR(ICEPICK_IR_ICEPICKCODE, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE);
@@ -124,7 +131,7 @@ int cc3200_icepick_detect(void)
     //check for validity
     if(cc3200_icepick_state.properties.ICEPICKCODE_ICEPICKTYPE != ICEPICKCODE_TYPE_C){
         cc3200_icepick_state.detected = 0;
-        {RETURN_ERROR(ERROR_UNKNOWN);}
+        {RETURN_ERROR(ERROR_UNKNOWN, "Wrong ICEPICK type");}
     }
 
     cc3200_icepick_state.detected = 1;
@@ -133,12 +140,12 @@ int cc3200_icepick_detect(void)
 
 int cc3200_icepick_connect(void)
 {
-    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     //note: the reason for using these specific ICEPICK commands can be found in TI's ICEPICK type C technical reference manual.
 
-    if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(jtag_scan_shiftDR(0x89, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Shift IR fail");}
+    if(jtag_scan_shiftDR(0x89, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Shift DR fail");}
 
     cc3200_icepick_state.connected = 1;
     return RET_SUCCESS;
@@ -146,12 +153,12 @@ int cc3200_icepick_connect(void)
 
 int cc3200_icepick_disconnect(void)
 {
-    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     //note: the reason for using these specific ICEPICK commands can be found in TI's ICEPICK type C technical reference manual.
 
-    if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(jtag_scan_shiftDR(0x86, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(jtag_scan_shiftIR(ICEPICK_IR_CONNECT, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Shift IR fail");}
+    if(jtag_scan_shiftDR(0x86, 8, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Shift DR fail");}
 
     cc3200_icepick_state.connected = 0;
     return RET_SUCCESS;
@@ -159,7 +166,7 @@ int cc3200_icepick_disconnect(void)
 
 int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32_t value, enum jtag_state_scan toState)
 {
-    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     uint32_t data_reg = 0;
     data_reg |= rw ? (1<<31) : 0; //read/write bit
@@ -167,29 +174,29 @@ int cc3200_icepick_router_command(uint8_t rw, uint8_t block, uint8_t reg, uint32
     data_reg |= ((reg&0x0F) << 24);
     data_reg |= (value&0xFFFFFF);
 
-    if(jtag_scan_shiftIR(ICEPICK_IR_ROUTER, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
-    if(jtag_scan_shiftDR(data_reg, 32, toState) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(jtag_scan_shiftIR(ICEPICK_IR_ROUTER, ICEPICK_IR_LEN, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Shift IR fail");}
+    if(jtag_scan_shiftDR(data_reg, 32, toState) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Shift DR fail");}
 
     return RET_SUCCESS;
 }
 
 int cc3200_icepick_configure(void)
 {
-    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     //note: this sequence of commands has been derived from OpenOCD's config file for icepick type c (icepick.cfg).
     //another source for them was not (yet) found.
 
     //Set free-running TCK mode
     if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SCR_BLOCK, CC3200_ICEPICK_SCR_REG,
-            CC3200_ICEPICK_SCR_FREERUNNINGTCK, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            CC3200_ICEPICK_SCR_FREERUNNINGTCK, JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ROUTER cmd fail");}
 
     //enable power/clock of TAP
     if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SDTAP0_BLOCK, CC3200_ICEPICK_SDTAP0_REG,
             (CC3200_ICEPICK_SDTAP_FORCEACTIVE
                     | CC3200_ICEPICK_SDTAP_FORCEPOWER
                     | CC3200_ICEPICK_SDTAP_INHIBITSLEEP),
-                    JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                    JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ROUTER cmd fail");}
 
     //enable debug default mode
     if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SDTAP0_BLOCK, CC3200_ICEPICK_SDTAP0_REG,
@@ -197,7 +204,7 @@ int cc3200_icepick_configure(void)
                     | CC3200_ICEPICK_SDTAP_FORCEPOWER
                     | CC3200_ICEPICK_SDTAP_INHIBITSLEEP
                     | CC3200_ICEPICK_SDTAP_DEBUGCONNECT),
-                    JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                    JTAG_STATE_SCAN_PAUSE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ROUTER cmd fail");}
 
     //select TAP
     if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SDTAP0_BLOCK, CC3200_ICEPICK_SDTAP0_REG,
@@ -206,13 +213,13 @@ int cc3200_icepick_configure(void)
                     | CC3200_ICEPICK_SDTAP_INHIBITSLEEP
                     | CC3200_ICEPICK_SDTAP_DEBUGCONNECT
                     | CC3200_ICEPICK_SDTAP_TAPSELECT),
-                    JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+                    JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ROUTER cmd fail");}
 
     //Delay for at least three clock cycles in RUN/IDLE state as per ICEPICK spec.
     jtag_scan_doStateMachine(0, 5);
 
     //set ICEPICK TAP to BYPASS
-    if(jtag_scan_shiftIR(ICEPICK_IR_BYPASS, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(jtag_scan_shiftIR(ICEPICK_IR_BYPASS, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Shift IR fail");}
 
     cc3200_icepick_state.configured = 1;
     return RET_SUCCESS;
@@ -220,12 +227,12 @@ int cc3200_icepick_configure(void)
 
 int cc3200_icepick_warm_reset(void)
 {
-    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) {RETURN_ERROR(ERROR_UNKNOWN);}
+    if(!cc3200_icepick_state.initialized || !cc3200_icepick_state.detected || !cc3200_icepick_state.connected) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
     //Assert reset while keeping free-running TCK mode
     if(cc3200_icepick_router_command(1, CC3200_ICEPICK_SCR_BLOCK, CC3200_ICEPICK_SCR_REG,
             CC3200_ICEPICK_SCR_FREERUNNINGTCK | CC3200_ICEPICK_SCR_WARMRESET,
-            JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN);}
+            JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ROUTER cmd fail");}
 
     return RET_SUCCESS;
 }

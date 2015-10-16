@@ -10,12 +10,16 @@
 
 #include "freertos_hooks.h"
 #include "error.h"
+#include "led.h"
+#include "ui.h"
 
 void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
 {
     (void)xTask; //prevent unused warning
     (void)pcTaskName; //prevent unused warning
-    error_wait(__FILE__, __LINE__, ERROR_UNKNOWN);
+
+    SetLEDBlink(LED_RED, LED_BLINK_PATTERN_ERROR);
+    while(1);
 }
 
 void vApplicationTickHook( void )
@@ -30,6 +34,7 @@ void vApplicationIdleHook( void )
 
 void vApplicationMallocFailedHook()
 {
-    error_wait(__FILE__, __LINE__, ERROR_UNKNOWN);
+    SetLEDBlink(LED_RED, LED_BLINK_PATTERN_ERROR);
+    while(1);
 }
 

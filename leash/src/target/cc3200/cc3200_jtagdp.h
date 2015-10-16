@@ -27,6 +27,9 @@
 //1 bit with dont-care value for going through the 1-bit BYPASS DR of the ICEPICK).
 int cc3200_jtagdp_init(int num_precede_ir_bits, uint64_t precede_ir_bits, int num_precede_dr_bits, uint64_t precede_dr_bits);
 
+//de-initialize, after which this module may be re-initialized again.
+int cc3200_jtagdp_deinit(void);
+
 //attempt to detect the JTAGDP of the ARM core. Note that all ICEPICK configuration must have been done beforehand.
 int cc3200_jtagdp_detect(void);
 

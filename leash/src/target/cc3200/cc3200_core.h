@@ -22,6 +22,9 @@
 //initialize the core access port. Assumes cc3200_jtagdp is initialized already.
 int cc3200_core_init(void);
 
+//de-initialize the core access port. After this, cc3200_core_init() may be used to re-initialize.
+int cc3200_core_deinit(void);
+
 //detect the core access port. Assumes this module is initialized already.
 int cc3200_core_detect(void);
 

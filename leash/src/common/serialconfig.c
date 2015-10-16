@@ -140,7 +140,7 @@ static int get_profiles(struct wlan_profile_data_t *profiles)
 static int check_add_profile_space(char* ssid)
 {
     struct wlan_profile_data_t profiles[NUM_PROFILES_MAX];
-    if(get_profiles(profiles) == RET_FAILURE) { WAIT_ERROR(ERROR_UNKNOWN); }
+    if(get_profiles(profiles) == RET_FAILURE) { WAIT_ERROR(ERROR_UNKNOWN, "Profile get fail"); }
 
     for(short i=0; i<NUM_PROFILES_MAX; i++){
         if(strcmp(ssid, profiles[i].name) == 0){
@@ -274,7 +274,7 @@ static void sc_cmd_del(void)
         LOG(LOG_IMPORTANT, "[CONF] Deleting network '%s'...", serialconfig_state.temp_ssid);
 
         struct wlan_profile_data_t profiles[NUM_PROFILES_MAX];
-        if(get_profiles(profiles) == RET_FAILURE) { WAIT_ERROR(ERROR_UNKNOWN); }
+        if(get_profiles(profiles) == RET_FAILURE) { WAIT_ERROR(ERROR_UNKNOWN, "Profile get fail"); }
         unsigned int found = 0;
 
         for(int i=0; i<NUM_PROFILES_MAX; i++){
