@@ -1262,6 +1262,7 @@ void Task_gdbserver(void* params)
     for(;;){
         if(!gdbserver_state.target_connected){
             gdbserver_connectTarget(&gdbserver_state.target_connected);
+            vTaskDelay(1000);
         }
         else {
             if(!gdbserver_state.halted) gdbserver_pollTarget();
