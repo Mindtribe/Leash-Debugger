@@ -506,9 +506,11 @@ static int cc3200_flashfs_al_close(int fd)
 static int cc3200_rcmd(char* command, void (*pMsgCallback)(char*))
 {
     unsigned int temp_uint;
+    char temp_str[80];
     if(strcmp(command, "help") == 0){
         pMsgCallback("[CC3200] Supported custom commands:\n");
         pMsgCallback("[CC3200] help: show this message.\n");
+        pMsgCallback("[CC3200] checkcrc=X: check the CRC of the file X to the CRC remembered from the most recent upload.\n");
         pMsgCallback("[CC3200] setmaxalloc=X: set the maximum allocated filesystem size of subsequent created files to X (decimal).\n");
         pMsgCallback("[CC3200] flashmode=X: if X nonzero, enter flash mode. If X zero, exit flash mode.\n");
     }
@@ -531,6 +533,21 @@ static int cc3200_rcmd(char* command, void (*pMsgCallback)(char*))
         }
         else if((cc3200_state.flash_mode) && (!temp_uint)){
             pMsgCallback("[CC3200] Exiting flash mode not supported - please reset the device and debugger.\n");
+        }
+    }
+    else if(sscanf(command, "checkcrc=%s", temp_str) == 1){
+        unsigned int result;
+        int retval = cc3200_flashfs_checkcrc((unsigned char*)temp_str, &result);
+        if(retval != RET_SUCCESS){
+            pMsgCallback("[CC3200] CRC check failed.\n");
+        }
+        else{
+            if(result){
+                pMsgCallback("[CC3200] CRC Match.\n");
+            }
+            else{
+                pMsgCallback("[CC3200] CRC Mismatch!\n");
+            }
         }
     }
     else{

@@ -13,6 +13,7 @@
 
 int cc3200_flashfs_loadstub(void);
 int cc3200_flashfs_open(unsigned int AccessModeAndMaxSize, unsigned char* pFileName, long* pFileHandle);
+int cc3200_flashfs_checkcrc(unsigned char* pFileName, unsigned int *result);
 int cc3200_flashfs_close(int FileHdl);
 int cc3200_flashfs_read(int FileHdl, unsigned int Offset, unsigned char* pData, unsigned int Len);
 int cc3200_flashfs_write(int FileHdl, unsigned int Offset, unsigned char* pData, unsigned int Len);
