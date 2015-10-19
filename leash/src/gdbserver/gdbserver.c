@@ -222,7 +222,6 @@ static int gdbserver_vFileClose(char* argstring);
 static int gdbserver_vFileDelete(char* argstring);
 static int gdbserver_vFilePRead(char* argstring);
 static int gdbserver_vFilePWrite(char* argstring);
-static int gdbserver_getBinaryCount(void);
 static int gdbserver_connectTarget(int* targetConnected);
 
 static int gdbserver_connectTarget(int* targetConnected)
@@ -249,16 +248,6 @@ static int gdbserver_connectTarget(int* targetConnected)
     RETURN_ERROR(ERROR_UNKNOWN, "Target connect fail");
     return RET_FAILURE;
 
-}
-
-static int gdbserver_getBinaryCount(void)
-{
-    unsigned int addr,len;
-    if(sscanf(gdbserver_state.cur_packet, "X%X,%X:", &addr, &len) != 2){
-        RETURN_ERROR(ERROR_UNKNOWN, "Arg fail");
-    }
-    gdbserver_state.binary_rx_counter = len;
-    return RET_SUCCESS;
 }
 
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target)
@@ -407,7 +396,7 @@ static int gdbserver_processChar(void)
         if(c == '$') {gdbserver_reset_error(c, "GDBServer: $ during packet data");}
         else if(c == '#'){
             gdbserver_state.packet_phase = PACKET_CHECKSUM; //next state
-            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
+            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = '#'; //hash-terminate current packet
             gdbserver_state.cur_packet_len = gdbserver_state.cur_packet_index;
             gdbserver_state.cur_packet_index = 0;
         }
@@ -415,62 +404,6 @@ static int gdbserver_processChar(void)
         else {
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
             gdbserver_state.cur_checksum += (uint8_t)c;
-        }
-    }
-    else if(gdbserver_state.packet_phase == PACKET_DATA_FIRST_CHAR){
-        if(c == '$') {gdbserver_reset_error(c, "GDBServer: $ during packet data");}
-        else if(c == '#'){
-            gdbserver_state.packet_phase = PACKET_CHECKSUM; //next state
-            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
-            gdbserver_state.cur_packet_index = 0;
-        }
-        else {
-            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
-            gdbserver_state.cur_checksum += (uint8_t)c;
-            if(c=='X') {gdbserver_state.packet_phase = PACKET_HEADER_FOR_BINARY_DATA;}
-            else {gdbserver_state.packet_phase = PACKET_DATA;}
-        }
-    }
-    else if(gdbserver_state.packet_phase == PACKET_HEADER_FOR_BINARY_DATA){
-        if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(ERROR_UNKNOWN, "GDBServer: packet too long");} //too long
-        else {
-            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
-            gdbserver_state.cur_checksum += (uint8_t)c;
-            if(c==':'){
-                //header of binary packet is over - now find out how many binary characters will follow.
-                if(gdbserver_getBinaryCount() == RET_FAILURE) {gdbserver_reset_error(ERROR_UNKNOWN, "GDBServer: Cannot parse binary data header");}
-                gdbserver_state.packet_phase = PACKET_BINARY_DATA;
-            }
-        }
-    }
-    else if(gdbserver_state.packet_phase == PACKET_BINARY_DATA){
-        //receive a fixed number of binary characters
-        if(gdbserver_state.binary_rx_counter>0){
-            if(gdbserver_state.escapechar){
-                gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] =
-                        (char)(((unsigned char)c) ^ ((unsigned char)0x20));
-                gdbserver_state.binary_rx_counter--;
-                gdbserver_state.escapechar = 0;
-            }
-            else if(c == '}'){
-                gdbserver_state.escapechar = 1;
-            }
-            else{
-                gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
-                gdbserver_state.binary_rx_counter--;
-            }
-            gdbserver_state.cur_checksum += (uint8_t)c;
-        }
-        else{
-            //binary data should be over now
-            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //zero-terminate current packet
-            if(c!='#') {
-                gdbserver_reset_error(ERROR_UNKNOWN, "GDBServer: More binary data than specified in header");
-            }
-            else{
-                gdbserver_state.packet_phase = PACKET_CHECKSUM;
-                gdbserver_state.cur_packet_index = 0;
-            }
         }
     }
     else{ //all other cases
