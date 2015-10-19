@@ -103,6 +103,14 @@ const char* rx_buf_empty_names[3] = {
 
 struct socket_state_t socket_state[NUM_SOCKETS] = {{0}};
 
+int StartSerialSock(unsigned short port, unsigned int slot);
+int SockAccept(unsigned int slot);
+int GetSockConnected(unsigned int slot);
+int SocketPutChar(char c, unsigned int socket_slot);
+int SocketGetChar(char *c, unsigned int socket_slot);
+int SocketRXCharAvailable(unsigned int socket_slot);
+int SocketTXSpaceAvailable(unsigned int socket_slot);
+
 int TS_GetNumSockets(void){
     return NUM_SOCKETS;
 }

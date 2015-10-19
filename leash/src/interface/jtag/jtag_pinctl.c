@@ -45,7 +45,11 @@ static struct jtag_pinctl_state_t jtag_pinctl_state = {
 };
 
 //GPIO pin assignments for JTAG lines
-
+struct jtagPinLocation{
+    unsigned char ucPin;
+    unsigned int uiGPIOPort;
+    unsigned char ucGPIOPin;
+};
 struct jtagPinLocation RSTLocation = {
     .ucPin = 16,
     .uiGPIOPort = 0,
