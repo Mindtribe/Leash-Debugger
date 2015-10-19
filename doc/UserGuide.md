@@ -131,6 +131,7 @@ In Station Mode, Leash Debugger will try to connect to a WiFi network. For this,
 
 When a connection to the **Log port** is opened, you should see log information appearing on-screen. Now you can issue network configuration commands. the commands are as follows:
 
+* **mac**: Show the Leash Debugger device's MAC address.
 * **network**: Add a new network SSID profile or replace the one already stored by the same name.
 * **delete**: Delete a network SSID profile.
 * **deleteall**: Delete all network SSID profiles stored in the device.
@@ -184,6 +185,17 @@ where (localfile) is the filename on the host system, and (remotefile) the filen
 (gdb) monitor setmaxalloc=(bytes)
 ```
 where (bytes) is the number of bytes required, in decimal notation (don't include the parentheses). After using this command, all subsequent files which are opened for writing will use this maximum size.
+
+If you wish to verify that a flash file write was successful, there are multiple approaches:
+* You can read back the file you wrote using **remote get**, and do a binary comparison to the file you sent. If they are not equal, corruption has occurred somewhere.
+* An easier method is built in to Leash Debugger. As Leash Debugger receives data from GDB, it keeps an internal CRC value, which it remembers for the most recent file that was written. After writing is complete, Leash Debugger can request the flash stub to compute the CRC from flash memory, and compare it to this internal CRC.
+If they match, that means no corruption occurred between Leash Debugger and the target. It does not exclude corruption between GDB (the workstation) and Leash Debugger - but corruption occurring there is very unlikely, since the communication protocol between them has its own, separate CRC checking built in.
+To use this feature, right after transfering your file to the target, use the following command:
+
+```
+(gdb) monitor checkcrc=(filename)
+```
+Where (filename) is the exact same remote filesystem name of the file you just transfered (no parentheses). The response should be "CRC Match" - otherwise, try transfering the file again, making sure you choose the correct allocation size.
 
 ## Name Resolution using mDNS/Apple Bonjour
 
