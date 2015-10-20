@@ -404,7 +404,7 @@ static int gdbserver_processChar(void)
             gdbserver_state.cur_packet_len = gdbserver_state.cur_packet_index;
             gdbserver_state.cur_packet_index = 0;
         }
-        else if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(ERROR_UNKNOWN, "GDBServer: packet too long");} //too long
+        else if(gdbserver_state.cur_packet_index >= (GDBSERVER_MAX_PACKET_LEN_RX - 1)) {gdbserver_reset_error(ERROR_UNKNOWN, "packet too long");} //too long
         else {
             gdbserver_state.cur_packet[gdbserver_state.cur_packet_index++] = c;
             gdbserver_state.cur_checksum += (uint8_t)c;
@@ -421,7 +421,7 @@ static int gdbserver_processChar(void)
             gdbserver_state.awaiting_ack = 0; //confirm successful send
             break;
         case '$':
-            if(gdbserver_state.packet_phase != PACKET_NONE) { gdbserver_reset_error(__LINE__, ERROR_UNKNOWN); break; } //invalid character in packet
+            if(gdbserver_state.packet_phase != PACKET_NONE) { gdbserver_reset_error(ERROR_UNKNOWN, "$ during packet!"); break; } //invalid character in packet
             gdbserver_state.packet_phase = PACKET_DATA_FIRST_CHAR;
             gdbserver_state.cur_checksum = 0;
             gdbserver_state.cur_packet_index = 0;
@@ -450,7 +450,7 @@ static int gdbserver_processChar(void)
                 }
                 break;
             default:
-                gdbserver_reset_error(__LINE__, ERROR_UNKNOWN); //should never reach this point
+                gdbserver_reset_error(ERROR_UNKNOWN, "Unhandled char type"); //should never reach this point
             }
             break;
         }
