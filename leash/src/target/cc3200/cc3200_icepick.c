@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #include "jtag_scan.h"
+#include "jtag_pinctl.h"
 #include "misc_hal.h"
 #include "error.h"
 
@@ -216,7 +217,7 @@ int cc3200_icepick_configure(void)
                     JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "ROUTER cmd fail");}
 
     //Delay for at least three clock cycles in RUN/IDLE state as per ICEPICK spec.
-    jtag_scan_doStateMachine(0, 5);
+    jtag_pinctl_doStateMachine(0, 5);
 
     //set ICEPICK TAP to BYPASS
     if(jtag_scan_shiftIR(ICEPICK_IR_BYPASS, ICEPICK_IR_LEN, JTAG_STATE_SCAN_RUNIDLE) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Shift IR fail");}

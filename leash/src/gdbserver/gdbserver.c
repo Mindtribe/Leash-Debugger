@@ -34,7 +34,7 @@
 #include "led.h"
 #include "ui.h"
 
-#define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
+//#define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
 #define GDBSERVER_KEEP_CHARS_NUM 532 //for debugging: number of chars to keep track of
 
 #define GDBSERVER_MAX_PACKET_LEN_RX 532
