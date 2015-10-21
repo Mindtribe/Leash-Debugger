@@ -90,9 +90,19 @@ int cc3200_flashfs_loadstub(void)
     unsigned int stackptaddr;
     unsigned int entryaddr;
 
-    LOG(LOG_VERBOSE, "[CC3200] Starting flash stub load...");
+    LOG(LOG_VERBOSE, "[CC3200] Searching flash stub...");
 
-    retval = cc3200_flashfs_load(FLASHSTUB_FILENAME);
+    SlFsFileInfo_t stubinfo;
+    int i;
+    for(i=0; i<FLASHSTUB_NUM_NAMES; i++){
+        retval = sl_FsGetInfo((unsigned char*) FLASHSTUB_FILENAMES[i], 0, &stubinfo);
+        if(retval >= 0) { break; }
+    }
+    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN, "[CC3200] Not found!"); }
+
+    LOG(LOG_VERBOSE, "[CC3200] Will load '%s'.", FLASHSTUB_FILENAMES[i]);
+
+    retval = cc3200_flashfs_load((char*)FLASHSTUB_FILENAMES[i]);
     if(retval == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Stub load fail");}
 
     retval = cc3200_interface.target_mem_read(0x20004000, (uint32_t*)&stackptaddr);
