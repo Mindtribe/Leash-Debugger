@@ -41,8 +41,8 @@ The Launchpad development board boasts a 1MB external flash.
 Before flashing, make sure the SOP2 header is connected and reset the board.
 
 * Use Uniflash to format the flash to 1MB.
-* Program **Leash-Debugger/build/leash/leash/Debug/leash-leash-Debug.bin** onto the board as **/sys/mcuimg.bin**.
-* Program **Leash-Debugger/build/leasn/testapp/Debug/leash-testapp-Debug.bin** onto the board as **/cc3200_flashstub.bin**. *Note: this is not strictly required, but necessary if you ever want to use Leash Debugger to permanently flash CC3200 targets.*
+* Program **Leash-Debugger/build/leash/leash/Debug/leash-leash-Debug.bin** onto the board as **/sys/mcuimg.bin**. This file is already listed in the default configuration for Uniflash.
+* Program **Leash-Debugger/build/leasn/testapp/Debug/leash-testapp-Debug.bin** onto the board as **/cc3200_flashstub.bin**. You will have to use "add file" first to add a user file to the configuration, and rename it to **/cc3200_flashstub.bin**. *Note: this is not strictly required, but necessary if you ever want to use Leash Debugger to permanently flash CC3200 targets.*
 
 After the programming has completed, remove the SOP2 header and reset the board. After about a second, LEDs should start flashing on the board - this means Leash Debugger has booted up successfully. Most likely the orange and red LEDs will be flashing, indicating a JTAG error (no target is connected).
 
@@ -96,7 +96,7 @@ Now that all preparations are made, it's time to start an actual debugging sessi
 * In **Leash-Debugger/scripts/GDB/gdbinit_tcp**, replace the IP address by the IP address used on your Leash Debugger.
 * Execute the following command:
 ```
-Leash-Debugger/scripts/GDB/$  arm-none-eabi-gdb -x gdbinit_tcp ./../../build/leash/testapp/leash-testapp-Debug.elf
+Leash-Debugger/scripts/GDB/$  arm-none-eabi-gdb -x gdbinit_tcp ./../../build/leash/testapp/Debug/leash-testapp-Debug.elf
 ```
 Alternatively, you could use the **debug_testapp** script in **Leash-Debugger/scripts** to do this.
 * A GDB session will start. If all goes well, it will report successfully loading code onto the target, and break at testapp's **main()** function. After continuing execution (press 'c' and hit Return), you should get into a cycle where testapp asks you for input, then echoes it back onto the GDB terminal. From here, you can debug using GDB as you normally would.
@@ -122,7 +122,7 @@ Make sure to use the IP address your Leash Debugger can be found on. Adapting th
 ## 7 (Optional) Flashing your target using Leash Debugger
 
 Leash Debugger supports a limited set of features to access the target's external flash memory. **Note that to use these features, you must have programmed cc3200_flashstub.bin onto Leash Debugger's flash as outlined in step 2 of this guide.**
-It is recommended to read the [**User Guide**](UserGuide.md)'s section on Flash programming if you plan to use this feature. Here, an example is given programming a **blinky** program onto flash and booting it.
+It is recommended to read the [**User Guide**](UserGuide.md)'s section on Flash programming if you plan to use this feature. Here, an example is given programming the **testapp** program onto flash and booting it.
 
 * Navigate to **Leash-Debugger/scripts/GDB**.
 * Make sure the correct IP address is listed in the **gdbinit_tcp_donothing** script.
@@ -135,17 +135,17 @@ arm-none-eabi-gdb -x gdbinit_tcp_donothing
 * On the GDB command line, execute the following commands in order:
 ```
 (gdb) monitor flashmode=1
-(gdb) remote put ./../blinky/blinky.bin /sys/mcuimg.bin
+(gdb) remote put ./../../build/leash/testapp/Debug/leash-testapp-Debug.bin /sys/mcuimg.bin
 ```
 * You should receive confirmation at each of the above commands: first of entering flash mode, then of the successful file transfer.
 * (Optional) Read the written file back to another file for verification:
 ```
 (gdb) remote get /sys/mcuimg.bin ./readback.bin
 ```
-You can use a binary comparison tool to check whether readback.bin is equal to ./../blinky/blinky.bin. If they are equal, this confirms the file transfer succeeded without corruption.
+You can use a binary comparison tool to check whether readback.bin is equal to ./../../build/leash/testapp/Debug/leash-testapp-Debug.bin. If they are equal, this confirms the file transfer succeeded without corruption.
 * Disconnect or power off Leash Debugger.
 * Remove the SOP2 header from the target and reset it.
-* The blinky program should now execute from flash, blinking all LEDs one by one.
+* The green LED should turn on after some time, indicating testapp booted successfully.
 
 The flash filesystem has a tendency to get corrupted, making the system unbootable even if GDB reports the flashing was successful. This can happen due to writing files too large for the filesystem or writing too many files. If this happens, unfortunately, you will have to format the external flash using TI's Uniflash tool. Leash Debugger itself is not able to format the external flash.
 
