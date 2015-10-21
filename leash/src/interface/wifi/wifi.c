@@ -362,8 +362,8 @@ void Task_WifiAP(void* params)
     LOG(LOG_IMPORTANT, "AP Started - Ready for client.");
 
     //start socket handler.
-    xTaskCreate(Task_SocketHandler,
-            "Socket Handler",
+    xTaskCreate(Task_SocketServer,
+            "Socket Server",
             SOCKET_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
             0,
             SOCKET_TASK_PRIORITY,
@@ -401,8 +401,8 @@ void Task_WifiSTA(void* params)
     SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTED);
 
     //start socket handler.
-    xTaskCreate(Task_SocketHandler,
-            "Socket Handler",
+    xTaskCreate(Task_SocketServer,
+            "Socket Server",
             SOCKET_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
             0,
             SOCKET_TASK_PRIORITY,

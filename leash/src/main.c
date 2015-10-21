@@ -75,7 +75,7 @@ int main(void)
     unsigned int startAP = GetUserSwitch(AP_SWITCH); //If switch pressed, start in AP mode later
 
     InitSockets();
-    if(gdbserver_init(&TS_GDBSocketPutChar, &TS_GDBSocketGetChar, &TS_GDBSocketRXCharAvailable, &cc3200_interface)
+    if(gdbserver_init(&ExtThread_GDBSocketPutChar, &ExtThread_GDBSocketGetChar, &ExtThread_GDBSocketRXCharAvailable, &cc3200_interface)
             == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN, "GDB init fail");
     if(WifiInit(startAP) == RET_FAILURE) WAIT_ERROR(ERROR_UNKNOWN, "WIFI init fail");
 
