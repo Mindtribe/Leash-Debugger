@@ -1,4 +1,4 @@
-![...](/doc/images/leash_logo.png)
+<img src="/doc/images/leash_logo.png" width="300">
 
 # Leash Debugger
 
