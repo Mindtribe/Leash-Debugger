@@ -21,9 +21,6 @@
 #include "gdb_helpers.h"
 #include "mem.h"
 
-#define MAX_MEM_LOG_LEN (128)
-#define MAX_MEM_LOG_ENTRIES (((HEAP_SIZE)/4)/(MAX_MEM_LOG_LEN))
-
 #define USE_MEM_LOG
 #define USE_PUTCHAR_LOG
 
@@ -53,10 +50,12 @@ struct mem_log_state_t{
     int cur_entry;
     int overflow;
     struct mem_log_entry memlog[MAX_MEM_LOG_ENTRIES];
+    char mem_log_msg[MAX_MEM_LOG_ENTRIES][MAX_MEM_LOG_LEN];
     SemaphoreHandle_t mutex;
     void (*msg_putchar)(char);
     unsigned int initialized;
     QueueHandle_t log_msg_put_queue;
+    unsigned int stack_watermark;
 };
 
 static struct mem_log_state_t mem_log_state = {
@@ -66,7 +65,8 @@ static struct mem_log_state_t mem_log_state = {
     .mutex = 0,
     .msg_putchar = &default_putchar,
     .initialized = 0,
-    .log_msg_put_queue = 0
+    .log_msg_put_queue = 0,
+    .stack_watermark = 0xFFFFFFFF
 };
 
 struct mem_log_entry* mem_log_add(char* msg);
@@ -105,6 +105,7 @@ static void Task_PutLogMessages(void* params)
         }
         mem_log_state.msg_putchar('\n');
         entry->flags |= MEM_LOG_FLAG_FLUSHED;
+        mem_log_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
     }
     vTaskDelete(NULL);
 }
@@ -116,6 +117,10 @@ void mem_log_init(){
 
     mem_log_state.log_msg_put_queue = xQueueCreate(MAX_MEM_LOG_ENTRIES, sizeof(struct mem_log_entry*));
     vQueueAddToRegistry(mem_log_state.log_msg_put_queue ,"LogMsgPut");
+
+    for(int i=0; i<MAX_MEM_LOG_ENTRIES; i++){
+        mem_log_state.memlog[i].msg = (char*)&(mem_log_state.mem_log_msg[i]);
+    }
 
     xTaskCreate(Task_PutLogMessages,
             "Mem Log Put",
@@ -176,11 +181,8 @@ void mem_log_clear(void)
     xSemaphoreTake(mem_log_state.mutex, portMAX_DELAY);
 
     for(int i=0; i<MAX_MEM_LOG_ENTRIES; i++){
-        if(mem_log_state.memlog[i].flags & MEM_LOG_FLAG_VALID){
-            mem_log_state.memlog[i].flags = 0;
-            vPortFree(mem_log_state.memlog[i].msg);
-            mem_log_state.memlog[i].msg = NULL;
-        }
+        mem_log_state.memlog[i].flags = 0;
+        mem_log_state.memlog[i].msg[0] = 0;
     }
 
     mem_log_state.cur_entry = 0;
@@ -200,33 +202,35 @@ struct mem_log_entry* mem_log_add(char* msg)
     }
 
     if(mem_log_state.memlog[mem_log_state.cur_entry].flags & MEM_LOG_FLAG_VALID){
-        vPortFree(mem_log_state.memlog[mem_log_state.cur_entry].msg);
-        mem_log_state.memlog[mem_log_state.cur_entry].flags = 0;
-        if(mem_log_state.memlog[mem_log_state.cur_entry].flags & MEM_LOG_FLAG_FLUSHED){
+        if(!(mem_log_state.memlog[mem_log_state.cur_entry].flags & MEM_LOG_FLAG_FLUSHED)){
             mem_log_state.overflow = 1;
-            if(mem_log_state.msg_putchar != &default_putchar){
-                void* pEntry = (void*)&overflow_entry;
-                xQueueSend(
-                        mem_log_state.log_msg_put_queue,
-                        (void*)&pEntry,
-                        portMAX_DELAY);
-            }
+        }
+    }
+
+    if(mem_log_state.overflow == 1){
+        if(mem_log_state.msg_putchar != &default_putchar){
+            void* pEntry = (void*)&overflow_entry;
+            xQueueSend(
+                    mem_log_state.log_msg_put_queue,
+                    (void*)&pEntry,
+                    portMAX_DELAY);
+            mem_log_state.overflow = 0;
         }
     }
 
     int len = strlen(msg)+1;
     if(len>MAX_MEM_LOG_LEN){
         //truncate string with "(...)"
-        msg[MAX_MEM_LOG_LEN-1] = 0;
-        msg[MAX_MEM_LOG_LEN-2] = ')';
-        msg[MAX_MEM_LOG_LEN-3] = '.';
-        msg[MAX_MEM_LOG_LEN-4] = '.';
-        msg[MAX_MEM_LOG_LEN-5] = '.';
-        msg[MAX_MEM_LOG_LEN-6] = '(';
-        len = strlen(msg)+1;
+                msg[MAX_MEM_LOG_LEN-1] = 0;
+                msg[MAX_MEM_LOG_LEN-2] = ')';
+                msg[MAX_MEM_LOG_LEN-3] = '.';
+                msg[MAX_MEM_LOG_LEN-4] = '.';
+                msg[MAX_MEM_LOG_LEN-5] = '.';
+                msg[MAX_MEM_LOG_LEN-6] = '(';
+                len = strlen(msg)+1;
     }
 
-    mem_log_state.memlog[mem_log_state.cur_entry].msg = (char*)pvPortMalloc(len);
+    mem_log_state.memlog[mem_log_state.cur_entry].msg[0] = 0;
     strncpy(mem_log_state.memlog[mem_log_state.cur_entry].msg, msg, len);
     mem_log_state.memlog[mem_log_state.cur_entry].flags = MEM_LOG_FLAG_VALID;
 

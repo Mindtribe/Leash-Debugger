@@ -35,17 +35,19 @@
 #include "ui.h"
 
 //#define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
-#define GDBSERVER_KEEP_CHARS_NUM 532 //for debugging: number of chars to keep track of
+#define GDBSERVER_KEEP_CHARS_NUM 2096 //for debugging: number of chars to keep track of
 
-#define GDBSERVER_MAX_PACKET_LEN_RX 532
-#define GDBSERVER_MAX_PACKET_LEN_TX 532
-#define GDBSERVER_REPORT_MAX_PACKET_LEN 512
+#define GDBSERVER_MAX_PACKET_LEN_RX 2096
+#define GDBSERVER_MAX_PACKET_LEN_TX 2096
+#define GDBSERVER_REPORT_MAX_PACKET_LEN 2048
 
-#define GDBSERVER_MAX_BLOCK_ACCESS 512
+#define GDBSERVER_MAX_BLOCK_ACCESS 2048
 #define GDBSERVER_NUM_BKPT 256
 #define GDBSERVER_POLL_INTERVAL 100
 
 #define GDBSERVER_FILENAME_MAX 128
+
+static const char* gdbserv_log_prefix = "[GDBSERV] ";
 
 #ifdef GDBSERVER_KEEP_CHARS
 char lastChars[GDBSERVER_KEEP_CHARS_NUM];
@@ -173,6 +175,7 @@ struct gdbserver_state_t{
     unsigned int binary_rx_counter;
     unsigned int escapechar;
     unsigned int cur_packet_len;
+    unsigned int stack_watermark;
 };
 
 //disable GCC warning - braces bug 53119 in GCC
@@ -196,7 +199,8 @@ struct gdbserver_state_t gdbserver_state = {
     .escapechar = 0,
     .cur_checksum = 0,
     .cur_packet_len = 0,
-    .target_connected = 0
+    .target_connected = 0,
+    .stack_watermark = 0xFFFFFFFF
 };
 #pragma GCC diagnostic pop
 
@@ -296,7 +300,7 @@ static void gdbserver_TransmitPacket(char* packet_data)
     //update state
     gdbserver_state.awaiting_ack = 1;
     //log the packet
-    LOG(LOG_VERBOSE, "[GDBSERV] TX: %s" , packet_data);
+    LOG(LOG_VERBOSE, "%sTX: %s", gdbserv_log_prefix, packet_data);
 
     return;
 }
@@ -330,7 +334,7 @@ static void gdbserver_TransmitBinaryPacket(unsigned char* packet_data, unsigned 
     //update state
     gdbserver_state.awaiting_ack = 1;
     //log the packet
-    LOG(LOG_VERBOSE, "[GDBSERV] TX: (Binary data)");
+    LOG(LOG_VERBOSE, "%sTX: (Binary data)", gdbserv_log_prefix);
 
     return;
 }
@@ -361,7 +365,7 @@ static void gdbserver_TransmitDebugMsgPacket(char* packet_data)
     //gdbserver_state.awaiting_ack = 1;
 
     //log the packet
-    LOG(LOG_VERBOSE, "[GDBSERV] TX: %s" , packet_data);
+    LOG(LOG_VERBOSE, "%sTX: %s" , gdbserv_log_prefix, packet_data);
 
     return;
 }
@@ -751,7 +755,7 @@ static int gdbserver_processVCommand(char* commandString)
 {
     enum gdbserver_vcommand_name qname = gdbserver_getVCommandName(commandString);
     if(qname == VCOMMAND_ERROR){
-        LOG(LOG_VERBOSE, "[GDBSERV] Unknown 'v' packet: 'v%s'.", commandString);
+        LOG(LOG_VERBOSE, "%sUnknown 'v' packet: 'v%s'.", gdbserv_log_prefix, commandString);
         gdbserver_TransmitPacket("");
     }
 
@@ -804,7 +808,7 @@ static int gdbserver_processGeneralQuery(char* queryString)
 {
     enum gdbserver_query_name qname = gdbserver_getGeneralQueryName(queryString);
     if(qname == QUERY_ERROR){
-        LOG(LOG_VERBOSE, "[GDBSERV] Unknown 'q' packet: 'q%s'.", queryString);
+        LOG(LOG_VERBOSE, "%sUnknown 'q' packet: 'q%s'.", gdbserv_log_prefix, queryString);
         gdbserver_TransmitPacket("");
     }
 
@@ -842,7 +846,7 @@ static int gdbserver_processGeneralQuery(char* queryString)
             char rcmd[40];
             int retval;
             gdb_helpers_hexStrToStr(charbuf, rcmd);
-            LOG(LOG_VERBOSE, "[GDBSERV] Rcmd: %s", rcmd);
+            LOG(LOG_VERBOSE, "%sRcmd: %s", gdbserv_log_prefix, rcmd);
             retval = (*gdbserver_state.target->target_rcmd)(rcmd, &gdbserver_TransmitDebugMsgPacket);
             if(retval == RET_SUCCESS) {
                 gdbserver_TransmitPacket("OK");
@@ -891,10 +895,10 @@ static int gdbserver_processPacket(void)
             logmsg[i] = gdbserver_state.cur_packet[i];
         }
         logmsg[i] = 0;
-        LOG(LOG_VERBOSE, "[GDBSERV] RX: %s:(Binary data)", logmsg);
+        LOG(LOG_VERBOSE, "%sRX: %s:(Binary data)", gdbserv_log_prefix, logmsg);
     }
     else{
-        LOG(LOG_VERBOSE, "[GDBSERV] RX: %s" , gdbserver_state.cur_packet);
+        LOG(LOG_VERBOSE, "%sRX: %s", gdbserv_log_prefix , gdbserver_state.cur_packet);
     }
 
     //process the packet based on header character
@@ -1275,6 +1279,7 @@ void Task_gdbserver(void* params)
         }
         //TODO: replace delay-loop polling by timer-based polling
         vTaskDelay(1);
+        gdbserver_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
     };
 
     (void)params; //avoid unused warning

@@ -61,6 +61,9 @@ const char* socket_mdns_descriptions[NUM_SOCKETS] = {
 #define MDNS_SERVICE_NAME_MAXLEN 128
 #define MDNS_SERVICE_TTL 2000
 
+static const char* slerr_log_prefix = "[SLERR] ";
+static const char* wifi_log_prefix = "[WIFI] ";
+
 //Note: be aware that arguments to this macro get evaluated twice.
 //(so no MIN(x++, y++)!)
 #define MIN(X, Y) ((X) < (Y)) ? (X) : (Y)
@@ -125,28 +128,28 @@ const char* TS_GetSocketMDNSDesc(int socket){
 void LogSLError(int code){
     switch(code){
     case SL_ENSOCK:
-        LOG(LOG_IMPORTANT, "[SLERR] Maximum socket amount reached.");
+        LOG(LOG_IMPORTANT, "%sMaximum socks",slerr_log_prefix);
         break;
     case SL_ENOMEM:
-        LOG(LOG_IMPORTANT, "[SLERR] Out of memory.");
+        LOG(LOG_IMPORTANT, "%sNo mem",slerr_log_prefix);
         break;
     case SL_ENETUNREACH:
-        LOG(LOG_IMPORTANT, "[SLERR] Network unreachable.");
+        LOG(LOG_IMPORTANT, "%sNo netwrk",slerr_log_prefix);
         break;
     case SL_ENOBUFS:
-        LOG(LOG_IMPORTANT, "[SLERR] No buffers available.");
+        LOG(LOG_IMPORTANT, "%sNo buf",slerr_log_prefix);
         break;
     case SL_EISCONN:
-        LOG(LOG_IMPORTANT, "[SLERR] Already connected.");
+        LOG(LOG_IMPORTANT, "%sAlready conn",slerr_log_prefix);
         break;
     case SL_ENOTCONN:
-        LOG(LOG_IMPORTANT, "[SLERR] Not connected.");
+        LOG(LOG_IMPORTANT, "%sNot conn",slerr_log_prefix);
         break;
     case SL_ETIMEDOUT:
-        LOG(LOG_IMPORTANT, "[SLERR] Timeout.");
+        LOG(LOG_IMPORTANT, "%sTimeout",slerr_log_prefix);
         break;
     case SL_ECONNREFUSED:
-        LOG(LOG_IMPORTANT, "[SLERR] Connection refused.");
+        LOG(LOG_IMPORTANT, "%sRefused",slerr_log_prefix);
         break;
     default:
         break;
@@ -182,7 +185,7 @@ static int RegisterSocketServices(void)
     int retval;
     char servicename[MDNS_SERVICE_NAME_MAXLEN];
 
-    LOG(LOG_IMPORTANT, "[WIFI] Registering services on mDNS...");
+    LOG(LOG_IMPORTANT, "%sRegistering services on mDNS...",wifi_log_prefix);
 
     //retreive the device mac address
     char macstring[20];
@@ -205,7 +208,7 @@ static int RegisterSocketServices(void)
         if(retval < 0) { RETURN_ERROR(retval, "Sock: Unable to register mDNS."); }
     }
 
-    LOG(LOG_IMPORTANT, "[WIFI] Services registered.");
+    LOG(LOG_IMPORTANT, "%sServices registered.",wifi_log_prefix);
 
     return RET_SUCCESS;
 }

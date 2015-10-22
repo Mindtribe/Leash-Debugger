@@ -38,6 +38,8 @@
 
 #define NUM_PROFILES_MAX 7
 
+static const char* conf_log_prefix = "%s";
+
 enum command_statemachine{
     COMMAND = 0,
     ADDNEWORK_GET_SSID,
@@ -67,13 +69,15 @@ struct serialconfig_state_t{
     char temp_ssid[SSID_MAXLEN];
     unsigned int temp_type;
     char temp_key[KEY_MAXLEN];
+    unsigned int stack_watermark;
 };
 
 static struct serialconfig_state_t serialconfig_state = {
     .rxbuf = {0},
     .rxbuf_i = 0,
     .get_char = NULL,
-    .statenum = COMMAND
+    .statenum = COMMAND,
+    .stack_watermark = 0xFFFFFFFF
 };
 
 struct serialconfig_command_t{
@@ -144,7 +148,7 @@ static int check_add_profile_space(char* ssid)
 
     for(short i=0; i<NUM_PROFILES_MAX; i++){
         if(strcmp(ssid, profiles[i].name) == 0){
-            LOG(LOG_IMPORTANT, "[CONF] '%s' found in profiles, replacing it...", profiles[i].name);
+            LOG(LOG_IMPORTANT, "%s'%s' found in profiles, replacing it...", conf_log_prefix, profiles[i].name);
             return 1; //equal SSID found - add profile in SL API will automatically replace it
         }
     }
@@ -164,15 +168,15 @@ static void sc_cmd_add(void)
     switch(serialconfig_state.statenum){
     case COMMAND:
         serialconfig_state.statenum = ADDNEWORK_GET_SSID;
-        LOG(LOG_IMPORTANT, "[CONF] Please enter SSID:");
+        LOG(LOG_IMPORTANT, "%sPlease enter SSID:", conf_log_prefix);
         break;
     case ADDNEWORK_GET_SSID:
         if(strlen(serialconfig_state.rxbuf) > SSID_MAXLEN){
-            LOG(LOG_IMPORTANT, "[CONF] SSID too long.");
+            LOG(LOG_IMPORTANT, "%sSSID too long.", conf_log_prefix);
             serialconfig_state.statenum = COMMAND;
         }
         strcpy(serialconfig_state.temp_ssid, serialconfig_state.rxbuf);
-        LOG(LOG_IMPORTANT, "[CONF] Please enter security type (OPEN/WEP/WPA):");
+        LOG(LOG_IMPORTANT, "%sPlease enter security type (OPEN/WEP/WPA):", conf_log_prefix);
         serialconfig_state.statenum = GET_TYPE;
         break;
     case GET_TYPE:
@@ -188,17 +192,17 @@ static void sc_cmd_add(void)
             serialconfig_state.temp_type = SL_SEC_TYPE_WEP;
         }
         else{
-            LOG(LOG_IMPORTANT, "[CONF] Invalid security type.");
+            LOG(LOG_IMPORTANT, "%sInvalid security type.", conf_log_prefix);
             serialconfig_state.statenum = COMMAND;
             break;
         }
 
-        LOG(LOG_IMPORTANT, "[CONF] Please enter security key:")
+        LOG(LOG_IMPORTANT, "%sPlease enter security key:", conf_log_prefix)
         serialconfig_state.statenum = GET_KEY;
         break;
     case GET_KEY:
         if(strlen(serialconfig_state.rxbuf) > KEY_MAXLEN){
-            LOG(LOG_IMPORTANT, "[CONF] Key too long.");
+            LOG(LOG_IMPORTANT, "%sKey too long.", conf_log_prefix);
             serialconfig_state.statenum = COMMAND;
             break;
         }
@@ -211,7 +215,7 @@ static void sc_cmd_add(void)
         return;
     }
     if(commit){
-        LOG(LOG_IMPORTANT, "[CONF] Adding network '%s'...", serialconfig_state.temp_ssid);
+        LOG(LOG_IMPORTANT, "%sAdding network '%s'...", conf_log_prefix, serialconfig_state.temp_ssid);
 
         if(check_add_profile_space(serialconfig_state.temp_ssid)){
             SlSecParams_t secparams = {0};
@@ -227,14 +231,14 @@ static void sc_cmd_add(void)
                     0,
                     0);
             if(retval<0){
-                LOG(LOG_IMPORTANT, "[COMP] Add failed - unknown error.");
+                LOG(LOG_IMPORTANT, "%sAdd failed - unknown error.", conf_log_prefix);
             }
             else{
-                LOG(LOG_IMPORTANT, "[COMP] '%s' added.", serialconfig_state.temp_ssid);
+                LOG(LOG_IMPORTANT, "%s'%s' added.", conf_log_prefix, serialconfig_state.temp_ssid);
             }
         }
         else{
-            LOG(LOG_IMPORTANT, "[COMP] Failed: no room in profiles list.");
+            LOG(LOG_IMPORTANT, "%sFailed: no room in profiles list.", conf_log_prefix);
         }
     }
 }
@@ -245,15 +249,15 @@ static void sc_cmd_del(void)
     switch(serialconfig_state.statenum){
     case COMMAND:
         serialconfig_state.statenum = DELETENEWORK_GET_SSID;
-        LOG(LOG_IMPORTANT, "[CONF] Please enter SSID:");
+        LOG(LOG_IMPORTANT, "%sPlease enter SSID:", conf_log_prefix);
         break;
     case DELETENEWORK_GET_SSID:
         if(strlen(serialconfig_state.rxbuf) > SSID_MAXLEN){
-            LOG(LOG_IMPORTANT, "[CONF] SSID too long.");
+            LOG(LOG_IMPORTANT, "%sSSID too long.", conf_log_prefix);
             serialconfig_state.statenum = COMMAND;
         }
         strcpy(serialconfig_state.temp_ssid, serialconfig_state.rxbuf);
-        LOG(LOG_IMPORTANT, "[CONF] Delete '%s'? (Y/N)", serialconfig_state.temp_ssid);
+        LOG(LOG_IMPORTANT, "%sDelete '%s'? (Y/N)", conf_log_prefix, serialconfig_state.temp_ssid);
         serialconfig_state.statenum = DELETENETWORK_CONFIRM;
         break;
     case DELETENETWORK_CONFIRM:
@@ -262,7 +266,7 @@ static void sc_cmd_del(void)
             serialconfig_state.statenum = COMMAND;
         }
         else {
-            LOG(LOG_IMPORTANT, "[CONF] Cancelled.");
+            LOG(LOG_IMPORTANT, "%sCancelled.", conf_log_prefix);
             serialconfig_state.statenum = COMMAND;
         }
         break;
@@ -271,7 +275,7 @@ static void sc_cmd_del(void)
         return;
     }
     if(delete){
-        LOG(LOG_IMPORTANT, "[CONF] Deleting network '%s'...", serialconfig_state.temp_ssid);
+        LOG(LOG_IMPORTANT, "%sDeleting network '%s'...", conf_log_prefix, serialconfig_state.temp_ssid);
 
         struct wlan_profile_data_t profiles[NUM_PROFILES_MAX];
         if(get_profiles(profiles) == RET_FAILURE) { WAIT_ERROR(ERROR_UNKNOWN, "Profile get fail"); }
@@ -281,12 +285,12 @@ static void sc_cmd_del(void)
             if(strcmp(serialconfig_state.temp_ssid, profiles[i].name) == 0){
                 found = 1;
                 if(sl_WlanProfileDel(i) < 0){
-                    LOG(LOG_IMPORTANT, "[COMP] Delete failed - unknown error.");
+                    LOG(LOG_IMPORTANT, "%sDelete failed - unknown error.", conf_log_prefix);
                 }
-                else{ LOG(LOG_IMPORTANT, "[COMP] Deleted '%s'.", serialconfig_state.temp_ssid); }
+                else{ LOG(LOG_IMPORTANT, "%sDeleted '%s'.", conf_log_prefix, serialconfig_state.temp_ssid); }
             }
         }
-        if(!found){ LOG(LOG_IMPORTANT, "[COMP] Delete failed - not found."); }
+        if(!found){ LOG(LOG_IMPORTANT, "%sDelete failed - not found.", conf_log_prefix); }
     }
 }
 
@@ -296,14 +300,14 @@ static void sc_cmd_delall(void)
     switch(serialconfig_state.statenum){
     case COMMAND:
         serialconfig_state.statenum = CONFIRM_DEL_ALL;
-        LOG(LOG_IMPORTANT, "[CONF] Delete ALL networks? (Y/N)");
+        LOG(LOG_IMPORTANT, "%sDelete ALL networks? (Y/N)", conf_log_prefix);
         break;
     case CONFIRM_DEL_ALL:
         if(strcmp(serialconfig_state.rxbuf, "Y") == 0){
             deleteall = 1;
             serialconfig_state.statenum = COMMAND;
         }
-        else { LOG(LOG_IMPORTANT, "[CONF] Cancelled."); }
+        else { LOG(LOG_IMPORTANT, "%sCancelled.", conf_log_prefix); }
         break;
     default:
         serialconfig_state.statenum = COMMAND;
@@ -311,9 +315,9 @@ static void sc_cmd_delall(void)
     }
     if(deleteall){
         if(sl_WlanProfileDel(255) < 0){
-            LOG(LOG_IMPORTANT, "[COMP] Delete failed - unknown error.");
+            LOG(LOG_IMPORTANT, "%sDelete failed - unknown error.", conf_log_prefix);
         }
-        else { LOG(LOG_IMPORTANT, "[COMP] Deleted all networks."); }
+        else { LOG(LOG_IMPORTANT, "%sDeleted all networks.", conf_log_prefix); }
     }
 }
 
@@ -322,11 +326,11 @@ static void sc_cmd_list(void)
     struct wlan_profile_data_t profiles[NUM_PROFILES_MAX];
     switch(serialconfig_state.statenum){
     case COMMAND:
-        if(get_profiles(profiles) == RET_FAILURE) { LOG(LOG_IMPORTANT, "[CONF] List retrieval failed!");}
+        if(get_profiles(profiles) == RET_FAILURE) { LOG(LOG_IMPORTANT, "%sList retrieval failed!", conf_log_prefix);}
         else{
-            LOG(LOG_IMPORTANT, "[CONF] Networks stored:");
+            LOG(LOG_IMPORTANT, "%sNetworks stored:", conf_log_prefix);
             for(int i=0; i<NUM_PROFILES_MAX; i++){
-                if(profiles[i].valid){ LOG(LOG_IMPORTANT, "[CONF] '%s'", profiles[i].name); }
+                if(profiles[i].valid){ LOG(LOG_IMPORTANT, "%s'%s'", conf_log_prefix, profiles[i].name); }
             }
             serialconfig_state.statenum = COMMAND;
         }
@@ -341,9 +345,9 @@ static void sc_cmd_help(void)
 {
     switch(serialconfig_state.statenum){
     case COMMAND:
-        LOG(LOG_IMPORTANT, "[CONF] Supported commands:");
+        LOG(LOG_IMPORTANT, "%sSupported commands:", conf_log_prefix);
         for(unsigned int i=0; i<(sizeof(serialconfig_commands)/sizeof(struct serialconfig_command_t)); i++){
-            LOG(LOG_IMPORTANT, "[CONF] %s: %s", serialconfig_commands[i].cmdstring, serialconfig_commands[i].helpstring);
+            LOG(LOG_IMPORTANT, "%s%s: %s", conf_log_prefix, serialconfig_commands[i].cmdstring, serialconfig_commands[i].helpstring);
         }
         break;
     default:
@@ -355,6 +359,9 @@ static void sc_cmd_help(void)
 static void HandleMessage(void)
 {
     int cmd_found = 0;
+
+    serialconfig_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+
     switch(serialconfig_state.statenum){
     case COMMAND:
         for(unsigned int i=0; (cmd_found == 0) && (i<(sizeof(serialconfig_commands)/sizeof(struct serialconfig_command_t))); i++){
@@ -365,7 +372,7 @@ static void HandleMessage(void)
             }
         }
         if(cmd_found == 0){
-            LOG(LOG_IMPORTANT, "[CONF] Invalid command.");
+            LOG(LOG_IMPORTANT, "%sInvalid command.", conf_log_prefix);
         }
         break;
     default:
@@ -389,7 +396,7 @@ static void Task_SerialConfig(void* params)
             serialconfig_state.rxbuf_i = 0;
         }
         else if((serialconfig_state.rxbuf_i-1) >= SC_INPUT_MAXLEN){
-            LOG(LOG_IMPORTANT, "[CONF] Input too long, reset.");
+            LOG(LOG_IMPORTANT, "%sInput too long, reset.", conf_log_prefix);
             serialconfig_state.rxbuf_i = 0;
         }
     }

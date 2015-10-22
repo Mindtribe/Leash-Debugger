@@ -54,7 +54,8 @@ struct wifi_state_t wifi_state ={
     .status = 0,
     .client_IP = 0,
     .self_IP = 0,
-    .startAP = 0
+    .startAP = 0,
+    .stack_watermark = 0xFFFFFFFF
 };
 
 static int WifiSetModeAP();
@@ -320,6 +321,7 @@ void Task_WifiScan(void* params)
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiScan);
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
     vTaskDelete(NULL);
 
     return;
@@ -365,6 +367,7 @@ void Task_WifiAP(void* params)
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiAP);
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
     vTaskDelete(NULL);
 
     error:
@@ -403,7 +406,8 @@ void Task_WifiSTA(void* params)
             0);
 
     //exit (delete this task)
-    WifiTaskEndCallback(&Task_WifiAP);
+    WifiTaskEndCallback(&Task_WifiSTA);
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
     vTaskDelete(NULL);
 
     return;
