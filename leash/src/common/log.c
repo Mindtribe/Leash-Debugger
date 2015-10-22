@@ -37,6 +37,8 @@
 #define NULL 0
 #endif
 
+static void Task_PutLogMessages(void* params);
+
 static void default_putchar(char c)
 {
     (void)c;
@@ -54,7 +56,7 @@ struct mem_log_state_t{
     SemaphoreHandle_t mutex;
     void (*msg_putchar)(char);
     unsigned int initialized;
-    SemaphoreHandle_t transmit_mutex;
+    QueueHandle_t log_msg_put_queue;
 };
 
 static struct mem_log_state_t mem_log_state = {
@@ -64,63 +66,63 @@ static struct mem_log_state_t mem_log_state = {
     .mutex = 0,
     .msg_putchar = &default_putchar,
     .initialized = 0,
-    .transmit_mutex = 0
+    .log_msg_put_queue = 0
 };
 
 struct mem_log_entry* mem_log_add(char* msg);
 
-static void Task_Flush(void* params)
+static struct mem_log_entry overflow_entry = {
+    .msg = "Note: Mem log overflow. Message(s) dropped.",
+    .flags = 0
+};
+
+static void flush_log_messages(void)
 {
-    (void)params;
-
-    xSemaphoreTake(mem_log_state.transmit_mutex, portMAX_DELAY);
-
     //flush all past messages onto the log channel.
     for(int i=0; i<MAX_MEM_LOG_ENTRIES; i++){
         if((mem_log_state.memlog[i].flags & MEM_LOG_FLAG_VALID)
                 && !(mem_log_state.memlog[i].flags & MEM_LOG_FLAG_FLUSHED)){
-            for(char*c = mem_log_state.memlog[i].msg; *c!=0; c++){
-                mem_log_state.msg_putchar(*c);
-            }
-            mem_log_state.msg_putchar('\n');
+            void* pEntry = (void*) &(mem_log_state.memlog[i]);
+            xQueueSend(mem_log_state.log_msg_put_queue,
+                    (void*) &(pEntry),
+                    portMAX_DELAY);
             mem_log_state.memlog[i].flags |= MEM_LOG_FLAG_FLUSHED;
         }
     }
-
-    xSemaphoreGive(mem_log_state.transmit_mutex);
-    vTaskDelete(NULL);
 }
 
-static void Task_Put(void* params)
+static void Task_PutLogMessages(void* params)
 {
-    xSemaphoreTake(mem_log_state.transmit_mutex, portMAX_DELAY);
-    struct mem_log_entry *entry = (struct mem_log_entry*)params;
-    for(char*c = entry->msg; *c!=0; c++){
-        (*mem_log_state.msg_putchar)(*c);
+    (void)params;
+    struct mem_log_entry *entry;
+    for(;;){
+        xQueueReceive(
+                mem_log_state.log_msg_put_queue,
+                (void*) (&entry),
+                portMAX_DELAY);
+        for(char*c = entry->msg; *c!=0; c++){
+            (*mem_log_state.msg_putchar)(*c);
+        }
+        mem_log_state.msg_putchar('\n');
+        entry->flags |= MEM_LOG_FLAG_FLUSHED;
     }
-    mem_log_state.msg_putchar('\n');
-    entry->flags |= MEM_LOG_FLAG_FLUSHED;
-    xSemaphoreGive(mem_log_state.transmit_mutex);
-    vTaskDelete(NULL);
-}
-
-static void Task_PutConst(void* params)
-{
-    xSemaphoreTake(mem_log_state.transmit_mutex, portMAX_DELAY);
-    for(char*c = (char*)params; *c!=0; c++){
-        mem_log_state.msg_putchar(*c);
-    }
-    mem_log_state.msg_putchar('\n');
-    xSemaphoreGive(mem_log_state.transmit_mutex);
     vTaskDelete(NULL);
 }
 
 void mem_log_init(){
     mem_log_state.mutex = xSemaphoreCreateMutex();
     vQueueAddToRegistry(mem_log_state.mutex ,"Memlog mutex");
-    mem_log_state.transmit_mutex = xSemaphoreCreateMutex();
-    vQueueAddToRegistry(mem_log_state.transmit_mutex, "Memlog Tx mutex");
     mem_log_state.initialized = 1;
+
+    mem_log_state.log_msg_put_queue = xQueueCreate(MAX_MEM_LOG_ENTRIES, sizeof(struct mem_log_entry*));
+    vQueueAddToRegistry(mem_log_state.log_msg_put_queue ,"LogMsgPut");
+
+    xTaskCreate(Task_PutLogMessages,
+            "Mem Log Put",
+            MEMLOG_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
+            0,
+            MEMLOG_TASK_PRIORITY,
+            0);
 }
 
 void log_put(char* msg)
@@ -131,13 +133,12 @@ void log_put(char* msg)
     //add it to the memory log
     struct mem_log_entry* entry = mem_log_add(msg);
 #ifdef USE_PUTCHAR_LOG
-    if(mem_log_state.msg_putchar != &default_putchar){
-        xTaskCreate(Task_Put,
-                "Mem Log Tx",
-                MEMLOG_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
-                (void*)entry,
-                MEMLOG_TASK_PRIORITY,
-                0);
+    if(mem_log_state.msg_putchar != default_putchar){
+        void* pEntry = (void*)entry;
+        xQueueSend(
+                mem_log_state.log_msg_put_queue,
+                (void*)&pEntry,
+                portMAX_DELAY);
     }
 #endif //USE_PUTCHAR_LOG
 #endif //USE_MEM_LOG
@@ -151,12 +152,7 @@ void mem_log_start_putchar(void (*putchar)(char))
     mem_log_state.msg_putchar = putchar;
 
 #ifdef USE_PUTCHAR_LOG
-    xTaskCreate(Task_Flush,
-            "Mem Log Flush",
-            MEMLOG_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
-            0,
-            MEMLOG_TASK_PRIORITY,
-            0);
+    flush_log_messages();
 #endif
 
     xSemaphoreGive(mem_log_state.mutex);
@@ -209,12 +205,11 @@ struct mem_log_entry* mem_log_add(char* msg)
         if(mem_log_state.memlog[mem_log_state.cur_entry].flags & MEM_LOG_FLAG_FLUSHED){
             mem_log_state.overflow = 1;
             if(mem_log_state.msg_putchar != &default_putchar){
-                xTaskCreate(Task_PutConst,
-                        "Mem Log TxC",
-                        MEMLOG_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
-                        (void*)"Note: mem log overflow. Log messages may have been missed.",
-                        MEMLOG_TASK_PRIORITY,
-                        0);
+                void* pEntry = (void*)&overflow_entry;
+                xQueueSend(
+                        mem_log_state.log_msg_put_queue,
+                        (void*)&pEntry,
+                        portMAX_DELAY);
             }
         }
     }

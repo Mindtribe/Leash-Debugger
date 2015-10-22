@@ -13,9 +13,9 @@
 
 #include "simplelink.h"
 
-#define WIFI_TASK_STACK_SIZE 2048
-#define WIFI_TASK_PRIORITY 4
-#define WIFI_NUM_NETWORKS 20
+#define WIFI_TASK_STACK_SIZE (2048)
+#define WIFI_TASK_PRIORITY (4)
+#define WIFI_NUM_NETWORKS (20)
 
 //struct that holds parameters of an AP to connect to
 //in station mode.

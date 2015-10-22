@@ -17,8 +17,8 @@
 
 #include <stdint.h>
 
-#define GDBSERVER_TASK_STACK_SIZE 2048
-#define GDBSERVER_TASK_PRIORITY 5
+#define GDBSERVER_TASK_STACK_SIZE (2048)
+#define GDBSERVER_TASK_PRIORITY (5)
 
 struct target_al_interface;
 

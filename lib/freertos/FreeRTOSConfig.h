@@ -92,7 +92,7 @@
 #define configUSE_CO_ROUTINES 			0
 #define configUSE_MUTEXES				1
 #define configUSE_RECURSIVE_MUTEXES		0
-#define configCHECK_FOR_STACK_OVERFLOW	1
+#define configCHECK_FOR_STACK_OVERFLOW	2 //2 is slower but more accurate than 1 (uses stack painting)
 #define configUSE_QUEUE_SETS			1
 #define configUSE_COUNTING_SEMAPHORES	1
 #define configUSE_ALTERNATIVE_API		1
