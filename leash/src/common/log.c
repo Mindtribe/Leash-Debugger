@@ -222,13 +222,13 @@ struct mem_log_entry* mem_log_add(char* msg)
     int len = strlen(msg)+1;
     if(len>MAX_MEM_LOG_LEN){
         //truncate string with "(...)"
-                msg[MAX_MEM_LOG_LEN-1] = 0;
-                msg[MAX_MEM_LOG_LEN-2] = ')';
-                msg[MAX_MEM_LOG_LEN-3] = '.';
-                msg[MAX_MEM_LOG_LEN-4] = '.';
-                msg[MAX_MEM_LOG_LEN-5] = '.';
-                msg[MAX_MEM_LOG_LEN-6] = '(';
-                len = strlen(msg)+1;
+        msg[MAX_MEM_LOG_LEN-1] = 0;
+        msg[MAX_MEM_LOG_LEN-2] = ')';
+        msg[MAX_MEM_LOG_LEN-3] = '.';
+        msg[MAX_MEM_LOG_LEN-4] = '.';
+        msg[MAX_MEM_LOG_LEN-5] = '.';
+        msg[MAX_MEM_LOG_LEN-6] = '(';
+        len = strlen(msg)+1;
     }
 
     mem_log_state.memlog[mem_log_state.cur_entry].msg[0] = 0;
