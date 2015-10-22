@@ -38,13 +38,11 @@ enum jtag_state{
 //state struct
 struct jtag_scan_state_t{
     unsigned char initialized;
-    uint64_t shift_out;
     enum jtag_state cur_jtag_state;
 };
 //instantiate state struct
 struct jtag_scan_state_t jtag_scan_state = {
     .initialized = 0,
-    .shift_out = 0,
     .cur_jtag_state = 0
 };
 
@@ -101,17 +99,15 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 {
     if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
-    jtag_scan_state.shift_out = 0;
-
     //Get to Shift-DR state
     switch(jtag_scan_state.cur_jtag_state){
     case JTAG_STATE_RTI:
     case JTAG_STATE_TLR:
-        jtag_scan_doStateMachine(0x02, 4);
+        jtag_pinctl_doStateMachine(0x02, 4);
         break;
     case JTAG_STATE_PAUSEDR:
     case JTAG_STATE_PAUSEIR:
-        jtag_scan_doStateMachine(0x07, 5);
+        jtag_pinctl_doStateMachine(0x07, 5);
         break;
     default:
         RETURN_ERROR(ERROR_UNKNOWN, "JTAG state fail"); //invalid state
@@ -119,17 +115,17 @@ int jtag_scan_shiftDR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     }
 
     //do shifting
-    jtag_scan_doData(data, len);
+    jtag_pinctl_doData(data, len);
 
     //get back to Run-Test/Idle state from current state (Exit-DR)
     //Get to Shift-DR state
     switch(toState){
     case JTAG_STATE_SCAN_RUNIDLE:
-        jtag_scan_doStateMachine(0x01, 2);
+        jtag_pinctl_doStateMachine(0x01, 2);
         jtag_scan_state.cur_jtag_state = JTAG_STATE_RTI;
         break;
     case JTAG_STATE_SCAN_PAUSE:
-        jtag_scan_doStateMachine(0x00, 1);
+        jtag_pinctl_doStateMachine(0x00, 1);
         jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEDR;
         break;
     default:
@@ -144,17 +140,15 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
 {
     if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
 
-    jtag_scan_state.shift_out = 0;
-
     //Get to Shift-IR state
     switch(jtag_scan_state.cur_jtag_state){
     case JTAG_STATE_RTI:
     case JTAG_STATE_TLR:
-        jtag_scan_doStateMachine(0x06, 5);
+        jtag_pinctl_doStateMachine(0x06, 5);
         break;
     case JTAG_STATE_PAUSEDR:
     case JTAG_STATE_PAUSEIR:
-        jtag_scan_doStateMachine(0x0F, 6);
+        jtag_pinctl_doStateMachine(0x0F, 6);
         break;
     default:
         RETURN_ERROR(ERROR_UNKNOWN, "JTAG state fail"); //invalid state
@@ -162,17 +156,17 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     }
 
     //do shifting
-    jtag_scan_doData(data, len);
+    jtag_pinctl_doData(data, len);
 
     //get back to Run-Test/Idle state from current state (Exit-IR)
     //Get to Shift-DR state
     switch(toState){
     case JTAG_STATE_SCAN_RUNIDLE:
-        jtag_scan_doStateMachine(0x01, 2);
+        jtag_pinctl_doStateMachine(0x01, 2);
         jtag_scan_state.cur_jtag_state = JTAG_STATE_RTI;
         break;
     case JTAG_STATE_SCAN_PAUSE:
-        jtag_scan_doStateMachine(0x00, 1);
+        jtag_pinctl_doStateMachine(0x00, 1);
         jtag_scan_state.cur_jtag_state = JTAG_STATE_PAUSEIR;
         break;
     default:
@@ -183,40 +177,7 @@ int jtag_scan_shiftIR(uint64_t data, uint32_t len, enum jtag_state_scan toState)
     return RET_SUCCESS;
 }
 
-int jtag_scan_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
-{
-    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
-    if(num_clk>=32) {RETURN_ERROR(ERROR_UNKNOWN, "Arg fail");}
-
-    for(unsigned int i=0; i<num_clk; i++){
-        uint8_t dummy;
-        jtag_pinctl_doClock((tms_bits_lsb_first&(1<<i)) ? 1:0, 0, &dummy);
-    }
-
-    return RET_SUCCESS;
-}
-
-int jtag_scan_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
-{
-    if(!jtag_scan_state.initialized) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
-    if(num_clk>64) {RETURN_ERROR(ERROR_UNKNOWN, "Arg fail");}
-
-    jtag_scan_state.shift_out = 0;
-
-    for(unsigned int i=0; i<(num_clk-1); i++){
-        uint8_t tdo;
-        jtag_pinctl_doClock(0, (tdi_bits_lsb_first & 1), &tdo);
-        tdi_bits_lsb_first >>= 1;
-        if(tdo) jtag_scan_state.shift_out |= (((uint64_t)1)<<((uint64_t)i));
-    }
-    //last bit with TMS high
-    uint8_t dummy;
-    jtag_pinctl_doClock(1, (tdi_bits_lsb_first & 1), &dummy);
-
-    return RET_SUCCESS;
-}
-
 uint64_t jtag_scan_getShiftOut(void)
 {
-    return jtag_scan_state.shift_out;
+    return jtag_pinctl_scanout;
 }

@@ -33,6 +33,10 @@
 #define RST_REG 0x40006004
 #define RST_VAL 0x01
 
+//result of most recent scan - can be accessed
+//by other modules
+uint64_t jtag_pinctl_scanout = 0;
+
 //state struct
 struct jtag_pinctl_state_t{
     unsigned char initialized;
@@ -131,10 +135,47 @@ void jtag_pinctl_doClock(uint8_t TMS, uint8_t TDI, uint8_t* TDO_result)
     JTAG_SET_PIN(TDI_REG, TDI_VAL, TDI);
     JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
 
-    MAP_UtilsDelay(TDO_SETUP_DELAY);
+    asm("nop");
     *TDO_result = JTAG_GET_PIN(TDO_REG) ? 1:0;
 
     JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
     return;
 }
 
+void jtag_pinctl_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_clk)
+{
+    /*
+    for(unsigned int i=0; i<num_clk; i++){
+        uint8_t dummy;
+        jtag_pinctl_doClock((tms_bits_lsb_first&(1<<i)) ? 1:0, 0, &dummy);
+    }*/
+
+    while(num_clk-- > 0){
+        JTAG_SET_PIN(TMS_REG, TMS_VAL, (uint32_t)(tms_bits_lsb_first&1));
+        JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
+        asm("nop");
+        JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+        tms_bits_lsb_first >>= 1;
+    }
+}
+
+void jtag_pinctl_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
+{
+
+    jtag_pinctl_scanout = 0;
+
+    for(unsigned int i=0; i<(num_clk-1); i++){
+        JTAG_SET_PIN(TDI_REG, TDI_VAL, (tdi_bits_lsb_first & 1));
+        JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
+        asm("nop");
+        if(JTAG_GET_PIN(TDO_REG))  jtag_pinctl_scanout |= (((uint64_t)1)<<((uint64_t)i));
+        JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+        tdi_bits_lsb_first >>= 1;
+    }
+    //last bit with TMS high
+    JTAG_SET_PIN(TDI_REG, TDI_VAL, (tdi_bits_lsb_first & 1));
+    JTAG_SET_PIN(TMS_REG, TMS_VAL, 1);
+    JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
+    asm("nop");
+    JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+}

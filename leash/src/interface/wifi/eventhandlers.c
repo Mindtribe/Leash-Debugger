@@ -6,6 +6,8 @@
 #include "led.h"
 #include "ui.h"
 
+static const char* wifi_evt_log_prefix = "[WIFI] ";
+
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 {
     switch(pSlWlanEvent->Event)
@@ -16,7 +18,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
         char ssid[33];
         strncpy(ssid, (char*)info->ssid_name, (size_t)info->ssid_len);
         ssid[info->ssid_len] = 0;
-        LOG(LOG_IMPORTANT, "[WIFI] Connected to '%s'", ssid);
+        LOG(LOG_IMPORTANT, "%sConnected to '%s'",wifi_evt_log_prefix , ssid);
 
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
     }
@@ -34,10 +36,10 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
         // If the user has initiated 'Disconnect' request,
         //'reason_code' is SL_USER_INITIATED_DISCONNECTION
         if(SL_USER_INITIATED_DISCONNECTION == pEventData->reason_code){
-            LOG(LOG_IMPORTANT, "[WIFI] Application disconnected");
+            LOG(LOG_IMPORTANT, "%sApplication disconnected",wifi_evt_log_prefix);
         }
         else{
-            LOG(LOG_IMPORTANT, "[WIFI] Unexpected disconnect");
+            LOG(LOG_IMPORTANT, "%sUnexpected disconnect",wifi_evt_log_prefix);
         }
         ClearLED(LED_WIFI);
     }
@@ -45,7 +47,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 
     case SL_WLAN_STA_CONNECTED_EVENT:
     {
-        LOG(LOG_IMPORTANT, "[WIFI] Station connected to CC3200 AP");
+        LOG(LOG_IMPORTANT, "%sStation connected to CC3200 AP",wifi_evt_log_prefix);
         // when device is in AP mode and any client connects to device cc3xxx
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
     }
@@ -53,7 +55,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 
     case SL_WLAN_STA_DISCONNECTED_EVENT:
     {
-        LOG(LOG_IMPORTANT, "[WIFI] Station disconnected from CC3200 AP");
+        LOG(LOG_IMPORTANT, "%sStation disconnected from CC3200 AP",wifi_evt_log_prefix);
         // when client disconnects from device (AP)
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_LEASED);
@@ -63,7 +65,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 
     default:
     {
-        LOG(LOG_IMPORTANT, "[WIFI] Unexpected WLAN event: 0x%8X", (unsigned int) pSlWlanEvent->Event);
+        LOG(LOG_IMPORTANT, "%sUnexpected WLAN event: 0x%8X", wifi_evt_log_prefix, (unsigned int) pSlWlanEvent->Event);
     }
     break;
     }
@@ -76,7 +78,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
     case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
     {
         wifi_state.self_IP = (pNetAppEvent)->EventData.ipAcquiredV4.ip;
-        LOG(LOG_VERBOSE, "[WIFI] NetApp: IPv4 Acquired: %d.%d.%d.%d",
+        LOG(LOG_VERBOSE, "%sNetApp: IPv4 Acquired: %d.%d.%d.%d", wifi_evt_log_prefix,
                 (unsigned int)SL_IPV4_BYTE(wifi_state.self_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.self_IP,2),
                 (unsigned int)SL_IPV4_BYTE(wifi_state.self_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.self_IP,0));
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_AQUIRED);
@@ -85,7 +87,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
 
     case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
     {
-        LOG(LOG_VERBOSE, "[WIFI] NetApp: IPv6 Acquired");
+        LOG(LOG_VERBOSE, "%sNetApp: IPv6 Acquired", wifi_evt_log_prefix);
         SET_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_AQUIRED);
     }
     break;
@@ -96,7 +98,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
 
         wifi_state.client_IP = (pNetAppEvent)->EventData.ipLeased.ip_address;
 
-        LOG(LOG_IMPORTANT, "[WIFI] NetApp: IP leased to Client: %d.%d.%d.%d",
+        LOG(LOG_IMPORTANT, "%sNetApp: IP leased to Client: %d.%d.%d.%d", wifi_evt_log_prefix,
                 (unsigned int)SL_IPV4_BYTE(wifi_state.client_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.client_IP,2),
                 (unsigned int)SL_IPV4_BYTE(wifi_state.client_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.client_IP,0));
     }
@@ -106,7 +108,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
     {
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_LEASED);
 
-        LOG(LOG_IMPORTANT, "[WIFI] NetApp: IP Released for Client: %d.%d.%d.%d",
+        LOG(LOG_IMPORTANT, "%sNetApp: IP Released for Client: %d.%d.%d.%d", wifi_evt_log_prefix,
                 (unsigned int)SL_IPV4_BYTE(wifi_state.client_IP,3), (unsigned int) SL_IPV4_BYTE(wifi_state.client_IP,2),
                 (unsigned int)SL_IPV4_BYTE(wifi_state.client_IP,1), (unsigned int) SL_IPV4_BYTE(wifi_state.client_IP,0));
 
@@ -117,7 +119,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
     default:
     {
 
-        LOG(LOG_IMPORTANT, "[WIFI] Unexpected event: 0x%8X", (unsigned int)pNetAppEvent->Event);
+        LOG(LOG_IMPORTANT, "%sUnexpected event: 0x%8X", wifi_evt_log_prefix, (unsigned int)pNetAppEvent->Event);
     }
     break;
     }
@@ -128,7 +130,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
         SlHttpServerResponse_t *pHttpResponse)
 {
-    LOG(LOG_VERBOSE, "[WIFI] HTTP Server Callback Triggered");
+    LOG(LOG_VERBOSE, "%sHTTP Server Callback",wifi_evt_log_prefix);
     (void)pHttpEvent;
     (void)pHttpResponse;
     // Unused in this application
@@ -144,7 +146,7 @@ void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
     // appropriately by the application
     //
 
-    LOG(LOG_VERBOSE, "[WIFI] Unknown General Event - ID=%d Sender=%d",
+    LOG(LOG_VERBOSE, "%sUnknown General Event - ID=%d Sender=%d",wifi_evt_log_prefix,
             pDevEvent->EventData.deviceEvent.status,
             pDevEvent->EventData.deviceEvent.sender);
 }
@@ -162,19 +164,19 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
         {
         case SL_ECLOSE:
             LOG(LOG_IMPORTANT,
-                    "[WIFI] SockErr: close socket (%d) operation failed to transmit all queued packets",
+                    "%sSockErr: close socket (%d) operation failed to transmit all queued packets",wifi_evt_log_prefix,
                     pSock->socketAsyncEvent.SockTxFailData.sd);
             break;
         default:
             LOG(LOG_IMPORTANT,
-                    "[WIFI] SockErr: - TX FAILED  :  socket %d , reason (%d)",
+                    "%sSockErr: - TX FAILED  :  socket %d , reason (%d)",wifi_evt_log_prefix,
                     pSock->socketAsyncEvent.SockTxFailData.sd, pSock->socketAsyncEvent.SockTxFailData.status);
             break;
         }
         break;
 
         default:
-            LOG(LOG_IMPORTANT, "[WIFI] SockEvent: Unexpected event [0x%8X]\n\n", (unsigned int) pSock->Event);
+            LOG(LOG_IMPORTANT, "%sSockEvent: Unexpected event [0x%8X]\n\n",wifi_evt_log_prefix, (unsigned int) pSock->Event);
             break;
     }
 

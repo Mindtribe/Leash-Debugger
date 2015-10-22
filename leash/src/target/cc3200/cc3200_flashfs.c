@@ -27,6 +27,8 @@
 #define TARGET_SRAM_ORIGIN 0x20004000
 #define FLASH_LOAD_CHUNK_SIZE 128
 
+static const char* cc3200_flashfs_log_prefix = "[CC3200] ";
+
 struct cc3200_flashfs_state_t{
     unsigned int file_crc;
 };
@@ -43,15 +45,15 @@ int cc3200_flashfs_load(char* pFileName)
     unsigned char databuf[FLASH_LOAD_CHUNK_SIZE];
     int filehandle = -1;
 
-    LOG(LOG_IMPORTANT, "[CC3200] Checking file @ %s", pFileName);
+    LOG(LOG_IMPORTANT, "%sChecking file @ %s",cc3200_flashfs_log_prefix , pFileName);
 
     SlFsFileInfo_t stubinfo;
     retval = sl_FsGetInfo((unsigned char*) pFileName, 0, &stubinfo);
     if(retval < 0) { RETURN_ERROR(retval, "File info fail"); }
 
-    LOG(LOG_IMPORTANT, "[CC3200] File found - size %ub.", (unsigned int)stubinfo.FileLen);
+    LOG(LOG_IMPORTANT, "%sFile found - size %ub.",cc3200_flashfs_log_prefix , (unsigned int)stubinfo.FileLen);
 
-    LOG(LOG_IMPORTANT, "[CC3200] Loading file...");
+    LOG(LOG_IMPORTANT, "%sLoading file...",cc3200_flashfs_log_prefix );
 
     retval = sl_FsOpen((unsigned char*)pFileName, FS_MODE_OPEN_READ, NULL, (_i32*)&filehandle);
     if(retval < 0) { RETURN_ERROR(retval, "File open fail"); }
@@ -90,7 +92,7 @@ int cc3200_flashfs_loadstub(void)
     unsigned int stackptaddr;
     unsigned int entryaddr;
 
-    LOG(LOG_VERBOSE, "[CC3200] Searching flash stub...");
+    LOG(LOG_VERBOSE, "%sSearching flash stub...",cc3200_flashfs_log_prefix );
 
     SlFsFileInfo_t stubinfo;
     int i;
@@ -98,9 +100,9 @@ int cc3200_flashfs_loadstub(void)
         retval = sl_FsGetInfo((unsigned char*) FLASHSTUB_FILENAMES[i], 0, &stubinfo);
         if(retval >= 0) { break; }
     }
-    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN, "[CC3200] Not found!"); }
+    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN, "%sNot found!"); }
 
-    LOG(LOG_VERBOSE, "[CC3200] Will load '%s'.", FLASHSTUB_FILENAMES[i]);
+    LOG(LOG_VERBOSE, "%sWill load '%s'.",cc3200_flashfs_log_prefix , FLASHSTUB_FILENAMES[i]);
 
     retval = cc3200_flashfs_load((char*)FLASHSTUB_FILENAMES[i]);
     if(retval == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Stub load fail");}
@@ -110,7 +112,7 @@ int cc3200_flashfs_loadstub(void)
     retval = cc3200_interface.target_mem_read(0x20004004, (uint32_t*)&entryaddr);
     if(retval == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");}
 
-    LOG(LOG_VERBOSE, "[CC3200] Stack ptr: 0x%8X Entry: 0x%8X", stackptaddr, entryaddr);
+    LOG(LOG_VERBOSE, "%sStack ptr: 0x%8X Entry: 0x%8X",cc3200_flashfs_log_prefix , stackptaddr, entryaddr);
 
     retval = cc3200_interface.target_mem_write(FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_UNINIT);
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
@@ -119,12 +121,12 @@ int cc3200_flashfs_loadstub(void)
     retval = cc3200_interface.target_write_register(CC3200_REG_PC, entryaddr);
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
 
-    LOG(LOG_VERBOSE, "[CC3200] Starting flash stub execution...");
+    LOG(LOG_VERBOSE, "%sStarting flash stub execution...",cc3200_flashfs_log_prefix );
 
     retval = cc3200_interface.target_continue();
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Continue fail");
 
-    LOG(LOG_VERBOSE, "[CC3200] Waiting for flash stub initialization...");
+    LOG(LOG_VERBOSE, "%sWaiting for flash stub initialization...",cc3200_flashfs_log_prefix );
 
     uint32_t syncstate = SYNC_UNINIT;
     do{
@@ -136,7 +138,7 @@ int cc3200_flashfs_loadstub(void)
     retval = cc3200_interface.target_mem_write((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_WAIT);
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
 
-    LOG(LOG_IMPORTANT, "[CC3200] Flash stub ready.");
+    LOG(LOG_IMPORTANT, "%sFlash stub ready.",cc3200_flashfs_log_prefix );
 
     return RET_SUCCESS;
 }
@@ -220,7 +222,7 @@ int cc3200_flashfs_open(unsigned int AccessModeAndMaxSize, unsigned char* pFileN
 
     cmd.type = FD_OPEN;
 
-    LOG(LOG_VERBOSE, "[CC3200] Opening file '%s'...", (char*) pFileName);
+    LOG(LOG_VERBOSE, "%sOpening file '%s'...",cc3200_flashfs_log_prefix , (char*) pFileName);
 
     retval = cc3200_interface.target_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
@@ -251,8 +253,8 @@ int cc3200_flashfs_open(unsigned int AccessModeAndMaxSize, unsigned char* pFileN
 
     *pFileHandle = args.FileHandle;
 
-    if(response.retval < 0){LOG(LOG_VERBOSE, "[CC3200] ...Failed.");}
-    else{LOG(LOG_VERBOSE, "[CC3200] ...Success.");}
+    if(response.retval < 0){LOG(LOG_VERBOSE, "%s...Failed.",cc3200_flashfs_log_prefix );}
+    else{LOG(LOG_VERBOSE, "%s...Success.",cc3200_flashfs_log_prefix );}
     return response.retval;
 }
 
@@ -270,7 +272,7 @@ int cc3200_flashfs_close(int FileHdl)
 
     cmd.type = FD_CLOSE;
 
-    LOG(LOG_VERBOSE, "[CC3200] Closing file...");
+    LOG(LOG_VERBOSE, "%sClosing file...",cc3200_flashfs_log_prefix );
 
     retval = cc3200_interface.target_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
@@ -294,8 +296,8 @@ int cc3200_flashfs_close(int FileHdl)
     retval = cc3200_interface.target_mem_block_read((unsigned int)FLASH_RESPONSE_ADDR, sizeof(struct flash_command_response_t), (unsigned char*)&response);
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem read fail");
 
-    if(response.retval < 0){LOG(LOG_VERBOSE, "[CC3200] ...Failed.");}
-    else{LOG(LOG_VERBOSE, "[CC3200] ...Success.");}
+    if(response.retval < 0){LOG(LOG_VERBOSE, "%s...Failed.",cc3200_flashfs_log_prefix );}
+    else{LOG(LOG_VERBOSE, "%s...Success.",cc3200_flashfs_log_prefix );}
     return response.retval;
 }
 
@@ -414,7 +416,7 @@ int cc3200_flashfs_delete(unsigned char* pFileName)
 
     cmd.type = FD_DELETE;
 
-    LOG(LOG_VERBOSE, "[CC3200] Deleting file '%s'...", (char*) pFileName);
+    LOG(LOG_VERBOSE, "%sDeleting file '%s'...",cc3200_flashfs_log_prefix , (char*) pFileName);
 
     retval = cc3200_interface.target_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
@@ -441,7 +443,7 @@ int cc3200_flashfs_delete(unsigned char* pFileName)
     retval = cc3200_interface.target_mem_block_read((unsigned int)FLASH_RESPONSE_ADDR, sizeof(struct flash_command_response_t), (unsigned char*)&response);
     if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem read fail");
 
-    if(response.retval < 0){LOG(LOG_VERBOSE, "[CC3200] ...Failed.");}
-    else{LOG(LOG_VERBOSE, "[CC3200] ...Success.");}
+    if(response.retval < 0){LOG(LOG_VERBOSE, "%s...Failed.",cc3200_flashfs_log_prefix );}
+    else{LOG(LOG_VERBOSE, "%s...Success.",cc3200_flashfs_log_prefix );}
     return response.retval;
 }

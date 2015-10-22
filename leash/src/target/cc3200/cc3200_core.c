@@ -487,7 +487,7 @@ int cc3200_core_debug_enable(void)
         if(cc3200_core_read_mem_addr(cur_addr, &temp_entry) == RET_FAILURE) {RETURN_ERROR(cur_addr, "ROM read fail");}
         cc3200_core_state.romtable[i].valid = temp_entry&1;
         if(!cc3200_core_state.romtable[i].valid || (temp_entry == 0)){
-            LOG(LOG_VERBOSE, "[CC3200 CORE] Number of ROM table entries found: %d", i);
+            LOG(LOG_VERBOSE, "[CC3200] Number of ROM table entries found: %d", i);
             break;
         }
         if(i>0) {cc3200_core_state.has_rom_table = 1; }//have read at least 1 valid entry
