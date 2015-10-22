@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
-unsigned long long crc32 (uint8_t* data, int len, unsigned int crc);
+//CRC function used for checking for data corruption.
+unsigned int crc32(uint8_t *data, int len, unsigned int crc);
 
 #endif

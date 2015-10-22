@@ -55,7 +55,8 @@ struct wifi_state_t wifi_state ={
     .client_IP = 0,
     .self_IP = 0,
     .startAP = 0,
-    .stack_watermark = 0xFFFFFFFF
+    .stack_watermark = 0xFFFFFFFF,
+    .mac = {0}
 };
 
 static int WifiSetModeAP();
@@ -182,21 +183,21 @@ static int WifiDefaultSettings(void)
     //Set mDNS device hostname
     char hostname[64];
     char macstring[20];
-    unsigned char mac[SL_MAC_ADDR_LEN];
     unsigned char maclen = SL_MAC_ADDR_LEN;
     retval = sl_NetCfgGet(SL_MAC_ADDRESS_GET,
             NULL,
             &maclen,
-            mac);
+            wifi_state.mac);
     if(retval < 0) { RETURN_ERROR(retval, "WIFI conf fail"); }
-    snprintf(macstring, 20,  "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    snprintf(macstring, 20,  "%02X%02X%02X%02X%02X%02X", wifi_state.mac[0],
+            wifi_state.mac[1], wifi_state.mac[2],
+            wifi_state.mac[3], wifi_state.mac[4],
+            wifi_state.mac[5]);
     snprintf(hostname, 64,  "WiFiDebugger%s", macstring);
     retval = sl_NetAppSet (SL_NET_APP_DEVICE_CONFIG_ID,
             NETAPP_SET_GET_DEV_CONF_OPT_DEVICE_URN,
             strlen((const char *)hostname),
             (unsigned char *) hostname);
-    if(retval<0) {RETURN_ERROR(retval, "WIFI hostname fail");}
-
     // Remove  all 64 filters (8*8)
     memset(filter_mask.FilterIdMask, 0xFF, 8);
     retval = sl_WlanRxFilterSet(SL_REMOVE_RX_FILTER, (uint8_t*)&filter_mask,
@@ -209,6 +210,11 @@ static int WifiDefaultSettings(void)
     wifi_state.status = 0;
 
     return RET_SUCCESS;
+}
+
+unsigned char* WifiGetMAC(void)
+{
+    return wifi_state.mac;
 }
 
 static int WifiSetModeAP()
@@ -368,8 +374,8 @@ void Task_WifiAP(void* params)
 #endif
 
     //start socket handler.
-    xTaskCreate(Task_SocketHandler,
-            "Socket Handler",
+    xTaskCreate(Task_SocketServer,
+            "Socket Server",
             SOCKET_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
             0,
             SOCKET_TASK_PRIORITY,
@@ -415,8 +421,8 @@ void Task_WifiSTA(void* params)
 #endif
 
     //start socket handler.
-    xTaskCreate(Task_SocketHandler,
-            "Socket Handler",
+    xTaskCreate(Task_SocketServer,
+            "Socket Server",
             SOCKET_TASK_STACK_SIZE/sizeof(portSTACK_TYPE),
             0,
             SOCKET_TASK_PRIORITY,

@@ -106,26 +106,34 @@ const char* rx_buf_empty_names[3] = {
 
 struct socket_state_t socket_state[NUM_SOCKETS] = {{0}};
 
-int TS_GetNumSockets(void){
+static int StartSerialSock(unsigned short port, unsigned int slot);
+static int SockAccept(unsigned int slot);
+static int GetSockConnected(unsigned int slot);
+static void LogSLError(int code);
+static int StartSockets(void);
+static void StopSockets(void);
+static int UpdateSockets(void);
+
+int ExtThread_GetNumSockets(void){
     return NUM_SOCKETS;
 }
 
-int TS_GetSocketPort(int socket){
+int ExtThread_GetSocketPort(int socket){
     if(socket>=NUM_SOCKETS) return -1;
     return socket_ports[socket];
 }
 
-const char* TS_GetSocketMDNSName(int socket){
+const char* ExtThread_GetSocketMDNSName(int socket){
     if(socket>=NUM_SOCKETS) return NULL;
     return socket_mdns_names_fixedpart[socket];
 }
 
-const char* TS_GetSocketMDNSDesc(int socket){
+const char* ExtThread_GetSocketMDNSDesc(int socket){
     if(socket>=NUM_SOCKETS) return NULL;
     return socket_mdns_descriptions[socket];
 }
 
-void LogSLError(int code){
+static void LogSLError(int code){
     switch(code){
     case SL_ENSOCK:
         LOG(LOG_IMPORTANT, "%sMaximum socks",slerr_log_prefix);
@@ -213,7 +221,7 @@ static int RegisterSocketServices(void)
     return RET_SUCCESS;
 }
 
-int StartSockets(void)
+static int StartSockets(void)
 {
     for(int i=0; i<NUM_SOCKETS; i++){
         if(StartSerialSock(socket_ports[i], i) == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Socket start fail");}
@@ -224,7 +232,7 @@ int StartSockets(void)
     return RET_SUCCESS;
 }
 
-void StopSockets(void)
+static void StopSockets(void)
 {
     for(int i = 0; i<NUM_SOCKETS; i++){
         if(IS_SOCK_CONNECTED(i)){
@@ -241,39 +249,7 @@ void StopSockets(void)
     return;
 }
 
-int SocketPutChar(char c, unsigned int socket_slot)
-{
-    for(;;){
-        xSemaphoreTake(socket_state[socket_slot].buf_access, portMAX_DELAY);
-        if(socket_state[socket_slot].tx_buf_occupancy < SOCKET_TXBUF_SIZE) {break;}
-        xSemaphoreGive(socket_state[socket_slot].buf_access);
-        UpdateSockets();
-    }
-
-    socket_state[socket_slot].tx_buf[(socket_state[socket_slot].tx_buf_i_in++)%SOCKET_TXBUF_SIZE] = c;
-    socket_state[socket_slot].tx_buf_occupancy++;
-    xSemaphoreGive(socket_state[socket_slot].buf_access);
-
-    return RET_SUCCESS;
-}
-
-int SocketGetChar(char *c, unsigned int socket_slot)
-{
-    for(;;){
-        xSemaphoreTake(socket_state[socket_slot].buf_access, portMAX_DELAY);
-        if(socket_state[socket_slot].rx_buf_occupancy > 0) {break;}
-        xSemaphoreGive(socket_state[socket_slot].buf_access);
-        UpdateSockets();
-    }
-
-    *c = socket_state[socket_slot].rx_buf[(socket_state[socket_slot].rx_buf_i_out++)%SOCKET_RXBUF_SIZE];
-    socket_state[socket_slot].rx_buf_occupancy--;
-    xSemaphoreGive(socket_state[socket_slot].buf_access);
-
-    return RET_SUCCESS;
-}
-
-int TS_SocketPutChar(char c, unsigned int socket_slot)
+int ExtThread_SocketPutChar(char c, unsigned int socket_slot)
 {
     xSemaphoreTake(socket_state[socket_slot].tx_buf_full, portMAX_DELAY);
     xSemaphoreTake(socket_state[socket_slot].buf_access, portMAX_DELAY);
@@ -287,22 +263,22 @@ int TS_SocketPutChar(char c, unsigned int socket_slot)
     return RET_SUCCESS;
 }
 
-void TS_LogSocketPutChar(char c)
+void ExtThread_LogSocketPutChar(char c)
 {
-    TS_SocketPutChar(c,SOCKET_LOG);
+    ExtThread_SocketPutChar(c,SOCKET_LOG);
 }
 
-void TS_TargetSocketPutChar(char c)
+void ExtThread_TargetSocketPutChar(char c)
 {
-    TS_SocketPutChar(c,SOCKET_TARGET);
+    ExtThread_SocketPutChar(c,SOCKET_TARGET);
 }
 
-void TS_GDBSocketPutChar(char c)
+void ExtThread_GDBSocketPutChar(char c)
 {
-    TS_SocketPutChar(c,SOCKET_GDB);
+    ExtThread_SocketPutChar(c,SOCKET_GDB);
 }
 
-int TS_SocketGetChar(char *c, unsigned int socket_slot)
+int ExtThread_SocketGetChar(char *c, unsigned int socket_slot)
 {
     xSemaphoreTake(socket_state[socket_slot].rx_buf_empty, portMAX_DELAY);
     xSemaphoreTake(socket_state[socket_slot].buf_access, portMAX_DELAY);
@@ -316,72 +292,52 @@ int TS_SocketGetChar(char *c, unsigned int socket_slot)
     return RET_SUCCESS;
 }
 
-void TS_LogSocketGetChar(char *c)
+void ExtThread_LogSocketGetChar(char *c)
 {
-    TS_SocketGetChar(c,SOCKET_LOG);
+    ExtThread_SocketGetChar(c,SOCKET_LOG);
 }
 
-void TS_TargetSocketGetChar(char *c)
+void ExtThread_TargetSocketGetChar(char *c)
 {
-    TS_SocketGetChar(c,SOCKET_TARGET);
+    ExtThread_SocketGetChar(c,SOCKET_TARGET);
 }
 
-void TS_GDBSocketGetChar(char *c)
+void ExtThread_GDBSocketGetChar(char *c)
 {
-    TS_SocketGetChar(c,SOCKET_GDB);
+    ExtThread_SocketGetChar(c,SOCKET_GDB);
 }
 
-int SocketRXCharAvailable(unsigned int socket_slot)
+int ExtThread_LogSocketRXCharAvailable(void)
 {
-    int occupancy;
-    xSemaphoreTake(socket_state[socket_slot].buf_access, portMAX_DELAY);
-    occupancy = socket_state[socket_slot].rx_buf_occupancy;
-    xSemaphoreGive(socket_state[socket_slot].buf_access);
-
-    return occupancy;
+    return ExtThread_SocketRXCharAvailable(SOCKET_LOG);
 }
 
-int SocketTXSpaceAvailable(unsigned int socket_slot)
+int ExtThread_GDBSocketRXCharAvailable(void)
 {
-    int space;
-    xSemaphoreTake(socket_state[socket_slot].buf_access, portMAX_DELAY);
-    space = SOCKET_TXBUF_SIZE - socket_state[socket_slot].tx_buf_occupancy;
-    xSemaphoreGive(socket_state[socket_slot].buf_access);
-
-    return space;
+    return ExtThread_SocketRXCharAvailable(SOCKET_GDB);
 }
 
-int TS_LogSocketRXCharAvailable(void)
+int ExtThread_TargetSocketRXCharAvailable(void)
 {
-    return TS_SocketRXCharAvailable(SOCKET_LOG);
+    return ExtThread_SocketRXCharAvailable(SOCKET_TARGET);
 }
 
-int TS_GDBSocketRXCharAvailable(void)
+int ExtThread_LogSocketTXSpaceAvailable(void)
 {
-    return TS_SocketRXCharAvailable(SOCKET_GDB);
+    return ExtThread_SocketRXCharAvailable(SOCKET_LOG);
 }
 
-int TS_TargetSocketRXCharAvailable(void)
+int ExtThread_GDBSocketTXSpaceAvailable(void)
 {
-    return TS_SocketRXCharAvailable(SOCKET_TARGET);
+    return ExtThread_SocketRXCharAvailable(SOCKET_GDB);
 }
 
-int TS_LogSocketTXSpaceAvailable(void)
+int ExtThread_TargetSocketTXSpaceAvailable(void)
 {
-    return TS_SocketRXCharAvailable(SOCKET_LOG);
+    return ExtThread_SocketRXCharAvailable(SOCKET_TARGET);
 }
 
-int TS_GDBSocketTXSpaceAvailable(void)
-{
-    return TS_SocketRXCharAvailable(SOCKET_GDB);
-}
-
-int TS_TargetSocketTXSpaceAvailable(void)
-{
-    return TS_SocketRXCharAvailable(SOCKET_TARGET);
-}
-
-int TS_SocketRXCharAvailable(unsigned int socket_slot)
+int ExtThread_SocketRXCharAvailable(unsigned int socket_slot)
 {
     int occupancy;
     xSemaphoreTake(socket_state[socket_slot].buf_access, portMAX_DELAY);
@@ -391,7 +347,7 @@ int TS_SocketRXCharAvailable(unsigned int socket_slot)
     return occupancy;
 }
 
-int TS_SocketTXSpaceAvailable(unsigned int socket_slot)
+int ExtThread_SocketTXSpaceAvailable(unsigned int socket_slot)
 {
     int space;
     xSemaphoreTake(socket_state[socket_slot].buf_access, portMAX_DELAY);
@@ -401,7 +357,7 @@ int TS_SocketTXSpaceAvailable(unsigned int socket_slot)
     return space;
 }
 
-int UpdateSockets(void)
+static int UpdateSockets(void)
 {
     int retval;
 
@@ -484,7 +440,7 @@ static int ListenSerialSock(unsigned int slot)
     return RET_SUCCESS;
 }
 
-int StartSerialSock(unsigned short port, unsigned int slot)
+static int StartSerialSock(unsigned short port, unsigned int slot)
 {
     if(!IS_IP_ACQUIRED(wifi_state.status)) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
     if(IS_SOCK_STARTED(slot)) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail");}
@@ -514,7 +470,7 @@ int StartSerialSock(unsigned short port, unsigned int slot)
     return RET_SUCCESS;
 }
 
-int SockAccept(unsigned int slot)
+static int SockAccept(unsigned int slot)
 {
     if(!IS_SOCK_STARTED(slot) || IS_SOCK_CONNECTED(slot)) {RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail")};
 
@@ -532,8 +488,8 @@ int SockAccept(unsigned int slot)
             RETURN_ERROR(retval, "Socket opt fail");
         }
         if(slot == SOCKET_LOG){
-            mem_log_start_putchar(&TS_LogSocketPutChar);
-            serialconfig_start(&TS_LogSocketGetChar);
+            mem_log_start_putchar(&ExtThread_LogSocketPutChar);
+            serialconfig_start(&ExtThread_LogSocketGetChar);
         }
     }
     else if(newid != SL_EAGAIN){
@@ -546,13 +502,14 @@ int SockAccept(unsigned int slot)
     return RET_SUCCESS;
 }
 
-int GetSockConnected(unsigned int slot){
+static int GetSockConnected(unsigned int slot){
     return (IS_SOCK_CONNECTED(slot) != 0);
 }
 
-void Task_SocketHandler(void* params)
+void Task_SocketServer(void* params)
 {
     (void)params;
+
     //start socket server and accept a connection
     if(StartSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN, "Socket start fail");}
 
@@ -560,4 +517,6 @@ void Task_SocketHandler(void* params)
         if(UpdateSockets() == RET_FAILURE) {TASK_RETURN_ERROR(ERROR_UNKNOWN, "Socket update fail");}
         vTaskDelay(1);
     }
+
+    StopSockets();
 }

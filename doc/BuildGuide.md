@@ -34,7 +34,7 @@ The build output files are stored in a **build/** folder in the project base dir
 
 The **scripts** folder provides a few GDB and sh scripts which are useful for running and debugging both Leash Debugger and other targets via Leash Debugger. These are subject to change, and may need to be slightly modified for your particular toolchain setup.
 
-At the time of writing this, the only tool capable of flashing .bin firmware images onto the CC3200 external flash is **TI Uniflash**. Leash Debugger aims to support flashing in the future, using a flashing stub.
+Leash Debugger can program target flash memory. It offers a subset of TI's own flashing tool, **TI Uniflash**. See the [**User Guide**](UserGuide.md) for details. 
 
 **scripts/OpenOCD/openocd_test** can be used to check that your OpenOCD setup is working correctly to connect to a LaunchpadXL CC3200 board over USB. If successful, it will just display some information about the target device, after which you can exit by pressing **CTRL-C**.
 

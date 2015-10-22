@@ -12,6 +12,7 @@
 
 #include <string.h>
 
+#include "wifi.h"
 #include "log.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -91,9 +92,11 @@ static void sc_cmd_del(void);
 static void sc_cmd_delall(void);
 static void sc_cmd_list(void);
 static void sc_cmd_help(void);
+static void sc_cmd_mac(void);
 
 static const struct serialconfig_command_t serialconfig_commands[] = {
     {"network", "add a network.", &sc_cmd_add},
+    {"mac", "display MAC address.", &sc_cmd_mac},
     {"delete", "delete a network.", &sc_cmd_del},
     {"deleteall", "delete all networks.", &sc_cmd_delall},
     {"list", "list stored networks.", &sc_cmd_list},
@@ -356,11 +359,28 @@ static void sc_cmd_help(void)
     }
 }
 
+static void sc_cmd_mac(void)
+{
+    char macstring[20];
+    unsigned char *mac = WifiGetMAC();
+    switch(serialconfig_state.statenum){
+    case COMMAND:
+        snprintf(macstring, 20,  "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        LOG(LOG_IMPORTANT, "[CONF] MAC: %s", macstring);
+        break;
+    default:
+        serialconfig_state.statenum = COMMAND;
+        return;
+    }
+}
+
 static void HandleMessage(void)
 {
     int cmd_found = 0;
 
+#ifdef DO_STACK_CHECK
     serialconfig_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
 
     switch(serialconfig_state.statenum){
     case COMMAND:
