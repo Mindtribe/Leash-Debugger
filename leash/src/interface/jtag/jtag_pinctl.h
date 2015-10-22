@@ -18,12 +18,7 @@ performing the most basic logical operations of 4-wire JTAG interface.
 
 #include <stdint.h>
 
-struct jtagPinLocation{
-    unsigned char ucPin;
-    unsigned int uiGPIOPort;
-    unsigned char ucGPIOPin;
-};
-
+//this enum can be used for the "pins" arguments of this module's API functions.
 enum jtagPinBit{
     JTAG_NONE = 0,
     JTAG_TDI = 1,
@@ -31,7 +26,6 @@ enum jtagPinBit{
     JTAG_RST = 4,
     JTAG_TCK = 8
 };
-
 
 //Initializer - should be called once, before any other calls to this API.
 int jtag_pinctl_init(void);

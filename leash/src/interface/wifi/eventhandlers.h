@@ -15,11 +15,20 @@
 
 #include "simplelink.h"
 
+//Called by the SimpleLink driver to notify of WLAN events.
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent);
+
+//Called by the SimpleLink driver to notify of NetApp events.
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent);
+
+//Called by the SimpleLink driver to notify of HTTP server events.
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
                                   SlHttpServerResponse_t *pHttpResponse);
+
+//Called by the SimpleLink driver to notify of general events.
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent);
+
+//Called by the SimpleLink driver to notify of socket system events.
 void SimpleLinkSockEventHandler(SlSockEvent_t *pSock);
 
 #endif

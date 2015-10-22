@@ -22,7 +22,13 @@
 
 struct target_al_interface;
 
+//Initialize GDBServer. This needs to be called only once on startup.
+//pPutChar, pGetChar and pGetCharsAvail are function callbacks used by GDB to communicate.
+//target is an abstract target interface structure, to be filled in for a specific type of target.
 int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void), struct target_al_interface *target);
+
+//After calling gdbserver_init, start this function as a FreeRTOS task for
+//handling all GDBServer-related matters.
 void Task_gdbserver(void* params);
 
 #endif

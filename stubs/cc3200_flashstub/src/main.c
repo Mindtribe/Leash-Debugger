@@ -21,9 +21,13 @@
 #include "gpio_if.h"
 #include "pinmux.h"
 
+#include "crc32.h"
+
 #ifndef NULL
 #define NULL 0
 #endif
+
+#define CRC_READ_CHUNK_SIZE 512
 
 extern void (* const g_pfnVectors[])(void);
 
@@ -34,6 +38,8 @@ static int BoardInit(void);
 
 int main(void)
 {
+    long fd;
+
     BoardInit();
 
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
@@ -89,6 +95,38 @@ int main(void)
             flash->response.retval = sl_FsDel(
                     ((struct command_file_delete_args_t*)flash_data)->pFileName,
                     0);
+            break;
+        case FD_CRC:
+            flash->response.retval = sl_FsOpen(
+                    ((struct command_get_crc_args_t*)flash_data)->pFileName,
+                    FS_MODE_OPEN_READ,
+                    NULL,
+                    &fd);
+            ((struct command_get_crc_args_t*)flash_data)->crc = 0;
+            if(flash->response.retval<0){
+                break;
+            }
+            unsigned char dataBuf[CRC_READ_CHUNK_SIZE];
+            unsigned int offset = 0;
+            ((struct command_get_crc_args_t*)flash_data)->crc = 0;
+            while((flash->response.retval = sl_FsRead(
+                    fd,
+                    offset,
+                    dataBuf,
+                    CRC_READ_CHUNK_SIZE)) > 0){
+                offset += (unsigned int) flash->response.retval;
+                ((struct command_get_crc_args_t*)flash_data)->crc =
+                        (unsigned int)crc32(dataBuf, flash->response.retval,
+                                ((struct command_get_crc_args_t*)flash_data)->crc);
+                if(flash->response.retval < CRC_READ_CHUNK_SIZE){
+                    break;
+                }
+            }
+            if(flash->response.retval<0){
+                sl_FsClose(fd, NULL, NULL, 0);
+                break;
+            }
+            flash->response.retval = sl_FsClose(fd, NULL, NULL, 0);
             break;
         default:
             break;
