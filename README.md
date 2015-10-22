@@ -1,3 +1,5 @@
+![...](/doc/images/leash_logo.png)
+
 # Leash Debugger
 
 Leash Debugger is a JTAG debug adapter for use over a WiFi connection with GDB. It allows GDB to connect directly to it, as opposed to using additional debugging software such as OpenOCD.
