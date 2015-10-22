@@ -66,7 +66,8 @@ static struct mem_log_state_t mem_log_state = {
     .msg_putchar = &default_putchar,
     .initialized = 0,
     .log_msg_put_queue = 0,
-    .stack_watermark = 0xFFFFFFFF
+    .stack_watermark = 0xFFFFFFFF,
+    .mem_log_msg = {{0}}
 };
 
 struct mem_log_entry* mem_log_add(char* msg);

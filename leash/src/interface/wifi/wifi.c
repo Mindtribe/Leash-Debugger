@@ -265,6 +265,9 @@ void Task_Wifi(void* params)
     }
 
     WifiTaskEndCallback(&Task_Wifi);
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
     vTaskDelete(NULL);
     return;
 }
@@ -319,9 +322,12 @@ void Task_WifiScan(void* params)
 
     ClearLED(LED_WIFI);
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiScan);
-    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
     vTaskDelete(NULL);
 
     return;
@@ -357,6 +363,10 @@ void Task_WifiAP(void* params)
     SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_AP);
     LOG(LOG_IMPORTANT, "AP Started - Ready for client.");
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //start socket handler.
     xTaskCreate(Task_SocketHandler,
             "Socket Handler",
@@ -365,9 +375,12 @@ void Task_WifiAP(void* params)
             SOCKET_TASK_PRIORITY,
             0);
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiAP);
-    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
     vTaskDelete(NULL);
 
     error:
@@ -397,6 +410,10 @@ void Task_WifiSTA(void* params)
 
     SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTED);
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //start socket handler.
     xTaskCreate(Task_SocketHandler,
             "Socket Handler",
@@ -405,9 +422,12 @@ void Task_WifiSTA(void* params)
             SOCKET_TASK_PRIORITY,
             0);
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiSTA);
-    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
     vTaskDelete(NULL);
 
     return;

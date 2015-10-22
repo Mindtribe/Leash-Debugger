@@ -509,10 +509,10 @@ static int cc3200_rcmd(char* command, void (*pMsgCallback)(char*))
 {
     unsigned int temp_uint;
     if(strcmp(command, "help") == 0){
-        pMsgCallback("%sSupported custom commands:\n");
-        pMsgCallback("%shelp: show this message.\n");
-        pMsgCallback("%ssetmaxalloc=X: set the maximum allocated filesystem size of subsequent created files to X (decimal).\n");
-        pMsgCallback("%sflashmode=X: if X nonzero, enter flash mode. If X zero, exit flash mode.\n");
+        pMsgCallback("[CC3200] Supported custom commands:\n");
+        pMsgCallback("[CC3200] help: show this message.\n");
+        pMsgCallback("[CC3200] setmaxalloc=X: set the maximum allocated filesystem size of subsequent created files to X (decimal).\n");
+        pMsgCallback("[CC3200] flashmode=X: if X nonzero, enter flash mode. If X zero, exit flash mode.\n");
     }
     else if(sscanf(command, "setmaxalloc=%u", &temp_uint) == 1){
         cc3200_state.alloc_size = temp_uint;
@@ -525,18 +525,18 @@ static int cc3200_rcmd(char* command, void (*pMsgCallback)(char*))
             int retval = cc3200_flashfs_loadstub();
             if(retval == RET_SUCCESS){
                 cc3200_state.flash_mode = 1;
-                pMsgCallback("%sEntered flash mode.\n");
+                pMsgCallback("[CC3200] Entered flash mode.\n");
             }
             else{
-                pMsgCallback("%sFailed to enter flash mode.\n");
+                pMsgCallback("[CC3200] Failed to enter flash mode.\n");
             }
         }
         else if((cc3200_state.flash_mode) && (!temp_uint)){
-            pMsgCallback("%sExiting flash mode not supported - please reset the device and debugger.\n");
+            pMsgCallback("[CC3200] Exiting flash mode not supported - please reset the device and debugger.\n");
         }
     }
     else{
-        pMsgCallback("%sCommand not recognized.\n");
+        pMsgCallback("[CC3200] Command not recognized.\n");
     }
     return RET_SUCCESS;
 }
@@ -547,12 +547,12 @@ static int cc3200_flashfs_al_delete(char* filename)
 
     if(!cc3200_state.flash_mode){
         retval = cc3200_flashfs_loadstub();
-        if(retval == RET_FAILURE) {RETURN_ERROR(retval, "CC3200: Flash Stub load failed.");}
+        if(retval == RET_FAILURE) {RETURN_ERROR(retval, "[CC3200] Flash Stub load failed.");}
         cc3200_state.flash_mode = 1;
     }
 
     retval = cc3200_flashfs_delete((unsigned char*) filename);
-    if(retval < 0) { RETURN_ERROR(retval, "CC3200: Flash Delete Failed."); }
+    if(retval < 0) { RETURN_ERROR(retval, "[CC3200] Flash Delete Failed."); }
     return RET_SUCCESS;
 }
 

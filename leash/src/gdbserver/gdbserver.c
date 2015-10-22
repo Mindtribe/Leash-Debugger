@@ -161,7 +161,7 @@ struct gdbserver_state_t{
     int awaiting_ack;
     int gdb_connected;
     int target_connected;
-    char last_sent_packet[GDBSERVER_MAX_PACKET_LEN_TX];
+    char tx_packet[GDBSERVER_MAX_PACKET_LEN_TX];
     char cur_packet[GDBSERVER_MAX_PACKET_LEN_RX];
     char cur_checksum_chars[2];
     uint8_t cur_checksum;
@@ -185,7 +185,7 @@ struct gdbserver_state_t gdbserver_state = {
     .initialized = 0,
     .packet_phase = PACKET_NONE,
     .awaiting_ack = 0,
-    .last_sent_packet = {0},
+    .tx_packet = {0},
     .cur_packet = {0},
     .cur_checksum_chars = {0},
     .cur_packet_index = 0,
@@ -481,7 +481,7 @@ static int gdbserver_processChar(void)
         switch(c){
         case '-':  //NACK (retransmit request)
             if(!gdbserver_state.awaiting_ack) { break; } //don't throw an error since this will start an infinite loop with GDB acking all the time
-            gdbserver_TransmitPacket(gdbserver_state.last_sent_packet);
+            gdbserver_TransmitPacket(gdbserver_state.tx_packet);
             break;
         case '+': //ACK
             if(!gdbserver_state.awaiting_ack) { break; } //don't throw an error since this will start an infinite loop with GDB acking all the time
@@ -668,7 +668,6 @@ static int gdbserver_vFilePRead(char* argstring)
     unsigned int fd;
     unsigned int count;
     unsigned int offset;
-    unsigned char data[GDBSERVER_MAX_PACKET_LEN_TX];
     int retval;
 
     char *fd_hex = strtok(argstring, ",");
@@ -690,16 +689,16 @@ static int gdbserver_vFilePRead(char* argstring)
     retval = (*gdbserver_state.target->target_flash_fs_read)(
             (int)fd,
             offset,
-            &(data[10]),
+            (unsigned char*)&(gdbserver_state.tx_packet[10]),
             count);
     if(retval < 0) {
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
     if((unsigned int)retval > count){ retval = (int)count; }
-    sprintf((char*)data, "F%08X", (unsigned int)retval);
-    data[9] = ';'; //this one separately to overwrite sprintf's trailing 0
-    gdbserver_TransmitBinaryPacket(data, retval+10);
+    sprintf(gdbserver_state.tx_packet, "F%08X", (unsigned int)retval);
+    gdbserver_state.tx_packet[9] = ';'; //this one separately to overwrite sprintf's trailing 0
+    gdbserver_TransmitBinaryPacket((unsigned char*)gdbserver_state.tx_packet, retval+10);
 
     return RET_SUCCESS;
 }
@@ -708,7 +707,6 @@ static int gdbserver_vFilePWrite(char* argstring)
 {
     unsigned int fd;
     unsigned int offset;
-    unsigned char data[GDBSERVER_MAX_PACKET_LEN_RX];
     unsigned int j;
     unsigned int i;
     int retval;
@@ -724,27 +722,27 @@ static int gdbserver_vFilePWrite(char* argstring)
     sscanf(fd_hex, "%X", &fd);
     sscanf(offset_hex, "%X", &offset);
 
-    //binary data
+    //binary data: un-escape and store in argstring again.
     i = strlen(fd_hex) + strlen(offset_hex) + 2;
     for(j=0; i<(gdbserver_state.cur_packet_len-strlen("File:pwrite:")-1); i++){
         if(argstring[i] == '}'){
             i++;
             argstring[i] |= 0x20;
         }
-        data[j++] = (unsigned char)argstring[i];
+        argstring[j++] = argstring[i];
     }
 
     LOG(LOG_VERBOSE, "Writing %04X bytes", j);
     retval = (*gdbserver_state.target->target_flash_fs_write)(
             (int)fd,
             offset,
-            data,
+            (unsigned char*)argstring,
             j);
     if(retval < 0){
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
-    char response[20];
+    char* response = gdbserver_state.tx_packet;
     snprintf(response, 20, "F%08X", (unsigned int)retval);
     gdbserver_TransmitPacket(response);
 
@@ -922,12 +920,12 @@ static int gdbserver_processPacket(void)
         gdbserver_TransmitStopReason();
         break;
     case 'g': //request the register status
-        if((*gdbserver_state.target->target_get_gdb_reg_string)(gdbserver_state.last_sent_packet)
+        if((*gdbserver_state.target->target_get_gdb_reg_string)(gdbserver_state.tx_packet)
                 == RET_FAILURE){
             ADD_ERROR(ERROR_UNKNOWN, "Reg get fail");
             gdbserver_TransmitPacket("E0");
         }
-        else{ gdbserver_TransmitPacket(gdbserver_state.last_sent_packet); } //send the register string
+        else{ gdbserver_TransmitPacket(gdbserver_state.tx_packet); } //send the register string
         break;
     case 'G': //write registers
         if((*gdbserver_state.target->target_put_gdb_reg_string)(&(gdbserver_state.cur_packet[1]))
@@ -1079,7 +1077,7 @@ static int gdbserver_readMemory(char* argstring)
 
     uint32_t addr = strtol(addrstring, NULL, 16);
     uint32_t len = strtol(lenstring, NULL, 16);
-    uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
+    uint8_t *data = (uint8_t*)argstring; //re-use argstring storage to save stack space
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
@@ -1092,14 +1090,13 @@ static int gdbserver_readMemory(char* argstring)
     }
 
     //construct the answer string
-    char retstring[GDBSERVER_MAX_PACKET_LEN_TX];
     uint32_t i;
     for(i=0; i<len; i++){
-        sprintf(&(retstring[i*2]), "%02X", data[i]);
+        sprintf(&(gdbserver_state.tx_packet[i*2]), "%02X", data[i]);
     }
-    retstring[i*2] = 0; //terminate
+    gdbserver_state.tx_packet[i*2] = 0; //terminate
 
-    gdbserver_TransmitPacket(retstring);
+    gdbserver_TransmitPacket(gdbserver_state.tx_packet);
 
     return RET_SUCCESS;
 }
@@ -1279,7 +1276,9 @@ void Task_gdbserver(void* params)
         }
         //TODO: replace delay-loop polling by timer-based polling
         vTaskDelay(1);
+#ifdef DO_STACK_CHECK
         gdbserver_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
     };
 
     (void)params; //avoid unused warning
