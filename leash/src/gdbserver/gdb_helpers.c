@@ -26,6 +26,35 @@ struct gdb_helpers_state_t gdb_helpers_state = {
     .initialized = 0
 };
 
+unsigned int gdb_helpers_deEscape_Binary_outputLen(uint8_t* data, unsigned int num_output_bytes)
+{
+    unsigned int processed_bytes = 0;
+    for(unsigned int index = 0; processed_bytes<num_output_bytes; index++){
+        if(data[index] == 0x7D){ //escape character
+            index++;
+            data[index] ^= 0x20;
+        }
+        data[processed_bytes++] = data[index];
+    }
+
+    return processed_bytes;
+}
+
+unsigned int gdb_helpers_deEscape_Binary_inputLen(uint8_t* data, unsigned int num_input_bytes)
+{
+    unsigned int processed_bytes = 0;
+    for(unsigned int index = 0; index<num_input_bytes; index++){
+        if(data[index] == 0x7D){ //escape character
+            index++;
+            data[index] ^= 0x20;
+        }
+        data[processed_bytes++] = data[index];
+    }
+
+    return processed_bytes;
+}
+
+
 int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void))
 {
     gdb_helpers_state.pPutChar = pPutChar;

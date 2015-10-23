@@ -57,9 +57,6 @@ unsigned int curChar = 0;
 enum gdbserver_packet_phase{
     PACKET_NONE = 0,
     PACKET_DATA,
-    PACKET_DATA_FIRST_CHAR,
-    PACKET_HEADER_FOR_BINARY_DATA,
-    PACKET_BINARY_DATA,
     PACKET_CHECKSUM
 };
 
@@ -400,7 +397,7 @@ static int gdbserver_processChar(void)
         if(c == '$') {gdbserver_reset_error(c, "GDBServer: $ during packet data");}
         else if(c == '#'){
             gdbserver_state.packet_phase = PACKET_CHECKSUM; //next state
-            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = '#'; //hash-terminate current packet
+            gdbserver_state.cur_packet[gdbserver_state.cur_packet_index] = 0; //terminate current packet
             gdbserver_state.cur_packet_len = gdbserver_state.cur_packet_index;
             gdbserver_state.cur_packet_index = 0;
         }
@@ -422,7 +419,7 @@ static int gdbserver_processChar(void)
             break;
         case '$':
             if(gdbserver_state.packet_phase != PACKET_NONE) { gdbserver_reset_error(ERROR_UNKNOWN, "$ during packet!"); break; } //invalid character in packet
-            gdbserver_state.packet_phase = PACKET_DATA_FIRST_CHAR;
+            gdbserver_state.packet_phase = PACKET_DATA;
             gdbserver_state.cur_checksum = 0;
             gdbserver_state.cur_packet_index = 0;
             break;
@@ -450,7 +447,7 @@ static int gdbserver_processChar(void)
                 }
                 break;
             default:
-                gdbserver_reset_error(ERROR_UNKNOWN, "Unhandled char type"); //should never reach this point
+                gdbserver_reset_error(ERROR_UNKNOWN, "Wrong packet phase"); //should never reach this point
             }
             break;
         }
@@ -641,9 +638,7 @@ static int gdbserver_vFilePWrite(char* argstring)
 {
     unsigned int fd;
     unsigned int offset;
-    unsigned char data[GDBSERVER_MAX_PACKET_LEN_RX];
-    unsigned int j;
-    unsigned int i;
+    unsigned char *data;
     int retval;
 
     char *fd_hex = strtok(argstring, ",");
@@ -658,21 +653,17 @@ static int gdbserver_vFilePWrite(char* argstring)
     sscanf(offset_hex, "%X", &offset);
 
     //binary data
-    i = strlen(fd_hex) + strlen(offset_hex) + 2;
-    for(j=0; argstring[i] != '#'; i++){
-        if(argstring[i] == '}'){
-            i++;
-            argstring[i] |= 0x20;
-        }
-        data[j++] = (unsigned char)argstring[i];
-    }
+    unsigned int binary_offset = strlen(fd_hex) + strlen(offset_hex) + 2;
+    data = (unsigned char*)&(argstring[binary_offset]);
+    unsigned int len = gdb_helpers_deEscape_Binary_inputLen(data,
+            gdbserver_state.cur_packet_len - binary_offset);
 
-    LOG(LOG_VERBOSE, "Writing %04X bytes", j);
+    LOG(LOG_VERBOSE, "Writing %04X bytes", len);
     retval = (*gdbserver_state.target->target_flash_fs_write)(
             (int)fd,
             offset,
             data,
-            j);
+            len);
     if(retval < 0){
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
@@ -1077,10 +1068,12 @@ static int gdbserver_writeMemoryBinary(char* argstring)
     //First, get the arguments
     char* addrstring = strtok(argstring, ",");
     char* lenstring = strtok(NULL, ":");
-    uint8_t* data = (uint8_t*) strtok(NULL, "#");
+    uint8_t* data = (uint8_t*) &(lenstring[strlen(lenstring)+1]);
 
     uint32_t addr = strtol(addrstring, NULL, 16);
     uint32_t len = strtol(lenstring, NULL, 16);
+
+    gdb_helpers_deEscape_Binary_outputLen(data, len);
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS){
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
