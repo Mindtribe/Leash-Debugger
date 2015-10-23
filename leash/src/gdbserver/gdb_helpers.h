@@ -49,4 +49,7 @@ int gdb_helpers_CharsAvaliable(void);
 //raw ASCII format.
 void gdb_helpers_hexStrToStr(char* hexStr, char* str);
 
+unsigned int gdb_helpers_deEscape_Binary_outputLen(uint8_t* data, unsigned int num_output_bytes);
+unsigned int gdb_helpers_deEscape_Binary_inputLen(uint8_t* data, unsigned int num_input_bytes);
+
 #endif
