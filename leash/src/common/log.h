@@ -32,14 +32,14 @@ enum log_level{
     LOG_HIGHEST,
 };
 
+#define MAX_MEM_LOG_LEN (64)
+#define MAX_MEM_LOG_ENTRIES (30)
+
 #define LOG(X, ...) { \
     if((X) >= LOG_LEVEL){ \
-        char* pLogPtr = (char*) pvPortMalloc( (size_t) (snprintf(NULL,0,__VA_ARGS__)+1) ); \
-        if(pLogPtr != NULL){ \
-            sprintf(pLogPtr, __VA_ARGS__); \
-            log_put(pLogPtr); \
-            vPortFree(pLogPtr); \
-        } \
+        char pTempLogMsg[MAX_MEM_LOG_LEN]; \
+        snprintf(pTempLogMsg, MAX_MEM_LOG_LEN, __VA_ARGS__); \
+        log_put(pTempLogMsg); \
     } \
 }
 

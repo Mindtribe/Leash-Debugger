@@ -33,7 +33,7 @@
 #error SimpleLink event handler not defined!
 #endif
 
-#define SPAWNTASK_STACK_SIZE (2048)
+#define SPAWNTASK_STACK_SIZE (512)
 #define SPAWNTASK_PRIORITY (9)
 
 #define WIFI_AP_SSID "LeashDebugger"
@@ -55,6 +55,7 @@ struct wifi_state_t wifi_state ={
     .client_IP = 0,
     .self_IP = 0,
     .startAP = 0,
+    .stack_watermark = 0xFFFFFFFF,
     .mac = {0}
 };
 
@@ -270,6 +271,9 @@ void Task_Wifi(void* params)
     }
 
     WifiTaskEndCallback(&Task_Wifi);
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
     vTaskDelete(NULL);
     return;
 }
@@ -324,6 +328,10 @@ void Task_WifiScan(void* params)
 
     ClearLED(LED_WIFI);
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiScan);
     vTaskDelete(NULL);
@@ -361,6 +369,10 @@ void Task_WifiAP(void* params)
     SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_AP);
     LOG(LOG_IMPORTANT, "AP Started - Ready for client.");
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //start socket handler.
     xTaskCreate(Task_SocketServer,
             "Socket Server",
@@ -368,6 +380,10 @@ void Task_WifiAP(void* params)
             0,
             SOCKET_TASK_PRIORITY,
             0);
+
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
 
     //exit (delete this task)
     WifiTaskEndCallback(&Task_WifiAP);
@@ -400,6 +416,10 @@ void Task_WifiSTA(void* params)
 
     SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTED);
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //start socket handler.
     xTaskCreate(Task_SocketServer,
             "Socket Server",
@@ -408,8 +428,12 @@ void Task_WifiSTA(void* params)
             SOCKET_TASK_PRIORITY,
             0);
 
+#ifdef DO_STACK_CHECK
+    wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
+
     //exit (delete this task)
-    WifiTaskEndCallback(&Task_WifiAP);
+    WifiTaskEndCallback(&Task_WifiSTA);
     vTaskDelete(NULL);
 
     return;

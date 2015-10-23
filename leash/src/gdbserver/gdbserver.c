@@ -34,20 +34,20 @@
 #include "led.h"
 #include "ui.h"
 
-#define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
-#define GDBSERVER_KEEP_CHARS_NUM 532 //for debugging: number of chars to keep track of
+//#define GDBSERVER_KEEP_CHARS //for debugging: whether to keep track of chars received
+#define GDBSERVER_KEEP_CHARS_NUM 2096 //for debugging: number of chars to keep track of
 
-#define GDBSERVER_MAX_PACKET_LEN_RX 532
-#define GDBSERVER_MAX_PACKET_LEN_TX 532
-#define GDBSERVER_REPORT_MAX_PACKET_LEN 512
+#define GDBSERVER_MAX_PACKET_LEN_RX 2096
+#define GDBSERVER_MAX_PACKET_LEN_TX 2096
+#define GDBSERVER_REPORT_MAX_PACKET_LEN 2048
 
-#define GDBSERVER_MAX_BLOCK_ACCESS 512
+#define GDBSERVER_MAX_BLOCK_ACCESS 2048
 #define GDBSERVER_NUM_BKPT 256
 #define GDBSERVER_POLL_INTERVAL 100
 
 #define GDBSERVER_FILENAME_MAX 128
 
-static const char* gdbserver_log_prefix = "[GDBSERV]";
+static const char* gdbserver_log_prefix = "[GDBSERV] ";
 
 #ifdef GDBSERVER_KEEP_CHARS
 char lastChars[GDBSERVER_KEEP_CHARS_NUM];
@@ -158,7 +158,7 @@ struct gdbserver_state_t{
     int awaiting_ack;
     int gdb_connected;
     int target_connected;
-    char last_sent_packet[GDBSERVER_MAX_PACKET_LEN_TX];
+    char tx_packet[GDBSERVER_MAX_PACKET_LEN_TX];
     char cur_packet[GDBSERVER_MAX_PACKET_LEN_RX];
     char cur_checksum_chars[2];
     uint8_t cur_checksum;
@@ -172,6 +172,7 @@ struct gdbserver_state_t{
     unsigned int binary_rx_counter;
     unsigned int escapechar;
     unsigned int cur_packet_len;
+    unsigned int stack_watermark;
 };
 
 //disable GCC warning - braces bug 53119 in GCC
@@ -181,7 +182,7 @@ struct gdbserver_state_t gdbserver_state = {
     .initialized = 0,
     .packet_phase = PACKET_NONE,
     .awaiting_ack = 0,
-    .last_sent_packet = {0},
+    .tx_packet = {0},
     .cur_packet = {0},
     .cur_checksum_chars = {0},
     .cur_packet_index = 0,
@@ -195,7 +196,8 @@ struct gdbserver_state_t gdbserver_state = {
     .escapechar = 0,
     .cur_checksum = 0,
     .cur_packet_len = 0,
-    .target_connected = 0
+    .target_connected = 0,
+    .stack_watermark = 0xFFFFFFFF
 };
 #pragma GCC diagnostic pop
 
@@ -286,7 +288,7 @@ static void gdbserver_TransmitPacket(char* packet_data)
     //update state
     gdbserver_state.awaiting_ack = 1;
     //log the packet
-    LOG(LOG_VERBOSE, "%s TX: %s" , gdbserver_log_prefix, packet_data);
+    LOG(LOG_VERBOSE, "%sTX: %s", gdbserver_log_prefix, packet_data);
 
     return;
 }
@@ -320,7 +322,7 @@ static void gdbserver_TransmitBinaryPacket(unsigned char* packet_data, unsigned 
     //update state
     gdbserver_state.awaiting_ack = 1;
     //log the packet
-    LOG(LOG_VERBOSE, "%s TX: (Binary data)", gdbserver_log_prefix);
+    LOG(LOG_VERBOSE, "%sTX: (Binary data)", gdbserver_log_prefix);
 
     return;
 }
@@ -351,7 +353,7 @@ static void gdbserver_TransmitDebugMsgPacket(char* packet_data)
     //gdbserver_state.awaiting_ack = 1;
 
     //log the packet
-    LOG(LOG_VERBOSE, "%s TX: %s", gdbserver_log_prefix , packet_data);
+    LOG(LOG_VERBOSE, "%sTX: %s" , gdbserver_log_prefix, packet_data);
 
     return;
 }
@@ -411,7 +413,7 @@ static int gdbserver_processChar(void)
         switch(c){
         case '-':  //NACK (retransmit request)
             if(!gdbserver_state.awaiting_ack) { break; } //don't throw an error since this will start an infinite loop with GDB acking all the time
-            gdbserver_TransmitPacket(gdbserver_state.last_sent_packet);
+            gdbserver_TransmitPacket(gdbserver_state.tx_packet);
             break;
         case '+': //ACK
             if(!gdbserver_state.awaiting_ack) { break; } //don't throw an error since this will start an infinite loop with GDB acking all the time
@@ -598,7 +600,6 @@ static int gdbserver_vFilePRead(char* argstring)
     unsigned int fd;
     unsigned int count;
     unsigned int offset;
-    unsigned char data[GDBSERVER_MAX_PACKET_LEN_TX];
     int retval;
 
     char *fd_hex = strtok(argstring, ",");
@@ -620,16 +621,16 @@ static int gdbserver_vFilePRead(char* argstring)
     retval = (*gdbserver_state.target->target_flash_fs_read)(
             (int)fd,
             offset,
-            &(data[10]),
+            (unsigned char*)&(gdbserver_state.tx_packet[10]),
             count);
     if(retval < 0) {
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
     if((unsigned int)retval > count){ retval = (int)count; }
-    sprintf((char*)data, "F%08X", (unsigned int)retval);
-    data[9] = ';'; //this one separately to overwrite sprintf's trailing 0
-    gdbserver_TransmitBinaryPacket(data, retval+10);
+    sprintf(gdbserver_state.tx_packet, "F%08X", (unsigned int)retval);
+    gdbserver_state.tx_packet[9] = ';'; //this one separately to overwrite sprintf's trailing 0
+    gdbserver_TransmitBinaryPacket((unsigned char*)gdbserver_state.tx_packet, retval+10);
 
     return RET_SUCCESS;
 }
@@ -668,7 +669,7 @@ static int gdbserver_vFilePWrite(char* argstring)
         gdbserver_TransmitPacket("F-1,270F");
         return RET_SUCCESS;
     }
-    char response[20];
+    char* response = gdbserver_state.tx_packet;
     snprintf(response, 20, "F%08X", (unsigned int)retval);
     gdbserver_TransmitPacket(response);
 
@@ -679,7 +680,6 @@ static int gdbserver_processVCommand(char* commandString)
 {
     enum gdbserver_vcommand_name qname = gdbserver_getVCommandName(commandString);
     if(qname == VCOMMAND_ERROR){
-        strtok(commandString, ":,#");
         LOG(LOG_VERBOSE, "%s Unknown 'v' packet: 'v%s'.", gdbserver_log_prefix, commandString);
         gdbserver_TransmitPacket("");
         return RET_SUCCESS;
@@ -734,7 +734,7 @@ static int gdbserver_processGeneralQuery(char* queryString)
 {
     enum gdbserver_query_name qname = gdbserver_getGeneralQueryName(queryString);
     if(qname == QUERY_ERROR){
-        LOG(LOG_VERBOSE, "%s Unknown 'q' packet: 'q%s'.", gdbserver_log_prefix, queryString);
+        LOG(LOG_VERBOSE, "%sUnknown 'q' packet: 'q%s'.", gdbserver_log_prefix, queryString);
         gdbserver_TransmitPacket("");
         return RET_SUCCESS;
     }
@@ -848,12 +848,12 @@ static int gdbserver_processPacket(void)
         gdbserver_TransmitStopReason();
         break;
     case 'g': //request the register status
-        if((*gdbserver_state.target->target_get_gdb_reg_string)(gdbserver_state.last_sent_packet)
+        if((*gdbserver_state.target->target_get_gdb_reg_string)(gdbserver_state.tx_packet)
                 == RET_FAILURE){
             ADD_ERROR(ERROR_UNKNOWN, "Reg get fail");
             gdbserver_TransmitPacket("E00");
         }
-        else{ gdbserver_TransmitPacket(gdbserver_state.last_sent_packet); } //send the register string
+        else{ gdbserver_TransmitPacket(gdbserver_state.tx_packet); } //send the register string
         break;
     case 'G': //write registers
         strtok(gdbserver_state.cur_packet, "#"); //0-terminate the string
@@ -1000,7 +1000,7 @@ static int gdbserver_readMemory(char* argstring)
 
     uint32_t addr = strtol(addrstring, NULL, 16);
     uint32_t len = strtol(lenstring, NULL, 16);
-    uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
+    uint8_t *data = (uint8_t*)argstring; //re-use argstring storage to save stack space
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) {
         SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
@@ -1013,14 +1013,13 @@ static int gdbserver_readMemory(char* argstring)
     }
 
     //construct the answer string
-    char retstring[GDBSERVER_MAX_PACKET_LEN_TX];
     uint32_t i;
     for(i=0; i<len; i++){
-        sprintf(&(retstring[i*2]), "%02X", data[i]);
+        sprintf(&(gdbserver_state.tx_packet[i*2]), "%02X", data[i]);
     }
-    retstring[i*2] = 0; //terminate
+    gdbserver_state.tx_packet[i*2] = 0; //terminate
 
-    gdbserver_TransmitPacket(retstring);
+    gdbserver_TransmitPacket(gdbserver_state.tx_packet);
 
     return RET_SUCCESS;
 }
@@ -1141,6 +1140,9 @@ void Task_gdbserver(void* params)
         }
         //TODO: replace delay-loop polling by timer-based polling
         vTaskDelay(1);
+#ifdef DO_STACK_CHECK
+        gdbserver_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
+#endif
     };
 
     (void)params; //avoid unused warning

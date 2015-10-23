@@ -13,6 +13,6 @@
 
 //TODO: this is defined both here and in the linker script.
 //is there a better way?
-#define HEAP_SIZE 0x00010000
+#define HEAP_SIZE 0x00014000
 
 #endif
