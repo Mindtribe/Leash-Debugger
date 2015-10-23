@@ -18,22 +18,35 @@
 
 #include <stdint.h>
 
+//Initialize GDB helper functions.
+//pGetCharsAvail, pPutChar and pGetChar are character putting and getting functions which will be used
+//by GDBServer to communicate with GDB (for example UART, TCP...)
 int gdb_helpers_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCharsAvail)(void));
 
+//Can be used to send a character into the channel gdb helpers were initialized with.
 void gdb_helpers_PutChar(char c);
 
+//Can be used to get a character from the channel gdb helpers were initialized with.
 void gdb_helpers_GetChar(char* c);
 
+//Send 'ACK' to GDB.
 void gdb_helpers_Ack(void);
 
+//Send 'NACK' to GDB.
 void gdb_helpers_Nack(void);
 
+//Transmit a packet (handles creation of start, stop and checksum characters).
 void gdb_helpers_TransmitPacket(char* packet_data);
 
+//Check whether GDB helpers have been initialized.
 int gdb_helpers_isInitialized(void);
 
+//Can be used to get the number of characters waiting in the communication channel's
+//receive buffer.
 int gdb_helpers_CharsAvaliable(void);
 
+//Convert a string, which contains a hexadecimally encoded ASCII string, back to
+//raw ASCII format.
 void gdb_helpers_hexStrToStr(char* hexStr, char* str);
 
 unsigned int gdb_helpers_deEscape_Binary_outputLen(uint8_t* data, unsigned int num_output_bytes);

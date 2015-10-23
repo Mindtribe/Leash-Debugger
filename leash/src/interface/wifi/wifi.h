@@ -31,6 +31,7 @@ struct wifi_state_t {
     unsigned long self_IP;
     Sl_WlanNetworkEntry_t networks[WIFI_NUM_NETWORKS];
     unsigned int startAP;
+    unsigned char mac[SL_MAC_ADDR_LEN];
 };
 extern struct wifi_state_t wifi_state;
 
@@ -38,6 +39,7 @@ int WifiInit(unsigned int startAP); //initialize and start spawn task (if startA
 int WifiDeleteSpawnTask(void); //delete the spawn task and queue
 int WifiStartSpawnTask(void); //create the spawn task and queue
 int WifiStartDefaultSettings(void); //go to default state and given mode
+unsigned char* WifiGetMAC(void); //getter function for MAC address
 
 //FreeRTOS tasks
 void Task_WifiScan(void* params); //scan for WiFi networks

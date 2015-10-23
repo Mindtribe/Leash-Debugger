@@ -22,12 +22,17 @@ enum flash_command_type{
     FD_CLOSE,
     FD_READ,
     FD_WRITE,
-    FD_DELETE
+    FD_DELETE,
+    FD_CRC
 };
 
 #define FLASH_RESPONSE_INITIALIZED 2
 
-#define FLASHSTUB_FILENAME "/cc3200_flashstub.bin"
+#define FLASHSTUB_NUM_NAMES 2
+const char* FLASHSTUB_FILENAMES[] = {
+    "cc3200_flashstub.bin",
+    "/cc3200_flashstub.bin"
+};
 
 enum mem_sync_state{
     SYNC_UNINIT = 0,
@@ -70,6 +75,11 @@ struct command_file_write_args_t{
 
 struct command_file_delete_args_t{
     unsigned char* pFileName;
+};
+
+struct command_get_crc_args_t{
+    unsigned char* pFileName;
+    unsigned int crc;
 };
 
 //The following list consists of absolute memory addresses/sizes used for communication.

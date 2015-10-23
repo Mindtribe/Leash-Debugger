@@ -16,6 +16,7 @@
 #include "mem.h"
 #include "error.h"
 #include "log.h"
+#include "crc32.h"
 
 #include "simplelink.h"
 #include "fs.h"
@@ -25,6 +26,14 @@
 
 #define TARGET_SRAM_ORIGIN 0x20004000
 #define FLASH_LOAD_CHUNK_SIZE 128
+
+struct cc3200_flashfs_state_t{
+    unsigned int file_crc;
+};
+
+static struct cc3200_flashfs_state_t cc3200_flashfs_state = {
+    .file_crc = 0
+};
 
 int cc3200_flashfs_load(char* pFileName)
 {
@@ -81,9 +90,19 @@ int cc3200_flashfs_loadstub(void)
     unsigned int stackptaddr;
     unsigned int entryaddr;
 
-    LOG(LOG_VERBOSE, "[CC3200] Starting flash stub load...");
+    LOG(LOG_VERBOSE, "[CC3200] Searching flash stub...");
 
-    retval = cc3200_flashfs_load(FLASHSTUB_FILENAME);
+    SlFsFileInfo_t stubinfo;
+    int i;
+    for(i=0; i<FLASHSTUB_NUM_NAMES; i++){
+        retval = sl_FsGetInfo((unsigned char*) FLASHSTUB_FILENAMES[i], 0, &stubinfo);
+        if(retval >= 0) { break; }
+    }
+    if(retval<0){ RETURN_ERROR(ERROR_UNKNOWN, "[CC3200] Not found!"); }
+
+    LOG(LOG_VERBOSE, "[CC3200] Will load '%s'.", FLASHSTUB_FILENAMES[i]);
+
+    retval = cc3200_flashfs_load((char*)FLASHSTUB_FILENAMES[i]);
     if(retval == RET_FAILURE) {RETURN_ERROR(ERROR_UNKNOWN, "Stub load fail");}
 
     retval = cc3200_interface.target_mem_read(0x20004000, (uint32_t*)&stackptaddr);
@@ -122,12 +141,74 @@ int cc3200_flashfs_loadstub(void)
     return RET_SUCCESS;
 }
 
+int cc3200_flashfs_checkcrc(unsigned char* pFileName, unsigned int *result)
+{
+    struct command_get_crc_args_t args;
+    struct flash_command_t cmd;
+    struct flash_command_response_t response;
+    int retval;
+
+    args.pFileName = (unsigned char*)(FLASH_DATA_ADDR + sizeof(struct command_get_crc_args_t));
+    args.crc = 0;
+
+    cmd.type = FD_CRC;
+
+    LOG(LOG_VERBOSE, "[CC3200] Requesting CRC of file '%s' and comparing to last written file...", (char*)pFileName);
+
+    retval = cc3200_interface.target_mem_block_write((unsigned int)FLASH_CMD_ADDR, sizeof(struct flash_command_t), (unsigned char*)&cmd);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
+    retval = cc3200_interface.target_mem_block_write((unsigned int)FLASH_DATA_ADDR, sizeof(struct command_get_crc_args_t), (unsigned char*)&args);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
+    retval = cc3200_interface.target_mem_block_write((unsigned int)FLASH_DATA_ADDR + sizeof(struct command_get_crc_args_t),
+            strlen((char*)pFileName)+1, pFileName);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
+    //execute
+    retval = cc3200_interface.target_mem_write((unsigned int)FLASH_CMD_SYNC_OBJECT_ADDR, SYNC_READY);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
+
+    //wait to finish
+    uint32_t syncstate = SYNC_UNINIT;
+    do{
+        vTaskDelay(1);
+        retval = cc3200_interface.target_mem_read((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, &syncstate);
+        if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem read fail");
+    }while(syncstate != SYNC_READY);
+    retval = cc3200_interface.target_mem_write((unsigned int)FLASH_RESPONSE_SYNC_OBJECT_ADDR, SYNC_WAIT);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem write fail");
+
+    //read response
+    retval = cc3200_interface.target_mem_block_read((unsigned int)FLASH_RESPONSE_ADDR, sizeof(struct flash_command_response_t), (unsigned char*)&response);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem read fail");
+    retval = cc3200_interface.target_mem_block_read((unsigned int)FLASH_DATA_ADDR, sizeof(struct command_file_open_args_t), (unsigned char*)&args);
+    if(retval == RET_FAILURE) RETURN_ERROR(retval, "Mem read fail");
+
+    if(response.retval<0){
+        LOG(LOG_VERBOSE, "[CC3200] ...Failed.");
+        return RET_SUCCESS;
+    }
+
+    LOG(LOG_VERBOSE, "[CC3200] Ref CRC: 0x%08X File CRC: 0x%08X", cc3200_flashfs_state.file_crc, args.crc);
+    if(cc3200_flashfs_state.file_crc == args.crc){
+        LOG(LOG_IMPORTANT, "[CC3200] CRC Match.");
+        *result = 1;
+    }
+    else{
+        LOG(LOG_IMPORTANT, "[CC3200] CRC Mismatch!");
+        *result = 0;
+    }
+
+    return RET_SUCCESS;
+}
+
 int cc3200_flashfs_open(unsigned int AccessModeAndMaxSize, unsigned char* pFileName, long* pFileHandle)
 {
     struct flash_command_t cmd;
     struct command_file_open_args_t args;
     struct flash_command_response_t response;
     int retval;
+
+    //reset CRC
+    cc3200_flashfs_state.file_crc = 0;
 
     //memory structure in shared data region:
     //1. command_file_open_args_t struct
@@ -274,6 +355,9 @@ int cc3200_flashfs_write(int FileHdl, unsigned int Offset, unsigned char* pData,
     struct command_file_write_args_t args;
     struct flash_command_response_t response;
     int retval;
+
+    //update crc
+    cc3200_flashfs_state.file_crc = (unsigned int) crc32((uint8_t*)pData, (int)Len, cc3200_flashfs_state.file_crc);
 
     //memory structure in shared data region:
     //1. command_file_write_args_t struct
