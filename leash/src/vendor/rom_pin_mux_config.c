@@ -51,6 +51,8 @@
 #include "rom.h"
 #include "rom_map.h"
 
+#include "ui.h"
+
 //*****************************************************************************
 void PinMuxConfig(void)
 {
@@ -71,57 +73,99 @@ void PinMuxConfig(void)
     //
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
 
+#ifdef PINOUT_LAUNCHPAD
     //
-    // Configure PIN_15 for GPIO Input
-    //
-    MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA3_BASE, 0x2, GPIO_DIR_MODE_IN);
-
-    //
-    // Configure PIN_04 for GPIO Input
-    //
-    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
-
-    //
-    // Configure PIN_64 for GPIO Output
-    //
-    MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
-
-    //
-    // Configure PIN_01 for GPIO Output
-    //
-    MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
-
-    //
-    // Configure PIN_02 for GPIO Output
-    //
-    MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x8, GPIO_DIR_MODE_OUT);
-
-    //
-    // Configure PIN_06 for GPIO Output
+    // Configure PIN_06 for GPIO Output (TDI)
     //
     MAP_PinTypeGPIO(PIN_06, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA1_BASE, 0x80, GPIO_DIR_MODE_OUT);
 
     //
-    // Configure PIN_07 for GPIO Output
-    //
-    MAP_PinTypeGPIO(PIN_07, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA2_BASE, 0x1, GPIO_DIR_MODE_OUT);
-
-    //
-    // Configure PIN_08 for GPIO Output
+    // Configure PIN_08 for GPIO Output (TMS)
     //
     MAP_PinTypeGPIO(PIN_08, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA2_BASE, 0x2, GPIO_DIR_MODE_OUT);
 
     //
-    // Configure PIN_18 for GPIO Output
+    // Configure PIN_18 for GPIO Output (TCK)
     //
     MAP_PinTypeGPIO(PIN_18, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA3_BASE, 0x10, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_15 for GPIO Input (TDO)
+    //
+    MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA3_BASE, 0x2, GPIO_DIR_MODE_IN);
+
+    //
+    // Configure PIN_04 for GPIO Input (APSEL)
+    //
+    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
+
+    //
+    // Configure PIN_64 for GPIO Output (red LED)
+    //
+    MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_01 for GPIO Output (yellow LED)
+    //
+    MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_02 for GPIO Output (green LED)
+    //
+    MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x8, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_07 for GPIO Output (nRST)
+    //
+    MAP_PinTypeGPIO(PIN_07, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x1, GPIO_DIR_MODE_OUT);
+#endif
+
+#ifdef PINOUT_RBL_WIFIMINI
+
+    //
+    // Configure PIN_61 for GPIO Input (TDO)
+    //
+    MAP_PinTypeGPIO(PIN_61, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA0_BASE, 0x40, GPIO_DIR_MODE_IN);
+
+    //
+    // Configure PIN_62 for GPIO Output (TDI)
+    //
+    MAP_PinTypeGPIO(PIN_62, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_63 for GPIO Output (TMS)
+    //
+    MAP_PinTypeGPIO(PIN_63, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x1, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_64 for GPIO Output (TCK)
+    //
+    MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_53 for GPIO Output (LED)
+    //
+    MAP_PinTypeGPIO(PIN_53, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA3_BASE, 0x40, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_15 for GPIO Input (APSEL)
+    //
+    MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_IN);
+
+#endif
 }

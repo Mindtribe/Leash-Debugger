@@ -11,13 +11,12 @@
 #ifndef UI_H_
 #define UI_H_
 
+#include "hw_memmap.h"
+
 enum user_switches{
-    SWITCH_2 = 0,
-    SWITCH_3,
+    SWITCH_APSEL = 0,
     NUM_SWITCHES
 };
-
-#define AP_SWITCH SWITCH_3
 
 //these constants represent LED blinking patterns.
 //The individual bits of the constant will be shifted one place every 100ms.
@@ -37,5 +36,9 @@ enum user_switches{
 #define LED_WIFI LED_GREEN
 #define LED_ERROR LED_RED
 #define LED_JTAG LED_ORANGE
+
+//pin configurations
+#define PINOUT_LAUNCHPAD //TI CC3200 LaunchPad
+//#define PINOUT_RBL_WIFIMINI //RedBearLabs WiFi Mini
 
 #endif

@@ -12,7 +12,6 @@
 
 #include "log.h"
 #include "led.h"
-#include "gpio_if.h"
 #include "ui.h"
 #include "FreeRTOS.h"
 #include "task.h"

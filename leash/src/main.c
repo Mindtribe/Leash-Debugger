@@ -26,8 +26,7 @@
 #include "gpio.h"
 #include "utils.h"
 
-//TI interface layer code and pin config file
-#include "gpio_if.h"
+//TI interface pin config file
 #include "uart_al.h"
 #include "pin_mux_config.h"
 
@@ -72,7 +71,7 @@ int main(void)
     mem_log_clear();
     OSInit();
 
-    unsigned int startAP = GetUserSwitch(AP_SWITCH); //If switch pressed, start in AP mode later
+    unsigned int startAP = GetUserSwitch(SWITCH_APSEL); //If switch pressed, start in AP mode later
 
     InitSockets();
     if(gdbserver_init(&ExtThread_GDBSocketPutChar, &ExtThread_GDBSocketGetChar, &ExtThread_GDBSocketRXCharAvailable, &cc3200_interface)

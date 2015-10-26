@@ -8,23 +8,13 @@
     Target(s):  ISO/IEC 9899:1999 (TI CC3200 - Launchpad XL)
     --------------------------------------------------------- */
 
-#include "switch.h"
-#include "ui.h"
 #include "gpio_al.h"
 
-#ifdef PINOUT_LAUNCHPAD
-const unsigned char switch_GPIOs[NUM_SWITCHES] = {
-    13
-};
-#endif
-#ifdef PINOUT_RBL_WIFIMINI
-const unsigned char switch_GPIOs[NUM_SWITCHES] = {
-    22
-};
-#endif
-
-unsigned int GetUserSwitch(unsigned int id)
+const unsigned long gpioRegs[]=
 {
-    if(id>=NUM_SWITCHES) return 0;
-    return GPIO_GET_PIN(switch_GPIOs[id]);
-}
+    GPIOA0_BASE,
+    GPIOA1_BASE,
+    GPIOA2_BASE,
+    GPIOA3_BASE,
+    GPIOA4_BASE
+};
