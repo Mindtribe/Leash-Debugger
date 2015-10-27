@@ -29,10 +29,10 @@
 #endif
 
 #ifdef PINOUT_RBL_WIFIMINI
-#define GPIO_TMS 8
-#define GPIO_TDI 7
-#define GPIO_TCK 9
-#define GPIO_TDO 6
+#define GPIO_TMS 15
+#define GPIO_TDI 16
+#define GPIO_TCK 14
+#define GPIO_TDO 12
 #define GPIO_RST 0
 #endif
 

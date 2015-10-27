@@ -366,7 +366,7 @@ static void sc_cmd_mac(void)
     switch(serialconfig_state.statenum){
     case COMMAND:
         snprintf(macstring, 20,  "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-        LOG(LOG_IMPORTANT, "[CONF] MAC: %s", macstring);
+        LOG(LOG_IMPORTANT, "%sMAC: %s", conf_log_prefix, macstring);
         break;
     default:
         serialconfig_state.statenum = COMMAND;

@@ -38,7 +38,7 @@ enum user_switches{
 #define LED_JTAG LED_ORANGE
 
 //pin configurations
-#define PINOUT_LAUNCHPAD //TI CC3200 LaunchPad
-//#define PINOUT_RBL_WIFIMINI //RedBearLabs WiFi Mini
+//#define PINOUT_LAUNCHPAD //TI CC3200 LaunchPad
+#define PINOUT_RBL_WIFIMINI //RedBearLabs WiFi Mini
 
 #endif

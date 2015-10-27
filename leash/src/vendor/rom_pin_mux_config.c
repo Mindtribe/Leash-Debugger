@@ -132,28 +132,28 @@ void PinMuxConfig(void)
 #ifdef PINOUT_RBL_WIFIMINI
 
     //
-    // Configure PIN_61 for GPIO Input (TDO)
+    // Configure PIN_03 for GPIO Input (TDO)
     //
-    MAP_PinTypeGPIO(PIN_61, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA0_BASE, 0x40, GPIO_DIR_MODE_IN);
+    MAP_PinTypeGPIO(PIN_03, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x10, GPIO_DIR_MODE_IN);
 
     //
-    // Configure PIN_62 for GPIO Output (TDI)
+    // Configure PIN_05 for GPIO14 Output (TCK)
     //
-    MAP_PinTypeGPIO(PIN_62, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_OUT);
+    MAP_PinTypeGPIO(PIN_05, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x40, GPIO_DIR_MODE_OUT);
 
     //
-    // Configure PIN_63 for GPIO Output (TMS)
+    // Configure PIN_06 for GPIO15 Output (TMS)
     //
-    MAP_PinTypeGPIO(PIN_63, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x1, GPIO_DIR_MODE_OUT);
+    MAP_PinTypeGPIO(PIN_06, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x80, GPIO_DIR_MODE_OUT);
 
     //
-    // Configure PIN_64 for GPIO Output (TCK)
+    // Configure PIN_07 for GPIO16 Output (TDI)
     //
-    MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
+    MAP_PinTypeGPIO(PIN_07, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x1, GPIO_DIR_MODE_OUT);
 
     //
     // Configure PIN_53 for GPIO Output (LED)
@@ -166,6 +166,20 @@ void PinMuxConfig(void)
     //
     MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_IN);
+
+    //
+    // Configure PIN_04 for GPIO Output (LOW for APSEL)
+    //
+    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_OUT);
+    MAP_GPIOPinWrite(GPIOA1_BASE, 0x20, 0);
+
+    //
+    // Configure PIN_08 for GPIO Output (HIGH for APSEL)
+    //
+    MAP_PinTypeGPIO(PIN_08, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x2, GPIO_DIR_MODE_OUT);
+    MAP_GPIOPinWrite(GPIOA2_BASE, 0x2, 1);
 
 #endif
 }

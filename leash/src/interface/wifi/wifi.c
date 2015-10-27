@@ -193,7 +193,7 @@ static int WifiDefaultSettings(void)
             wifi_state.mac[1], wifi_state.mac[2],
             wifi_state.mac[3], wifi_state.mac[4],
             wifi_state.mac[5]);
-    snprintf(hostname, 64,  "WiFiDebugger%s", macstring);
+    snprintf(hostname, 64,  "LeashDebugger%s", macstring);
     retval = sl_NetAppSet (SL_NET_APP_DEVICE_CONFIG_ID,
             NETAPP_SET_GET_DEV_CONF_OPT_DEVICE_URN,
             strlen((const char *)hostname),

@@ -215,12 +215,24 @@ MAC OS offers a tool called **dns-sd** to browse mDNS services.
 
 ### Name Resolution Commands
 
-To confirm Leash Debugger's existence on the network, run
+**On Mac**, first, run the following command in a Terminal window:
+
+```
+dns-sd -B
+```
+
+A list of mDNS devices should show up, including one called LeashDebugger{MAC}, where MAC is a string representing Leash Debugger's MAC address. Copy this full name including the MAC string, then run:
+
+```
+dns-sd -G v4 LeashDebugger{MAC}.local
+```
+
+Where "LeashDebugger{MAC}" should be the full name you found in the first step. dns-sd should now give you information, including the IP address on which Leash Debugger can be reached.
+
+**On Linux**, run:
 
 ```sh
 Linux:    avahi-browse -r _http._tcp
-MAC OS:   dns-sd ???
-Windows:  ???
 ```
 
 In the resulting list of services, all Leash Debugger devices should show up as "LeashDebug{MAC}", where {MAC} is the debugger's MAC address. Note that Leash Debugger does NOT offer a HTTP server - however, its IP can be found through resolving this mDNS entry.
@@ -231,12 +243,10 @@ In case you want to double-check which ports to connect to, Leash Debug also adv
 * **Target socket**: Leash Debugger Target Socket
 * **GDB socket**: Leash Debugger GDB Socket
 
-For example, for finding the **GDB socket**'s IP and port, run:
+For example, for finding the **GDB socket**'s IP and port, on Linux you could run:
 
 ```sh
 Linux:    avahi-browse -r _gdbremote._tcp
-MAC OS:   dns-sd ???
-Windows:  ???
 ```
 
 and inspect the result.

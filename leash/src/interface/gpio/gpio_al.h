@@ -13,6 +13,7 @@
 
 #include "hw_memmap.h"
 #include "hw_types.h"
+#include "ui.h"
 
 extern const unsigned long gpioRegs[];
 
@@ -24,9 +25,9 @@ extern const unsigned long gpioRegs[];
 #define GPIO_GET_PIN(GPIONUM) (HWREG((gpioRegs[(((int)GPIONUM)/8)]+(1<<((GPIONUM%8)+2)))))
 
 #ifdef LED_ACTIVE_LOW
-#define GPIO_SET_LED(GPIONUM, ONOFF) (GPIO_SET_PIN(GPIONUM, (ONOFF)==0))
+#define GPIO_SET_LED(GPIONUM, ONOFF) (GPIO_SET_PIN(GPIONUM, ((ONOFF)==0)))
 #else
-#define GPIO_SET_LED(GPIONUM, ONOFF) (GPIO_SET_PIN(GPIONUM, (ONOFF)!=0))
+#define GPIO_SET_LED(GPIONUM, ONOFF) (GPIO_SET_PIN(GPIONUM, ((ONOFF)!=0)))
 #endif
 
 #endif
