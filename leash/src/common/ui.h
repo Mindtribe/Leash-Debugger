@@ -37,8 +37,11 @@ enum user_switches{
 #define LED_ERROR LED_RED
 #define LED_JTAG LED_ORANGE
 
-//pin configurations
-#define PINOUT_LAUNCHPAD //TI CC3200 LaunchPad
-//#define PINOUT_RBL_WIFIMINI //RedBearLabs WiFi Mini
+//pin configurations assertion
+#ifndef PINOUT_LAUNCHPAD
+#ifndef PINOUT_RBL_WIFIMINI
+#error No pinout was specified: please add the appropriate preprocessor define to your compile command (PINOUT_LAUNCHPAD or PINOUT_RBL_WIFIMINI)
+#endif //PINOUT_RBL_WIFIMINI
+#endif //PINOUT_LAUNCHPAD
 
 #endif

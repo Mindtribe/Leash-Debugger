@@ -5,7 +5,22 @@ workspace :leash, File.dirname(__FILE__) do |w|
 			cflags: ['-mthumb', '-mcpu=cortex-m4', '-fdata-sections', '-ffunction-sections', '-std=gnu99', '-Dgcc', '-g', '-O0', '-Wall', '-Werror', '-Wextra', '-pedantic-errors'],
 			asflags: ['-mthumb', '-mcpu=cortex-m4'],
       			ldflags:['-Wl,--entry,ResetISR', '-Wl,--gc-sections']
+		)
+
+	w.set_configuration_defaults :Debug_Launchpad,
+    		toolchain: toolchain(:arm_none_eabi_gcc,
+			cflags: ['-mthumb', '-mcpu=cortex-m4', '-fdata-sections', '-ffunction-sections', '-std=gnu99', '-Dgcc', '-g', '-O0', '-Wall', '-Werror', '-Wextra', '-pedantic-errors'],
+			asflags: ['-mthumb', '-mcpu=cortex-m4'],
+      			ldflags:['-Wl,--entry,ResetISR', '-Wl,--gc-sections']
+		)
+
+	w.set_configuration_defaults :Debug_RBL_WifiMini,
+    		toolchain: toolchain(:arm_none_eabi_gcc,
+			cflags: ['-mthumb', '-mcpu=cortex-m4', '-fdata-sections', '-ffunction-sections', '-std=gnu99', '-Dgcc', '-g', '-O0', '-Wall', '-Werror', '-Wextra', '-pedantic-errors'],
+			asflags: ['-mthumb', '-mcpu=cortex-m4'],
+      			ldflags:['-Wl,--entry,ResetISR', '-Wl,--gc-sections']
     		)
+
 	w.set_configuration_defaults :Release,
     		toolchain: toolchain(:arm_none_eabi_gcc,
 			cflags: ['-mthumb', '-mcpu=cortex-m4', '-fdata-sections', '-ffunction-sections', '-std=gnu99', '-Dgcc', '-O2', '-Wall', '-Werror', '-Wextra', '-pedantic-errors'],
@@ -23,6 +38,6 @@ workspace :leash, File.dirname(__FILE__) do |w|
 	w.add_project('testapp')
 	w.add_project('leash')
 
-	w.add_default_tasks(['testapp:Debug', 'leash:Debug', 'cc3200_flashstub:Debug'])
+	w.add_default_tasks(['testapp:Debug_Launchpad', 'leash:Debug_Launchpad', 'leash:Debug_RBL_WifiMini', 'cc3200_flashstub:Debug'])
 end
 

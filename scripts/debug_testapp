@@ -1,1 +1,1 @@
-arm-none-eabi-gdb -x ./GDB/gdbinit_tcp ./../build/leash/testapp/Debug/leash-testapp-Debug.elf
+arm-none-eabi-gdb -x ./GDB/gdbinit_tcp ./../build/leash/testapp/Debug_Launchpad/leash-testapp-Debug_Launchpad.elf

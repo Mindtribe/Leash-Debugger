@@ -12,7 +12,7 @@ This guide aims to get you up and running with Leash Debugger in the shortest po
 
 ## Required Hardware
 
-* A Texas Instruments CC3200 Launchpad development board.
+* A board on which to run the debugger. Currently supported are: the *Texas Instruments CC3200 Launchpad development board* and the *RedBearLab WiFi Mini*. Additional board support can be easily added in the code for any CC3200 board with at least 4 exposed GPIO pins.
 * A CC3200 target to debug (this could be another development board, or any CC3200 board with available 4-pin JTAG connections).
 * Jumper wires for making the JTAG connections.
 * A USB-micro cable.
@@ -30,13 +30,13 @@ Now, you should have all the tools necessary to build Leash Debugger:
 Leash-Debugger$ mtbuild
 ```
 
-This should result in a folder called **build** being created. If the build succeeded, there should be .bin, .hex and .elf files inside the directories **Leash-Debugger/build/leash/leash/Debug**, **Leash-Debugger/build/leash/testapp/Debug** and **Leash-Debugger/build/leash/cc3200_flashstub/Debug**.
+This should result in a folder called **build** being created. If the build succeeded, there should be .bin, .hex and .elf files inside the directories **Leash-Debugger/build/leash/leash/Debug_(board)**, **Leash-Debugger/build/leash/testapp/Debug_(board)** and **Leash-Debugger/build/leash/cc3200_flashstub/Debug**.
 
 ## 2: Flashing Leash Debugger onto the Launchpad
 
-The only tool available for flashing Leash Debugger onto the Launchpad board is **TI Uniflash**. If you are not familiar with the tool yet, follow [this Quick-start guide](http://processors.wiki.ti.com/index.php/CC31xx_%26_CC32xx_UniFlash_Quick_Start_Guide#CC32xx_MCU_image_flashing) to get going.
+The only tool available for flashing Leash Debugger onto the board is **TI Uniflash**. If you are not familiar with the tool yet, follow [this Quick-start guide](http://processors.wiki.ti.com/index.php/CC31xx_%26_CC32xx_UniFlash_Quick_Start_Guide#CC32xx_MCU_image_flashing) to get going. Note that the RedBearLab WiFi Mini may need installation of an additional driver for Uniflash to work: please see the [RedBearLab WiFi Mini GitHub page for instructions](https://github.com/RedBearLab/RBL_CC3200).
 
-The Launchpad development board boasts a 1MB external flash.
+The Launchpad development board and RedBearLab WiFi Mini both boast a 1MB external flash.
 
 Before flashing, make sure the SOP2 header is connected and reset the board.
 
@@ -56,9 +56,10 @@ To use Leash Debugger over a WiFi connection, it will need to be connected. Ther
 
 Approach 1 requires the extra step of connecting to the AP using your host machine, but has the advantage that no pre-existing WiFi network is required. Both approaches first require us to start Leash Debugger in AP mode. To do this:
 
-* hold down SW3 on the Launchpad while, at the same time, resetting the board. You can let go of SW3 after about a second after you release the reset button. 
+* **For the CC3200 LaunchPad:** hold down SW3 on the Launchpad while, at the same time, resetting the board. You can let go of SW3 after about a second after you release the reset button. 
+* **For the RedBearLab WiFi Mini:** A GPIO pin has been configured to play the role of AP select pin, which you can use with a jumper to select AP or Station mode. You will first need to solder a small header onto the board first: please see [the Wiring guide](Wiring.md).
 
-Initially, the green LED will be steadily blinking (meaning the board is still setting up WiFi). After some time, the green LED should be lit, while repeatedly going briefly off (a long-on, short-off flashing pattern). This means Leash Debugger has started in AP mode. If you rescan for WiFi networks using your host machine, there should be an access point called "**LeashDebugger**" in the list. If you want to use Leash Debugger in AP mode, you can move on and skip to step 4. In that case, just make sure to always boot Leash Debugger with SW3 held down, to ensure it always starts in AP mode.
+Initially, the green LED (orange LED on the RBL WiFi Mini) will be steadily blinking (meaning the board is still setting up WiFi). After some time, the green LED should be lit, while repeatedly going briefly off (a long-on, short-off flashing pattern). This means Leash Debugger has started in AP mode. If you rescan for WiFi networks using your host machine, there should be an access point called "**LeashDebugger**" in the list. If you want to use Leash Debugger in AP mode, you can move on and skip to step 4. In that case, just make sure to always boot Leash Debugger with SW3 held down, to ensure it always starts in AP mode.
 
 #### 3.1: Station mode
 
@@ -69,7 +70,7 @@ You should now see a stream of log data appearing in your terminal.
 * To add a network profile to Leash Debugger, type **network** and hit Return. Follow the prompts to configure your network's parameters.
 * If you want to note down the board's MAC address for future reference (for example, for configuring your network router in some way), the **mac** command can be used.
 
-After adding your network profile, reset Leash Debugger *without* holding down SW3. Leash Debugger will now start in Station mode, and attempt to connect to one of the networks in its profile list. This is indicated by steady flashing of the green LED, and may take a minute. If you configured your network properly, after some time the green LED should turn completely ON, indicating Leash Debugger successfully connected to the network.
+After adding your network profile, reset Leash Debugger *without* holding down SW3. Leash Debugger will now start in Station mode, and attempt to connect to one of the networks in its profile list. This is indicated by steady flashing of the green LED (orange on the RBL WiFi Mini), and may take a minute. If you configured your network properly, after some time the green LED should turn completely ON, indicating Leash Debugger successfully connected to the network.
 
 #### 3.2: Finding Leash Debugger on the network
 
@@ -83,10 +84,10 @@ Once you have found Leash Debugger's IP address, you should be able to connect t
 
 ## 4: Connecting Leash Debugger to a target
 
-To start debugging using Leash Debugger, it should first be wired to a target board which is to be debugged. Please see the [**Wiring**](Wiring.md) document to find the pin assignments and a diagram for wiring it up to another Launchpad board.
+To start debugging using Leash Debugger, it should first be wired to a target board which is to be debugged. Please see the [**Wiring**](Wiring.md) document to find the pin assignments and a diagram for wiring it up to a target.
 
 * Wire up Leash Debugger to the target.
-* Reboot the target with SOP2 connected (this ensures the target hardware is in a debuggable state)
+* Reboot the target with SOP2 connected (this ensures the target hardware is in a debuggable state).
 * (Re-)boot Leash Debugger.
 
 The orange LED on Leash Debugger should light up solid (indicating that a target was found on the 4-wire JTAG connection).
@@ -98,14 +99,16 @@ Now that all preparations are made, it's time to start an actual debugging sessi
 * In **Leash-Debugger/scripts/GDB/gdbinit_tcp**, replace the IP address by the IP address used on your Leash Debugger.
 * Execute the following command:
 ```
-Leash-Debugger/scripts/GDB/$  arm-none-eabi-gdb -x gdbinit_tcp ./../../build/leash/testapp/Debug/leash-testapp-Debug.elf
+Leash-Debugger/scripts/GDB/$  arm-none-eabi-gdb -x gdbinit_tcp ./../../build/leash/testapp/Debug_Launchpad/leash-testapp-Debug_Launchpad.elf
 ```
 Alternatively, on Linux, you could use the **debug_testapp** script in **Leash-Debugger/scripts** to do this.
 * A GDB session will start. If all goes well, it will report successfully loading code onto the target, and break at testapp's **main()** function. After continuing execution (press 'c' and hit Return), you should get into a cycle where testapp asks you for input, then echoes it back onto the GDB terminal. From here, you can debug using GDB as you normally would.
 
 *Note: Make sure the SOP2 header is connected on the debuggee target, and not connected on Leash Debugger. As a rule of thumb always connect SOP2 when you don't want to boot from flash, and disconnect it if you do.*
 
-Note that testapp is able to request user input "through" Leash Debugger, on the GDB command line. This is a special feature of Leash Debugger based on ARM's semihosting protocol, further explained in the [**User Guide**](UserGuide.md).
+*Note 2: testapp was written for running on the TI Launchpad board - which only means it assumes three LEDs are available as on that board. If running it on a different target, you might want to recompile testapp with different pin assignments.*
+
+Testapp is able to request user input "through" Leash Debugger, on the GDB command line. This is a special feature of Leash Debugger based on ARM's semihosting protocol, further explained in the [**User Guide**](UserGuide.md).
 
 ## 6: (Optional) Integrating Leash Debugger into an IDE
 
@@ -139,7 +142,7 @@ arm-none-eabi-gdb -x gdbinit_tcp_donothing
 * On the GDB command line, execute the following commands in order:
 ```
 (gdb) monitor flashmode=1
-(gdb) remote put ./../../build/leash/testapp/Debug/leash-testapp-Debug.bin /sys/mcuimg.bin
+(gdb) remote put ./../../build/leash/testapp/Debug_Launchpad/leash-testapp-Debug_Launchpad.bin /sys/mcuimg.bin
 ```
 * You should receive confirmation at each of the above commands: first of entering flash mode, then of the successful file transfer.
 * (Optional) To verify that no corruption occurred in the JTAG transfer or flash memory write, execute the following command:
@@ -151,10 +154,10 @@ This prompts the debugger to check the CRC of /sys/mcuimg.bin against an interna
 ```
 (gdb) remote get /sys/mcuimg.bin ./readback.bin
 ```
-You can use a binary comparison tool to check whether readback.bin is equal to ./../../build/leash/testapp/Debug/leash-testapp-Debug.bin. If they are equal, this confirms the file transfer succeeded without corruption.
+You can use a binary comparison tool to check whether readback.bin is equal to ./../../build/leash/testapp/Debug_Launchpad/leash-testapp-Debug_Launchpad.bin. If they are equal, this confirms the file transfer succeeded without corruption.
 * Disconnect or power off Leash Debugger.
 * Remove the SOP2 header from the target and reset it.
-* The green LED should turn on after some time, indicating testapp booted successfully.
+* The green LED should turn on after some time, indicating testapp booted successfully. The same process can be used for any executable CC3200 .bin file.
 
 *Note: The flash filesystem has a tendency to get corrupted, making the system unbootable even if GDB reports the flashing was successful. This can happen due to writing files too large for the filesystem or writing too many files. If this happens, unfortunately, you will have to format the external flash using TI's Uniflash tool. Leash Debugger itself is not able to format the external flash.*
 
