@@ -39,7 +39,7 @@
 
 #define NUM_PROFILES_MAX 7
 
-static const char* conf_log_prefix = "%s";
+static const char* conf_log_prefix = "[CONF] ";
 
 enum command_statemachine{
     COMMAND = 0,
