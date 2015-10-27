@@ -50,8 +50,6 @@ Wiring can be done as follows:
 
 *Note 2: The WiFi Mini does not have a user button. To select AP or Station mode, a jumper is used. Solder a 3-pin male header accross pins D8, D9 and D10. Placing a header which connects D9 to either D10 or D8 will choose AP or Station mode.*
 
-# Target Wiring
-
 ![Leash Debugger wiring for RedBearLab WiFi Mini](/doc/images/Wiring_RBL_WifiMini.png)
 ![A convenient configuration using a RedBearLab Wifi Mini on a Launchpad target, done using a female pin header and jumper cable for power.](/doc/images/SetupPic_RBL_WifiMini.jpg)
 
