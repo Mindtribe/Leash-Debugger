@@ -6,7 +6,11 @@ Leash Debugger is a JTAG debug adapter for use over a WiFi connection with GDB. 
 
 ### Platform
 
-Leash debugger runs on the Texas Instruments CC3200 SoC, and was designed for running on the [CC3200 Launchpad](http://processors.wiki.ti.com/index.php/CC32xx_LaunchPad_Hardware) development board. 
+Leash debugger runs on the Texas Instruments CC3200 SoC, and was designed for running on the [CC3200 Launchpad](http://processors.wiki.ti.com/index.php/CC32xx_LaunchPad_Hardware) development board or the [RedBearLab WiFi Mini](http://redbearlab.com/) board. There are multiple versions of the LaunchPad which use different chip revisions - not all of them were tested.
+
+**There are still unsolved issues with the RedBearLab WiFi Mini.**
+
+Please check the [**Known Issues**](doc/KnownIssues.md) page for up-to-date information on platform support.
 
 ### Supported Target Platforms
 

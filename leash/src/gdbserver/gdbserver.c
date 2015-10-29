@@ -236,7 +236,7 @@ static int gdbserver_connectTarget(int* targetConnected)
     gdbserver_state.gave_info = 0;
     gdbserver_state.fileio_state.fileio_waiting = 0;
     gdbserver_state.initialized = 1;
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
+    SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_HALTED);
     *targetConnected = 1;
     return RET_SUCCESS;
 
@@ -247,7 +247,7 @@ static int gdbserver_connectTarget(int* targetConnected)
 
     error:
     *targetConnected = 0;
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+    SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
     RETURN_ERROR(ERROR_UNKNOWN, "Target connect fail");
     return RET_FAILURE;
 
@@ -257,14 +257,14 @@ int gdbserver_init(void (*pPutChar)(char), void (*pGetChar)(char*), int (*pGetCh
 {
     if(gdb_helpers_init(pPutChar, pGetChar, pGetCharsAvail) == RET_FAILURE) {goto error;}
 
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_INIT);
+    SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_INIT);
 
     gdbserver_state.target = target;
 
     return RET_SUCCESS;
 
     error:
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+    SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
     RETURN_ERROR(ERROR_UNKNOWN, "GDBServer init fail");
     return RET_FAILURE;
 }
@@ -362,20 +362,20 @@ static void gdbserver_Interrupt(uint8_t signal)
 {
     if((*gdbserver_state.target->target_halt)() == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         ADD_ERROR(ERROR_UNKNOWN, "Halt fail")
     }
     if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE){
         gdbserver_TransmitPacket("OError halting target!");
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         ADD_ERROR(ERROR_UNKNOWN, "Poll halt fail")
     }
     if(!gdbserver_state.halted){
         gdbserver_TransmitPacket("OError halting target!");
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         ADD_ERROR(ERROR_UNKNOWN, "Halt fail")
     }
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
+    SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_HALTED);
     gdbserver_state.stop_reason = STOPREASON_INTERRUPT;
     char reply[4];
     reply[0] = 'S';
@@ -461,7 +461,7 @@ static int gdbserver_processChar(void)
 static void gdbserver_reset_error(int error_code, char* msg)
 {
     ADD_ERROR(error_code, msg);
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+    SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
     gdbserver_state.packet_phase = PACKET_NONE;
     gdbserver_state.cur_packet_index = 0;
     gdbserver_state.awaiting_ack = 0;
@@ -1003,12 +1003,12 @@ static int gdbserver_readMemory(char* argstring)
     uint8_t *data = (uint8_t*)argstring; //re-use argstring storage to save stack space
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "Max access fail");
     }
 
     if((*gdbserver_state.target->target_mem_block_read)(addr, len, data) == RET_FAILURE) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "Mem read fail");
     }
 
@@ -1075,12 +1075,12 @@ static int gdbserver_writeMemoryBinary(char* argstring)
     gdb_helpers_deEscape_Binary_outputLen(data, len);
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS){
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(len, "GDBServer: Memory write over maximum length requested.");
     }
 
     if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");
     }
 
@@ -1101,7 +1101,7 @@ static int gdbserver_writeMemory(char* argstring)
     uint8_t data[GDBSERVER_MAX_BLOCK_ACCESS];
 
     if(len>GDBSERVER_MAX_BLOCK_ACCESS){
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(len, "GDBServer: Memory write over maximum length requested.");
     }
 
@@ -1113,7 +1113,7 @@ static int gdbserver_writeMemory(char* argstring)
     }
 
     if((*gdbserver_state.target->target_mem_block_write)(addr, len, data) == RET_FAILURE) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "Mem write fail");
     }
 
@@ -1154,19 +1154,19 @@ static int gdbserver_pollTarget(void)
 {
     int old_halted = gdbserver_state.halted;
     if((*gdbserver_state.target->target_poll_halted)(&gdbserver_state.halted) == RET_FAILURE) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "Halt fail");
     }
     if(old_halted && !gdbserver_state.halted) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "Halt fail");
     }
     if(!old_halted && gdbserver_state.halted){
         if(gdbserver_handleHalt() == RET_FAILURE) {
-            SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+            SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
             RETURN_ERROR(ERROR_UNKNOWN, "Halt handle fail");
         }
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_HALTED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_HALTED);
         char reply[4];
         switch(gdbserver_state.stop_reason){
         case STOPREASON_SEMIHOSTING:
@@ -1215,7 +1215,7 @@ static int gdbserver_TransmitFileIOWrite(uint8_t descriptor, char *buf, uint32_t
 {
     //we must wait for the previous file I/O to finish
     if(gdbserver_state.fileio_state.fileio_waiting) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "FileIO fail");
     }
 
@@ -1242,7 +1242,7 @@ static int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t 
 {
     //we must wait for the previous file I/O to finish
     if(gdbserver_state.fileio_state.fileio_waiting) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "FileIO fail");
     }
 
@@ -1268,7 +1268,7 @@ static int gdbserver_TransmitFileIORead(uint8_t descriptor, char *buf, uint32_t 
 static int gdbserver_continue(void)
 {
     if(!gdbserver_state.halted) {
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "Halt fail");
     }
 
@@ -1280,11 +1280,11 @@ static int gdbserver_continue(void)
     if((*gdbserver_state.target->target_continue)()
             == RET_FAILURE){
         gdbserver_TransmitPacket("E00");
-        SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_FAILED);
+        SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_FAILED);
         RETURN_ERROR(ERROR_UNKNOWN, "Continue fail");
     }
     gdbserver_state.halted = 0; //force halted off so polling starts
-    SetLEDBlink(LED_JTAG, LED_BLINK_PATTERN_JTAG_RUNNING);
+    SetLEDBlink(LED_3, LED_BLINK_PATTERN_JTAG_RUNNING);
 
     return RET_SUCCESS;
 }

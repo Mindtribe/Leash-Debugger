@@ -21,7 +21,7 @@ Currently, the only supported target configuration is a **Texas Instruments CC32
 # User's Guide
 ## Basic Operation
 
-Leash Debugger is designed to accept a connection from GDB over TCP. The workflow is the same as a typical setup using OpenOCD, except OpenOCD is not required. Although the TCP connection to the host workstation can be made using WiFi, Leash Debugger still needs to be wired up to the target to be debugged using a wired JTAG connection (see [Wiring](doc/Wiring.md)).
+Leash Debugger is designed to accept a connection from GDB over TCP. The workflow is the same as a typical setup using OpenOCD, except OpenOCD is not required. Although the TCP connection to the host workstation can be made using WiFi, Leash Debugger still needs to be wired up to the target to be debugged using a wired JTAG connection (see [Wiring](Wiring.md)).
 
 ### Modes
 
@@ -33,11 +33,11 @@ In Station mode, the debugger tries to connect to one of the stored network prof
 
 ### Buttons
 
-Only the LaunchpadXL **SW3** button is used. If this is held down during boot, the Leash Debugger will run in **AP mode** (its own access point). Otherwise, it will run in **Station mode** (connect to an existing WiFi network).
+Only the Launchpad **SW3** button is used. If this is held down during boot, the Leash Debugger will run in **AP mode** (its own access point). Otherwise, it will run in **Station mode** (connect to an existing WiFi network). If using the RedBearLab WiFi Mini, a jumper will need to be soldered onto the board to select either mode - please see [Wiring](Wiring.md).
 
 ### LEDs
 
-The LaunchpadXL board has three user LEDs: red, orange and green. Each LED corresponds to an aspect of functionality:
+The **Launchpad board** has three user LEDs: red, orange and green. Each LED corresponds to an aspect of functionality:
 
 * **Red**: error state.
 * **Orange**: JTAG state.
@@ -63,6 +63,8 @@ Blink codes are used to indicate the state. They are as follows:
 * **Blink short on, long off**: WiFi connecting (in either AP or Station mode).
 * **Blink long on, short off**: AP mode active.
 * **Short fast blink**: WiFi error.
+
+The **RedBearLab WiFi Mini** only has a single user LED, which is orange. Its behavior is equal to that of the *green* LED on the Launchpad, indicating WiFi state. For information about the JTAG and/or error state, you will have to consult the log messages over TCP/IP.
 
 ## Connecting to Leash Debugger
 ### Sockets
@@ -215,15 +217,29 @@ MAC OS offers a tool called **dns-sd** to browse mDNS services.
 
 ### Name Resolution Commands
 
-To confirm Leash Debugger's existence on the network, run
+**On Mac**, first, run the following command in a Terminal window:
+
+```
+dns-sd -B
+```
+
+A list of mDNS devices should show up, including one called LeashDebugger{MAC}, where MAC is a string representing Leash Debugger's MAC address. Copy this full name including the MAC string, then run:
+
+```
+dns-sd -G v4 LeashDebugger{MAC}.local
+```
+
+Where "LeashDebugger{MAC}" should be the full name you found in the first step. dns-sd should now give you information, including the IP address on which Leash Debugger can be reached.
+
+**On Linux**, run:
 
 ```sh
 Linux:    avahi-browse -r _http._tcp
-MAC OS:   dns-sd ???
-Windows:  ???
 ```
 
 In the resulting list of services, all Leash Debugger devices should show up as "LeashDebug{MAC}", where {MAC} is the debugger's MAC address. Note that Leash Debugger does NOT offer a HTTP server - however, its IP can be found through resolving this mDNS entry.
+
+**For Windows**, this guide does not yet contain instructions. However, it should be straightforward to do. Apparently, Windows requires a service for **Apple Bonjour support** to be installed first. After that, it should be possible to explore mDNS services. Leash Debugger can be found, as above, as a _http._tcp service.
 
 In case you want to double-check which ports to connect to, Leash Debug also advertises its ports separately. The **Log socket** and the **Target socket** are of type "_raw-serial._tcp", while the **GDB socket** is of type "_gdbremote._tcp". The description fields of the sockets are as follows:
 
@@ -231,12 +247,10 @@ In case you want to double-check which ports to connect to, Leash Debug also adv
 * **Target socket**: Leash Debugger Target Socket
 * **GDB socket**: Leash Debugger GDB Socket
 
-For example, for finding the **GDB socket**'s IP and port, run:
+For example, for finding the **GDB socket**'s IP and port, on Linux you could run:
 
 ```sh
 Linux:    avahi-browse -r _gdbremote._tcp
-MAC OS:   dns-sd ???
-Windows:  ???
 ```
 
 and inspect the result.

@@ -9,12 +9,14 @@
     --------------------------------------------------------- */
 
 #include "led.h"
-#include "gpio_if.h"
 #include "hw_types.h"
 #include "hw_memmap.h"
 #include "prcm.h"
 #include "timer.h"
 #include "timer_if.h"
+
+#include "gpio_al.h"
+#include "ui.h"
 
 struct led_state_t{
     unsigned int blink_enabled;
@@ -24,29 +26,38 @@ struct led_state_t{
 
 static struct led_state_t led_state[NUM_LEDS] = {{0}};
 
-static char lednums[NUM_LEDS];
+#ifdef BOARD_LAUNCHPAD
+static const char ledGPIOs[NUM_LEDS] = {
+    11, //Green
+    10, //Orange
+    9 //Red
+};
+#endif
+#ifdef BOARD_RBL_WIFIMINI
+static const char ledGPIOs[NUM_LEDS] = {
+    30, //Orange
+    0,
+    0
+};
+#endif
 
 static void Int_LEDBlink(void);
 
 void SetLED(unsigned int id, unsigned int value){
     if(id>=NUM_LEDS) return;
-    if(value){GPIO_IF_LedOn(lednums[id]);}
-    else{GPIO_IF_LedOff(lednums[id]);}
+    GPIO_SET_LED(ledGPIOs[id], value);
 }
 void ClearLED(unsigned int id){
     if(id>=NUM_LEDS) return;
     led_state[id].blink_enabled = 0;
-    GPIO_IF_LedOff(lednums[id]);
+    GPIO_SET_LED(ledGPIOs[id], 0);
 }
 
 void InitLED(void)
 {
-    GPIO_IF_LedConfigure(LED1|LED2|LED3);
-    GPIO_IF_LedOff(MCU_ALL_LED_IND);
-
-    lednums[LED_GREEN] = MCU_GREEN_LED_GPIO;
-    lednums[LED_ORANGE] = MCU_ORANGE_LED_GPIO;
-    lednums[LED_RED] = MCU_RED_LED_GPIO;
+    GPIO_SET_PIN(ledGPIOs[LED_1], 0);
+    GPIO_SET_PIN(ledGPIOs[LED_3], 0);
+    GPIO_SET_PIN(ledGPIOs[LED_2], 0);
 
     for(int i=0; i<NUM_LEDS; i++) {led_state[i].blink_bit = 1;}
 

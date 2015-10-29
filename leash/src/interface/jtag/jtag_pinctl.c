@@ -13,25 +13,28 @@
 #include <stdint.h>
 
 #include "hw_types.h"
-#include "gpio_if.h"
 #include "utils.h"
 #include "rom_map.h"
-#include "gpio.h"
 
 #include "error.h"
+#include "ui.h"
+#include "gpio_al.h"
 
-#define JTAG_SET_PIN(REG, VAL, ONOFF) (HWREG((REG))=((ONOFF)*(VAL)))
-#define JTAG_GET_PIN(REG) (HWREG(REG))
-#define TMS_REG 0x40006008
-#define TMS_VAL 0x02
-#define TDI_REG 0x40005200
-#define TDI_VAL 0x80
-#define TCK_REG 0x40007040
-#define TCK_VAL 0x10
-#define TDO_REG 0x40006100
-#define TDO_VAL 0x40
-#define RST_REG 0x40006004
-#define RST_VAL 0x01
+#ifdef BOARD_LAUNCHPAD
+#define GPIO_TMS 17
+#define GPIO_TDI 15
+#define GPIO_TCK 28
+#define GPIO_TDO 22
+#define GPIO_RST 16
+#endif
+
+#ifdef BOARD_RBL_WIFIMINI
+#define GPIO_TMS 15
+#define GPIO_TDI 16
+#define GPIO_TCK 14
+#define GPIO_TDO 12
+#define GPIO_RST 0
+#endif
 
 //result of most recent scan - can be accessed
 //by other modules
@@ -68,15 +71,11 @@ int jtag_pinctl_init(void)
 {
     if(jtag_pinctl_state.initialized) return RET_SUCCESS; //already initialized
 
-    GPIO_IF_GetPortNPin(RSTLocation.ucPin,
-            &(RSTLocation.uiGPIOPort),
-            &(RSTLocation.ucGPIOPin));
-
     //default pin levels (inactive)
-    JTAG_SET_PIN(TMS_REG, TMS_VAL, 0);
-    JTAG_SET_PIN(TDI_REG, TDI_VAL, 0);
-    JTAG_SET_PIN(RST_REG, RST_VAL, 1);
-    JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+    GPIO_SET_PIN(GPIO_TMS, 0);
+    GPIO_SET_PIN(GPIO_TDI, 0);
+    GPIO_SET_PIN(GPIO_RST, 1);
+    GPIO_SET_PIN(GPIO_TCK, 0);
 
     jtag_pinctl_state.initialized = 1;
     return RET_SUCCESS;
@@ -87,19 +86,19 @@ int jtag_pinctl_assertPins(uint8_t pins)
     if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail"); //not initialized
 
     if(pins & JTAG_RST) {
-        JTAG_SET_PIN(RST_REG, RST_VAL, 0);
+        GPIO_SET_PIN(GPIO_RST, 0);
     }
 
     if(pins & JTAG_TMS) {
-        JTAG_SET_PIN(TMS_REG, TMS_VAL, 1);
+        GPIO_SET_PIN(GPIO_TMS, 1);
     }
 
     if(pins & JTAG_TDI){
-        JTAG_SET_PIN(TDI_REG, TDI_VAL, 1);
+        GPIO_SET_PIN(GPIO_TDI, 1);
     }
 
     if(pins & JTAG_TCK){
-        JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
+        GPIO_SET_PIN(GPIO_TCK, 1);
     }
 
     return RET_SUCCESS;
@@ -111,19 +110,19 @@ int jtag_pinctl_deAssertPins(uint8_t pins)
     if(!jtag_pinctl_state.initialized) RETURN_ERROR(ERROR_UNKNOWN, "Uninit fail"); //not initialized
 
     if(pins & JTAG_RST) {
-        JTAG_SET_PIN(RST_REG, RST_VAL, 1);
+        GPIO_SET_PIN(GPIO_RST, 1);
     }
 
     if(pins & JTAG_TMS) {
-        JTAG_SET_PIN(TMS_REG, TMS_VAL, 0);
+        GPIO_SET_PIN(GPIO_TMS, 0);
     }
 
     if(pins & JTAG_TDI){
-        JTAG_SET_PIN(TDI_REG, TDI_VAL, 0);
+        GPIO_SET_PIN(GPIO_TDI, 0);
     }
 
     if(pins & JTAG_TCK){
-        JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+        GPIO_SET_PIN(GPIO_TCK, 0);
     }
 
     return RET_SUCCESS;
@@ -131,14 +130,14 @@ int jtag_pinctl_deAssertPins(uint8_t pins)
 
 void jtag_pinctl_doClock(uint8_t TMS, uint8_t TDI, uint8_t* TDO_result)
 {
-    JTAG_SET_PIN(TMS_REG, TMS_VAL, TMS);
-    JTAG_SET_PIN(TDI_REG, TDI_VAL, TDI);
-    JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
+    GPIO_SET_PIN(GPIO_TMS, TMS);
+    GPIO_SET_PIN(GPIO_TDI, TDI);
+    GPIO_SET_PIN(GPIO_TCK, 1);
 
     asm("nop");
-    *TDO_result = JTAG_GET_PIN(TDO_REG) ? 1:0;
+    *TDO_result = GPIO_GET_PIN(GPIO_TDO) ? 1:0;
 
-    JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+    GPIO_SET_PIN(GPIO_TCK, 0);
     return;
 }
 
@@ -151,10 +150,10 @@ void jtag_pinctl_doStateMachine(uint32_t tms_bits_lsb_first, unsigned int num_cl
     }*/
 
     while(num_clk-- > 0){
-        JTAG_SET_PIN(TMS_REG, TMS_VAL, (uint32_t)(tms_bits_lsb_first&1));
-        JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
+        GPIO_SET_PIN(GPIO_TMS, (uint32_t)(tms_bits_lsb_first&1));
+        GPIO_SET_PIN(GPIO_TCK, 1);
         asm("nop");
-        JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+        GPIO_SET_PIN(GPIO_TCK, 0);
         tms_bits_lsb_first >>= 1;
     }
 }
@@ -165,17 +164,17 @@ void jtag_pinctl_doData(uint64_t tdi_bits_lsb_first, unsigned int num_clk)
     jtag_pinctl_scanout = 0;
 
     for(unsigned int i=0; i<(num_clk-1); i++){
-        JTAG_SET_PIN(TDI_REG, TDI_VAL, (tdi_bits_lsb_first & 1));
-        JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
+        GPIO_SET_PIN(GPIO_TDI, (tdi_bits_lsb_first & 1));
+        GPIO_SET_PIN(GPIO_TCK, 1);
         asm("nop");
-        if(JTAG_GET_PIN(TDO_REG))  jtag_pinctl_scanout |= (((uint64_t)1)<<((uint64_t)i));
-        JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+        if(GPIO_GET_PIN(GPIO_TDO))  jtag_pinctl_scanout |= (((uint64_t)1)<<((uint64_t)i));
+        GPIO_SET_PIN(GPIO_TCK, 0);
         tdi_bits_lsb_first >>= 1;
     }
     //last bit with TMS high
-    JTAG_SET_PIN(TDI_REG, TDI_VAL, (tdi_bits_lsb_first & 1));
-    JTAG_SET_PIN(TMS_REG, TMS_VAL, 1);
-    JTAG_SET_PIN(TCK_REG, TCK_VAL, 1);
+    GPIO_SET_PIN(GPIO_TDI, (tdi_bits_lsb_first & 1));
+    GPIO_SET_PIN(GPIO_TMS, 1);
+    GPIO_SET_PIN(GPIO_TCK, 1);
     asm("nop");
-    JTAG_SET_PIN(TCK_REG, TCK_VAL, 0);
+    GPIO_SET_PIN(GPIO_TCK, 0);
 }

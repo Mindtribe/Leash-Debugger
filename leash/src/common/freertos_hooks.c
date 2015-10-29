@@ -18,7 +18,7 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
     (void)xTask; //prevent unused warning
     (void)pcTaskName; //prevent unused warning
 
-    SetLEDBlink(LED_RED, LED_BLINK_PATTERN_ERROR);
+    SetLEDBlink(LED_2, LED_BLINK_PATTERN_ERROR);
     while(1);
 }
 
@@ -34,7 +34,7 @@ void vApplicationIdleHook( void )
 
 void vApplicationMallocFailedHook()
 {
-    SetLEDBlink(LED_RED, LED_BLINK_PATTERN_ERROR);
+    SetLEDBlink(LED_2, LED_BLINK_PATTERN_ERROR);
     while(1);
 }
 

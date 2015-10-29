@@ -41,7 +41,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
         else{
             LOG(LOG_IMPORTANT, "%sUnexpected disconnect",wifi_evt_log_prefix);
         }
-        ClearLED(LED_WIFI);
+        ClearLED(LED_1);
     }
     break;
 
@@ -59,7 +59,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
         // when client disconnects from device (AP)
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_CONNECTION);
         CLR_STATUS_BIT(wifi_state.status, STATUS_BIT_IP_LEASED);
-        ClearLED(LED_WIFI);
+        ClearLED(LED_1);
     }
     break;
 
