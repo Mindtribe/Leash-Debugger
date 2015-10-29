@@ -16,9 +16,11 @@ The 4-pin JTAG connections to the CC3200 target device will need to be exposed o
 
 If you are trying to choose between a Launchpad or WiFi Mini for using as a debugger, here are some pros and cons to each:
 
+* **Perhaps the biggest factor in this choice is that we are still dealing with an unsolved crash issue on the RedBearLab WiFi Mini. Please check [Known Issues](KnownIssues.md) for details.**
+
 * The WiFi Mini's small size and low power consumption make it very convenient for clipping on to the target (see pics below).
 * The Launchpad has three LEDs, which show JTAG, WiFi and error state respectively. On the WiFi mini, only one user LED is present (showing WiFi state).
-* The Launchpad has an on-board debug interface, meaning that if you want to make changes to Leash Debugger, you can use a debugger to try your changes out. On the WiFi Mini, new firmware can only be programmed to flash.
+* The Launchpad has an on-board debug interface, meaning that if you want to make changes to Leash Debugger, you can use a debugger to try your changes out. On the WiFi Mini, new firmware can only be programmed directly to flash. This may be relevant if you plan to develop this project further.
 
 ## TI CC3200 LaunchPad
 

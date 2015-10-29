@@ -30,11 +30,12 @@ Now, you should have all the tools necessary to build Leash Debugger:
 Leash-Debugger$ mtbuild
 ```
 
-This should result in a folder called **build** being created. If the build succeeded, there should be .bin, .hex and .elf files inside the directories **Leash-Debugger/build/leash/leash/Debug_(board)**, **Leash-Debugger/build/leash/testapp/Debug_(board)** and **Leash-Debugger/build/leash/cc3200_flashstub/Debug**.
+This should result in a folder called **build** being created. If the build succeeded, there should be .bin, .hex and .elf files inside the directories **Leash-Debugger/build/leash/leash/(boardname)/**, **Leash-Debugger/build/leash/testapp/(boardname)/** and **Leash-Debugger/build/leash/cc3200_flashstub/Debug**.
 
-## 2: Flashing Leash Debugger onto the Launchpad
+## 2: Flashing Leash Debugger onto the Board
 
-The only tool available for flashing Leash Debugger onto the board is **TI Uniflash**. If you are not familiar with the tool yet, follow [this Quick-start guide](http://processors.wiki.ti.com/index.php/CC31xx_%26_CC32xx_UniFlash_Quick_Start_Guide#CC32xx_MCU_image_flashing) to get going. Note that the RedBearLab WiFi Mini may need installation of an additional driver for Uniflash to work: please see the [RedBearLab WiFi Mini GitHub page for instructions](https://github.com/RedBearLab/RBL_CC3200).
+The only tool available for flashing Leash Debugger onto the board is **TI Uniflash**. If you are not familiar with the tool yet, follow [this Quick-start guide](http://processors.wiki.ti.com/index.php/CC31xx_%26_CC32xx_UniFlash_Quick_Start_Guide#CC32xx_MCU_image_flashing) to get going. 
+Note that the RedBearLab WiFi Mini may need installation of an additional driver for Uniflash to work: please see the [RedBearLab WiFi Mini GitHub page for instructions](https://github.com/RedBearLab/RBL_CC3200).
 
 The Launchpad development board and RedBearLab WiFi Mini both boast a 1MB external flash.
 
