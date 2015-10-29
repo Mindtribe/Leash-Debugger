@@ -22,7 +22,7 @@
 void error_wait(uint32_t error_code, const char* description)
 {
     error_add(error_code, description);
-    SetLEDBlink(LED_RED, LED_BLINK_PATTERN_ERROR);
+    SetLEDBlink(LED_2, LED_BLINK_PATTERN_ERROR);
 
     vTaskDelete(NULL);
     return;

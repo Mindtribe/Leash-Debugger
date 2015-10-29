@@ -287,7 +287,7 @@ void Task_WifiScan(void* params)
 
     LOG(LOG_VERBOSE, "Starting WiFi network scan...");
 
-    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_SCANNING);
+    SetLEDBlink(LED_1, LED_BLINK_PATTERN_WIFI_SCANNING);
 
     if(WifiDefaultSettings() == RET_FAILURE) {goto error;}
 
@@ -326,7 +326,7 @@ void Task_WifiScan(void* params)
 
     LOG(LOG_VERBOSE, "WiFi network scan complete.");
 
-    ClearLED(LED_WIFI);
+    ClearLED(LED_1);
 
 #ifdef DO_STACK_CHECK
     wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
@@ -339,7 +339,7 @@ void Task_WifiScan(void* params)
     return;
 
     error:
-    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
+    SetLEDBlink(LED_1, LED_BLINK_PATTERN_WIFI_FAILED);
     TASK_RETURN_ERROR(ERROR_UNKNOWN, "WIFI scan fail");
     return;
 }
@@ -350,7 +350,7 @@ void Task_WifiAP(void* params)
     long retval;
 
     LOG(LOG_IMPORTANT, "Starting WiFi AP Mode.");
-    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTING);
+    SetLEDBlink(LED_1, LED_BLINK_PATTERN_WIFI_CONNECTING);
 
     if(WifiDefaultSettings() == RET_FAILURE)  {goto error;}
 
@@ -366,7 +366,7 @@ void Task_WifiAP(void* params)
     //Wait for an IP address to be acquired
     while(!IS_IP_ACQUIRED(wifi_state.status)){};
 
-    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_AP);
+    SetLEDBlink(LED_1, LED_BLINK_PATTERN_WIFI_AP);
     LOG(LOG_IMPORTANT, "AP Started - Ready for client.");
 
 #ifdef DO_STACK_CHECK
@@ -390,7 +390,7 @@ void Task_WifiAP(void* params)
     vTaskDelete(NULL);
 
     error:
-    SetLED(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
+    SetLED(LED_1, LED_BLINK_PATTERN_WIFI_FAILED);
     TASK_RETURN_ERROR(ERROR_UNKNOWN, "WIFI AP fail");
     return;
 
@@ -403,7 +403,7 @@ void Task_WifiSTA(void* params)
     long retval;
 
     LOG(LOG_IMPORTANT, "Starting WiFi Station Mode.");
-    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTING);
+    SetLEDBlink(LED_1, LED_BLINK_PATTERN_WIFI_CONNECTING);
 
     if(WifiDefaultSettings() == RET_FAILURE) {goto error;}
 
@@ -414,7 +414,7 @@ void Task_WifiSTA(void* params)
 
     if(WifiConnectSTA() == RET_FAILURE) {goto error;}
 
-    SetLEDBlink(LED_WIFI, LED_BLINK_PATTERN_WIFI_CONNECTED);
+    SetLEDBlink(LED_1, LED_BLINK_PATTERN_WIFI_CONNECTED);
 
 #ifdef DO_STACK_CHECK
     wifi_state.stack_watermark = uxTaskGetStackHighWaterMark(NULL);
@@ -439,7 +439,7 @@ void Task_WifiSTA(void* params)
     return;
 
     error:
-    SetLED(LED_WIFI, LED_BLINK_PATTERN_WIFI_FAILED);
+    SetLED(LED_1, LED_BLINK_PATTERN_WIFI_FAILED);
     TASK_RETURN_ERROR(ERROR_UNKNOWN, "WIFI Station fail");
     return;
 }

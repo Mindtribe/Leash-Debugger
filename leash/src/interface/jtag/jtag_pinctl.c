@@ -20,7 +20,7 @@
 #include "ui.h"
 #include "gpio_al.h"
 
-#ifdef PINOUT_LAUNCHPAD
+#ifdef BOARD_LAUNCHPAD
 #define GPIO_TMS 17
 #define GPIO_TDI 15
 #define GPIO_TCK 28
@@ -28,7 +28,7 @@
 #define GPIO_RST 16
 #endif
 
-#ifdef PINOUT_RBL_WIFIMINI
+#ifdef BOARD_RBL_WIFIMINI
 #define GPIO_TMS 15
 #define GPIO_TDI 16
 #define GPIO_TCK 14

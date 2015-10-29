@@ -1,6 +1,6 @@
 application_project :testapp, File.dirname(__FILE__) do |app|
 
-  app.add_configuration :Debug_Launchpad,
+  app.add_configuration :Launchpad,
     sources: ['src/**/*.c'],
     toolchain: toolchain(:arm_none_eabi_gcc,
       linker_script: 'linker.ld',

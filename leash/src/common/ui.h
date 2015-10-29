@@ -32,16 +32,11 @@ enum user_switches{
 #define LED_BLINK_PATTERN_JTAG_RUNNING 0xF000F000
 #define LED_BLINK_PATTERN_JTAG_FAILED 0x33333333
 
-//assign LEDs to functions
-#define LED_WIFI LED_GREEN
-#define LED_ERROR LED_RED
-#define LED_JTAG LED_ORANGE
-
 //pin configurations assertion
-#ifndef PINOUT_LAUNCHPAD
-#ifndef PINOUT_RBL_WIFIMINI
-#error No pinout was specified: please add the appropriate preprocessor define to your compile command (PINOUT_LAUNCHPAD or PINOUT_RBL_WIFIMINI)
-#endif //PINOUT_RBL_WIFIMINI
-#endif //PINOUT_LAUNCHPAD
+#ifndef BOARD_LAUNCHPAD
+#ifndef BOARD_RBL_WIFIMINI
+#error No board type was specified: please add the appropriate preprocessor define to your compile command (BOARD_LAUNCHPAD or BOARD_RBL_WIFIMINI)
+#endif //BOARD_RBL_WIFIMINI
+#endif //BOARD_LAUNCHPAD
 
 #endif

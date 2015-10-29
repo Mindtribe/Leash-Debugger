@@ -12,12 +12,12 @@
 #include "ui.h"
 #include "gpio_al.h"
 
-#ifdef PINOUT_LAUNCHPAD
+#ifdef BOARD_LAUNCHPAD
 const unsigned char switch_GPIOs[NUM_SWITCHES] = {
     13
 };
 #endif
-#ifdef PINOUT_RBL_WIFIMINI
+#ifdef BOARD_RBL_WIFIMINI
 const unsigned char switch_GPIOs[NUM_SWITCHES] = {
     22
 };

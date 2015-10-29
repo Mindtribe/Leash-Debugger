@@ -17,7 +17,7 @@
 
 extern const unsigned long gpioRegs[];
 
-#ifdef PINOUT_RBL_WIFIMINI
+#ifdef BOARD_RBL_WIFIMINI
 #define LED_ACTIVE_LOW //if defined, this sets LEDs to "active low".
 #endif
 

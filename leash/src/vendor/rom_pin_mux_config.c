@@ -73,7 +73,7 @@ void PinMuxConfig(void)
     //
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
 
-#ifdef PINOUT_LAUNCHPAD
+#ifdef BOARD_LAUNCHPAD
     //
     // Configure PIN_06 for GPIO Output (TDI)
     //
@@ -129,7 +129,7 @@ void PinMuxConfig(void)
     MAP_GPIODirModeSet(GPIOA2_BASE, 0x1, GPIO_DIR_MODE_OUT);
 #endif
 
-#ifdef PINOUT_RBL_WIFIMINI
+#ifdef BOARD_RBL_WIFIMINI
 
     //
     // Configure PIN_03 for GPIO Input (TDO)

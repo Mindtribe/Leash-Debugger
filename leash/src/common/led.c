@@ -26,18 +26,18 @@ struct led_state_t{
 
 static struct led_state_t led_state[NUM_LEDS] = {{0}};
 
-#ifdef PINOUT_LAUNCHPAD
+#ifdef BOARD_LAUNCHPAD
 static const char ledGPIOs[NUM_LEDS] = {
     11, //Green
     10, //Orange
     9 //Red
 };
 #endif
-#ifdef PINOUT_RBL_WIFIMINI
+#ifdef BOARD_RBL_WIFIMINI
 static const char ledGPIOs[NUM_LEDS] = {
-    30, //Green
-    0, //Orange
-    0 //Red
+    30, //Orange
+    0,
+    0
 };
 #endif
 
@@ -55,9 +55,9 @@ void ClearLED(unsigned int id){
 
 void InitLED(void)
 {
-    GPIO_SET_PIN(ledGPIOs[LED_GREEN], 0);
-    GPIO_SET_PIN(ledGPIOs[LED_ORANGE], 0);
-    GPIO_SET_PIN(ledGPIOs[LED_RED], 0);
+    GPIO_SET_PIN(ledGPIOs[LED_1], 0);
+    GPIO_SET_PIN(ledGPIOs[LED_3], 0);
+    GPIO_SET_PIN(ledGPIOs[LED_2], 0);
 
     for(int i=0; i<NUM_LEDS; i++) {led_state[i].blink_bit = 1;}
 

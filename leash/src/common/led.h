@@ -12,9 +12,9 @@
 #define LED_H_
 
 enum LED_ID{
-    LED_GREEN = 0,
-    LED_ORANGE,
-    LED_RED,
+    LED_1 = 0,
+    LED_3,
+    LED_2,
     NUM_LEDS
 };
 
